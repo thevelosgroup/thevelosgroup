@@ -87,6 +87,12 @@ async function st(table, id, v){
   const {error} = await db.from(table).update({status:v}).eq('id', id);
   toast(error ? error.message : 'Saved', !!error);
 }
+async function recPay(id, total, dep){
+  const v = Number($('#pay-'+id).value); if(isNaN(v) || v < 0 || $('#pay-'+id).value === '') return toast('Enter the total amount received', true);
+  const ps = total > 0 && v >= total ? 'paid' : (dep > 0 && v >= dep ? 'deposit_paid' : (v > 0 ? 'part_paid' : 'unpaid'));
+  const {error} = await db.from('orders').update({amount_paid_ugx:v, payment_status:ps}).eq('id', id);
+  toast(error ? error.message : 'Payment recorded: ' + ps, !!error); if(!error) go('orders');
+}
 async function stf(table, id, f, v){ const {error} = await db.from(table).update({[f]:v}).eq('id', id); toast(error ? error.message : 'Saved', !!error); }
 const sel = (table, id, cur, opts) => `<select class="sm" onchange="st('${table}','${id}',this.value)">${opts.map(o=>`<option ${o===cur?'selected':''}>${o}</option>`).join('')}</select>`;
 
@@ -105,7 +111,8 @@ const VIEWS = {
       <div class="row"><b class="gold">#${o.order_no}</b>${sel('orders',o.id,o.status,['new','confirmed','dispatched','delivered','cancelled'])}</div>
       <div>${esc(o.customer_name)} · <a href="${wa(o.customer_phone)}" target="_blank">${esc(o.customer_phone)}</a></div>
       <div class="mut">${esc(o.delivery_address||'')}${o.customer_email?' · '+esc(o.customer_email):''}</div>
-      <div class="row"><span class="mut">Payment: ${esc(o.payment_method||'—')}</span><select class="sm" onchange="stf('orders','${o.id}','payment_status',this.value)">${['unpaid','paid','refunded'].map(x=>`<option ${x===(o.payment_status||'unpaid')?'selected':''}>${x}</option>`).join('')}</select></div>
+      <div class="mut">Payment: ${esc(o.payment_method||'—')} · Total ${ugx(o.total_ugx)}${o.deposit_required_ugx?' · 30% deposit '+ugx(o.deposit_required_ugx):''} · Paid ${ugx(o.amount_paid_ugx||0)} · <b class="gold">Balance ${ugx(Math.max(0,(o.total_ugx||0)-(o.amount_paid_ugx||0)))}</b></div>
+      <div class="row"><span>${['unpaid','part_paid','deposit_paid','paid','refunded'].map(x=>x===(o.payment_status||'unpaid')?`<span class="pill gold">${x}</span>`:'').join('')}</span><span><input class="sm" id="pay-${o.id}" type="number" placeholder="Total received UGX" style="width:150px"> <button onclick="recPay('${o.id}',${o.total_ugx||0},${o.deposit_required_ugx||0})">Record</button></span></div>
       <div class="mut">${o.order_items.map(i=>`${esc(i.product_name)} ×${i.qty}`).join('<br>')}</div>
       <div class="row"><b>${ugx(o.total_ugx)}</b><span class="mut">${dt(o.created_at)}</span></div></div>`).join('') : '<p class="mut">No orders yet.</p>');
   },

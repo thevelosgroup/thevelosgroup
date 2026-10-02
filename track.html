@@ -1,0 +1,50 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Track your order | The Velos Group</title><meta name="robots" content="noindex">
+<style>
+:root{--bg:#080d1f;--card:#0f1730;--line:#2a3560;--gold:#e8c766;--txt:#f4f1ea;--mut:#8a93ab;--ok:#7fd99a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 Inter,system-ui,sans-serif}
+.w{max-width:520px;margin:0 auto;padding:22px 16px}h1{font-family:Georgia,serif;color:var(--gold);margin:0 0 4px}
+.c{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:14px 0}
+input{width:100%;padding:12px;margin:6px 0;background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:8px;font:inherit}
+button,a.b{display:block;text-align:center;width:100%;padding:13px;border:0;border-radius:8px;background:var(--gold);color:#080d1f;font-weight:700;margin-top:8px;text-decoration:none;cursor:pointer;font-size:15px}
+.m{color:var(--mut);font-size:13px}.st{display:flex;gap:12px;margin:0 0 4px}.dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);flex:none;margin-top:2px}
+.on .dot{background:var(--ok);border-color:var(--ok)}.now .dot{background:var(--gold);border-color:var(--gold)}.st b{display:block}.st:not(.on):not(.now){opacity:.5}
+.row{display:flex;justify-content:space-between;gap:8px}.bad{color:#ff8a80}
+</style></head><body><div class="w">
+<h1>Track your order</h1><div class="m">The Velos Group · Velos Global Shop</div>
+<div class="c"><input id="o" inputmode="numeric" placeholder="Order number (e.g. 1005)"><input id="p" type="tel" placeholder="Phone number used on the order"><button onclick="go()">Check status</button><div id="e" class="m bad"></div></div>
+<div id="r"></div>
+<a class="b" style="background:none;border:1px solid var(--line);color:var(--txt)" href="shop.html">Back to shop</a>
+</div>
+<script src="supabase-config.js"></script>
+<script>
+var $=function(i){return document.getElementById(i)};
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
+var ugx=function(n){return 'UGX '+Number(n||0).toLocaleString('en-US')};
+var STEPS=[['new','Order received','We have your order and will contact you shortly.'],['confirmed','Confirmed','Your order is confirmed and being prepared.'],['dispatched','Out for delivery','Your order is on its way.'],['delivered','Delivered','Completed. Thank you for shopping with Velos!']];
+try{var c=JSON.parse(localStorage.getItem('velosContact')||'{}');if(c.p)$('p').value=c.p;}catch(e){}
+var q=new URLSearchParams(location.search);if(q.get('o'))$('o').value=q.get('o');
+function go(){
+  $('e').textContent='';$('r').innerHTML='';
+  var no=parseInt($('o').value,10),ph=$('p').value.trim();
+  if(!no||ph.length<7){$('e').textContent='Enter your order number and phone number.';return;}
+  var S=window.VELOS_SUPABASE;
+  fetch(S.url+'/rest/v1/rpc/track_order',{method:'POST',headers:{apikey:S.key,'Content-Type':'application/json'},body:JSON.stringify({p_order_no:no,p_phone:ph})})
+  .then(function(r){if(!r.ok)throw new Error('Service unavailable');return r.json()})
+  .then(function(o){
+    if(!o){$('e').textContent='No order found. Check the order number and the phone number you used.';return;}
+    var idx=STEPS.findIndex(function(s){return s[0]===o.status}),h='';
+    if(o.status==='cancelled'){h+='<div class="c"><b class="bad">This order was cancelled.</b><div class="m">Contact us if this is unexpected.</div></div>';}
+    else{h+='<div class="c"><b>Order #'+o.order_no+'</b><div class="m">Placed '+new Date(o.created_at).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})+'</div><br>'
+      +STEPS.map(function(s,i){return '<div class="st '+(i<idx?'on':(i===idx?(idx===3?'on':'now'):''))+'"><span class="dot"></span><div><b>'+s[1]+'</b><span class="m">'+(i===idx?s[2]:'')+'</span></div></div>'}).join('')+'</div>';}
+    var bal=Math.max(0,(o.total||0)-(o.paid||0));
+    h+='<div class="c"><b>Payment</b><div class="row m"><span>Total</span><span>'+ugx(o.total)+'</span></div>'
+      +(o.deposit?'<div class="row m"><span>30% deposit required</span><span>'+ugx(o.deposit)+'</span></div>':'')
+      +'<div class="row m"><span>Received</span><span>'+ugx(o.paid)+'</span></div><div class="row"><b>Balance due</b><b>'+ugx(bal)+'</b></div>'
+      +'<div class="m">Method: '+esc(o.payment_method||'—')+' · Status: '+esc(o.payment_status)+(o.deposit&&o.status!=='delivered'?'<br>Balance is paid on delivery.':'')+'</div></div>'
+      +'<div class="c"><b>Items</b>'+o.items.map(function(i){return '<div class="row m"><span>'+esc(i.name)+' ×'+i.qty+'</span><span>'+(i.price?ugx(i.price*i.qty):'Quote')+'</span></div>'}).join('')+'</div>';
+    $('r').innerHTML=h;
+  }).catch(function(){$('e').textContent='Could not load right now. Please try again.';});
+}
+if($('o').value&&$('p').value)go();
+</script></body></html>
