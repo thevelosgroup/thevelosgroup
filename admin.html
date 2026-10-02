@@ -87,6 +87,7 @@ async function st(table, id, v){
   const {error} = await db.from(table).update({status:v}).eq('id', id);
   toast(error ? error.message : 'Saved', !!error);
 }
+async function stf(table, id, f, v){ const {error} = await db.from(table).update({[f]:v}).eq('id', id); toast(error ? error.message : 'Saved', !!error); }
 const sel = (table, id, cur, opts) => `<select class="sm" onchange="st('${table}','${id}',this.value)">${opts.map(o=>`<option ${o===cur?'selected':''}>${o}</option>`).join('')}</select>`;
 
 const VIEWS = {
@@ -103,6 +104,8 @@ const VIEWS = {
     $('#view').innerHTML = '<h2>Orders</h2>' + (data.length ? data.map(o => `<div class="card">
       <div class="row"><b class="gold">#${o.order_no}</b>${sel('orders',o.id,o.status,['new','confirmed','dispatched','delivered','cancelled'])}</div>
       <div>${esc(o.customer_name)} · <a href="${wa(o.customer_phone)}" target="_blank">${esc(o.customer_phone)}</a></div>
+      <div class="mut">${esc(o.delivery_address||'')}${o.customer_email?' · '+esc(o.customer_email):''}</div>
+      <div class="row"><span class="mut">Payment: ${esc(o.payment_method||'—')}</span><select class="sm" onchange="stf('orders','${o.id}','payment_status',this.value)">${['unpaid','paid','refunded'].map(x=>`<option ${x===(o.payment_status||'unpaid')?'selected':''}>${x}</option>`).join('')}</select></div>
       <div class="mut">${o.order_items.map(i=>`${esc(i.product_name)} ×${i.qty}`).join('<br>')}</div>
       <div class="row"><b>${ugx(o.total_ugx)}</b><span class="mut">${dt(o.created_at)}</span></div></div>`).join('') : '<p class="mut">No orders yet.</p>');
   },
