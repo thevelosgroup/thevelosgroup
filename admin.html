@@ -76,7 +76,7 @@ async function boot(){
   go('home');
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['report','Sales'],['products','Products'],['techs','Technicians'],['dispatch','Dispatch'],['inq','Inquiries'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['report','Sales'],['products','Products'],['techs','Technicians'],['service','Services'],['inq','Inquiries'],['import','Import']];
 async function go(k){
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.id === 'n-'+k));
   $('#view').innerHTML = '<p class="mut">Loading…</p>';
@@ -86,6 +86,14 @@ async function go(k){
 async function st(table, id, v){
   const {error} = await db.from(table).update({status:v}).eq('id', id);
   toast(error ? error.message : 'Saved', !!error);
+}
+const STL = {new:'received',confirmed:'confirmed',dispatched:'out for delivery',delivered:'delivered',cancelled:'cancelled'};
+const ntf = (p, txt) => 'https://wa.me/' + String(p||'').replace(/\D/g,'') + '?text=' + encodeURIComponent(txt);
+const tbase = () => location.href.replace(/admin\.html.*$/, '') + 'track.html';
+async function assignT(id){
+  const v = $('#as-'+id).value; if(!v) return toast('Choose a technician first', true);
+  const {error} = await db.from('service_requests').update({assigned_to:v, status:'assigned'}).eq('id', id);
+  toast(error ? error.message : 'Technician assigned', !!error); if(!error) go('service');
 }
 async function recPay(id, total, dep){
   const v = Number($('#pay-'+id).value); if(isNaN(v) || v < 0 || $('#pay-'+id).value === '') return toast('Enter the total amount received', true);
@@ -99,9 +107,9 @@ const sel = (table, id, cur, opts) => `<select class="sm" onchange="st('${table}
 const VIEWS = {
   async home(){
     const n = async (t, f) => { let q = db.from(t).select('*', {count:'exact', head:true}); if(f) q = q.eq('status', f); return (await q).count ?? 0; };
-    const [o,d,t,i,p] = await Promise.all([n('orders','new'), n('dispatch_requests','new'), n('technician_applications','pending'), n('inquiries','new'), n('products')]);
+    const [o,d,t,i,p] = await Promise.all([n('orders','new'), n('service_requests','new'), n('technician_applications','pending'), n('inquiries','new'), n('products')]);
     const S = (v,l,k) => `<div class="card stat" onclick="go('${k}')"><b>${v}</b><span class="mut">${l}</span></div>`;
-    $('#view').innerHTML = `<h2>Overview</h2><div class="stats">${S(o,'New orders','orders')}${S(d,'New dispatch requests','dispatch')}${S(t,'Pending technicians','techs')}${S(i,'New inquiries','inq')}${S(p,'Products','products')}</div>`;
+    $('#view').innerHTML = `<h2>Overview</h2><div class="stats">${S(o,'New orders','orders')}${S(d,'New service requests','service')}${S(t,'Pending technicians','techs')}${S(i,'New inquiries','inq')}${S(p,'Products','products')}</div>`;
   },
 
   async orders(){
@@ -114,7 +122,8 @@ const VIEWS = {
       <div class="mut">Payment: ${esc(o.payment_method||'—')} · Total ${ugx(o.total_ugx)}${o.deposit_required_ugx?' · 30% deposit '+ugx(o.deposit_required_ugx):''} · Paid ${ugx(o.amount_paid_ugx||0)} · <b class="gold">Balance ${ugx(Math.max(0,(o.total_ugx||0)-(o.amount_paid_ugx||0)))}</b></div>
       <div class="row"><span>${['unpaid','part_paid','deposit_paid','paid','refunded'].map(x=>x===(o.payment_status||'unpaid')?`<span class="pill gold">${x}</span>`:'').join('')}</span><span><input class="sm" id="pay-${o.id}" type="number" placeholder="Total received UGX" style="width:150px"> <button onclick="recPay('${o.id}',${o.total_ugx||0},${o.deposit_required_ugx||0})">Record</button></span></div>
       <div class="mut">${o.order_items.map(i=>`${esc(i.product_name)} ×${i.qty}`).join('<br>')}</div>
-      <div class="row"><b>${ugx(o.total_ugx)}</b><span class="mut">${dt(o.created_at)}</span></div></div>`).join('') : '<p class="mut">No orders yet.</p>');
+      <div class="row"><b>${ugx(o.total_ugx)}</b><span class="mut">${dt(o.created_at)}</span></div>
+      <a href="${ntf(o.customer_phone, `Hello ${o.customer_name}, your Velos Order #${o.order_no} is now ${(STL[o.status]||o.status)}. Track it anytime: ${tbase()}?o=${o.order_no}`)}" target="_blank">💬 Notify customer on WhatsApp</a></div>`).join('') : '<p class="mut">No orders yet.</p>');
   },
 
   async products(){
@@ -142,6 +151,26 @@ const VIEWS = {
       <div><a href="${wa(t.phone)}" target="_blank">${esc(t.phone)}</a> · ${esc(t.email||'')}</div>
       <div class="mut">National ID: ${esc(t.national_id)}<br>Reference: ${esc(t.ref_name)} (${esc(t.ref_phone)})<br>${esc(t.notes||'')}</div>
       <div class="mut">${dt(t.created_at)}</div></div>`).join('') : '<p class="mut">No applications yet.</p>');
+  },
+
+  async service(){
+    const [a, b] = await Promise.all([db.from('service_requests').select('*').order('created_at',{ascending:false}).limit(100),
+      db.from('technician_applications').select('id,full_name,phone,trade,country,city,area').eq('status','verified')]);
+    if(a.error) throw a.error; const TS = b.data || [];
+    const near = (r,t) => t.country === r.country && [t.city,t.area].some(x => x && [r.town,r.region].some(y => y && (y.toLowerCase().includes(x.toLowerCase()) || x.toLowerCase().includes(y.toLowerCase()))));
+    $('#view').innerHTML = '<h2>Service requests</h2>' + (a.data.length ? a.data.map(r => {
+      const opts = TS.slice().sort((x,y) => near(r,y) - near(r,x)).map(t => `<option value="${t.id}" ${t.id===r.assigned_to?'selected':''}>${near(r,t)?'★ ':''}${esc(t.full_name)} · ${esc(t.trade)} · ${esc(t.city)}</option>`).join('');
+      const tech = TS.find(t => t.id === r.assigned_to);
+      const map = r.lat ? `https://www.google.com/maps?q=${r.lat},${r.lng}` : `https://www.google.com/maps/search/${encodeURIComponent([r.address,r.town,r.region,r.country].filter(Boolean).join(', '))}`;
+      return `<div class="card"><div class="row"><b class="gold">S${r.req_no}</b>${sel('service_requests',r.id,r.status,['new','reviewing','assigned','on_the_way','in_progress','completed','cancelled'])}</div>
+        <div><b>${esc(r.service)}</b> ${r.urgency!=='standard'?`<span class="pill" style="color:var(--bad)">${esc(r.urgency).toUpperCase()}</span>`:''}</div>
+        <div>${esc(r.customer_name)} · <a href="${wa(r.customer_phone)}" target="_blank">${esc(r.customer_phone)}</a> <span class="mut">(${esc(r.contact_pref||'')})</span></div>
+        <div class="mut">📍 ${esc([r.address,r.town,r.region,r.country].filter(Boolean).join(', '))} · <a href="${map}" target="_blank">Open map</a></div>
+        <div class="mut">🕒 ${esc(r.preferred_date||'Any day')} · ${esc(r.preferred_window||'')}</div><div>${esc(r.description)}</div>
+        <div class="row"><select class="sm" id="as-${r.id}" style="flex:1"><option value="">— Assign technician —</option>${opts}</select><button onclick="assignT('${r.id}')">Assign</button></div>
+        <div class="row">${tech ? `<a href="${ntf(tech.phone, `Velos job S${r.req_no}: ${r.service} (${r.urgency}). Location: ${[r.address,r.town,r.region].filter(Boolean).join(', ')} ${map}. Client: ${r.customer_name} ${r.customer_phone}. Preferred: ${r.preferred_date||'any day'} ${r.preferred_window||''}. Issue: ${r.description}`)}" target="_blank">📤 Send job to ${esc(tech.full_name)}</a>` : '<span class="mut">No technician assigned yet</span>'}
+        <a href="${ntf(r.customer_phone, `Hello ${r.customer_name}, your Velos service request S${r.req_no} is now ${r.status.replace('_',' ')}. Track it anytime: ${tbase()}?o=S${r.req_no}`)}" target="_blank">💬 Notify customer</a></div>
+        <div class="mut">${dt(r.created_at)}</div></div>`; }).join('') : '<p class="mut">No service requests yet.</p>');
   },
 
   async dispatch(){

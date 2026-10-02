@@ -1,0 +1,88 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Book a Service | The Velos Group</title><meta name="description" content="Book verified technicians across Uganda and East Africa: inspections, repairs, solar, security and more.">
+<style>
+:root{--bg:#080d1f;--card:#0f1730;--line:#2a3560;--gold:#e8c766;--txt:#f4f1ea;--mut:#8a93ab;--ok:#7fd99a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 Inter,system-ui,sans-serif}
+.w{max-width:560px;margin:0 auto;padding:22px 16px 60px}h1{font-family:Georgia,serif;color:var(--gold);margin:0 0 4px}
+.c{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:14px 0}.c>b{display:block;margin-bottom:6px}
+input,select,textarea{width:100%;padding:12px;margin:5px 0;background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:8px;font:inherit}
+textarea{min-height:110px}.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button,a.b{display:block;text-align:center;width:100%;padding:14px;border:0;border-radius:8px;background:var(--gold);color:#080d1f;font-weight:700;margin-top:8px;text-decoration:none;cursor:pointer;font-size:15px}
+button.g,a.g{background:none;border:1px solid var(--line);color:var(--txt)}.m{color:var(--mut);font-size:13px}.bad{color:#ff8a80}
+.u{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.u label{border:1px solid var(--line);border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;font-size:13px}
+.u input{display:none}.u input:checked+span{color:var(--gold);font-weight:700}.u label:has(input:checked){border-color:var(--gold)}
+.hp{position:absolute;left:-9999px}
+</style></head><body><div class="w">
+<h1>Book a service</h1><div class="m">Global Services · Uganda &amp; East Africa · every technician ID-verified</div>
+<div id="f">
+<div class="c"><b>1 · What do you need?</b><select id="sv"></select>
+<div class="u" style="margin-top:8px"><label><input type="radio" name="ur" value="standard" checked><span>Standard</span></label><label><input type="radio" name="ur" value="urgent"><span>Urgent</span></label><label><input type="radio" name="ur" value="emergency"><span>Emergency</span></label></div></div>
+<div class="c"><b>2 · Describe the problem</b><textarea id="ds" placeholder="What is happening? Since when? Any damage or safety risk?"></textarea></div>
+<div class="c"><b>3 · Where is the job?</b>
+<div class="g2"><select id="co"></select><select id="rg"></select></div>
+<input id="tw" placeholder="Town / area / neighbourhood *"><input id="ad" placeholder="Street, landmark or building (optional)">
+<button type="button" class="g" id="gps">📍 Use my current location</button><div id="gm" class="m">Sharing your GPS pin helps us send the nearest technician.</div></div>
+<div class="c"><b>4 · When are you available?</b><div class="g2"><input id="dt" type="date"><select id="wn"><option>Anytime</option><option>Morning (8am–12pm)</option><option>Afternoon (12pm–5pm)</option><option>Evening (5pm–8pm)</option></select></div></div>
+<div class="c"><b>5 · Your contact</b><input id="nm" placeholder="Full name *"><input id="ph" type="tel" placeholder="WhatsApp / phone number *"><input id="em" type="email" placeholder="Email (optional)">
+<select id="cp"><option value="whatsapp">Contact me on WhatsApp</option><option value="call">Call me</option><option value="sms">SMS me</option><option value="email">Email me</option></select></div>
+<input class="hp" id="hp" tabindex="-1" autocomplete="off">
+<button id="go">Submit request</button><div id="e" class="m bad"></div>
+<div class="m" style="margin-top:10px">Your details are used only to arrange this service. Pricing is confirmed with you before any work starts.</div></div>
+<div id="ok" hidden><div class="c"><h1 id="okh"></h1><p id="okp"></p><a class="b" id="okt">Track my request</a><a class="b g" id="okw" target="_blank" rel="noopener">Also message us on WhatsApp (optional)</a><a class="b g" href="services.html">Back to services</a></div></div>
+</div>
+<script src="supabase-config.js"></script>
+<script>
+var $=function(i){return document.getElementById(i)};
+var SV=['Site Inspection (Diaspora Oversight)','Project Rescue','24/7 Emergency Repair','Facility Maintenance Retainer','Pre-Purchase Inspection','Smart Security & Wi-Fi','Solar, Generators & Electrical','Turnkey Property Management','Post-Construction Cleaning','Other / not sure'];
+var L={
+'Uganda':['Kampala','Wakiso','Mukono','Jinja','Mbale','Gulu','Lira','Mbarara','Masaka','Kabarole (Fort Portal)','Arua','Hoima','Kabale','Soroti','Kasese','Iganga','Tororo','Busia','Kitgum','Masindi','Ntungamo','Bushenyi','Rukungiri','Kamuli','Mityana','Mpigi','Luwero','Kayunga','Buikwe','Kisoro','Moroto','Adjumani','Apac','Nebbi','Other district'],
+'Kenya':['Nairobi','Mombasa','Kisumu','Nakuru','Kiambu','Machakos','Kajiado','Uasin Gishu (Eldoret)','Kakamega','Bungoma','Busia','Kisii','Meru','Nyeri','Kilifi','Kwale','Garissa','Turkana','Other county'],
+'Tanzania':['Dar es Salaam','Arusha','Dodoma','Mwanza','Mbeya','Morogoro','Tanga','Kilimanjaro','Kagera','Zanzibar (Mjini Magharibi)','Other region'],
+'Rwanda':['Kigali City','Eastern','Northern','Southern','Western'],
+'Burundi':['Bujumbura Mairie','Gitega','Ngozi','Other province'],
+'South Sudan':['Central Equatoria (Juba)','Eastern Equatoria','Western Equatoria','Jonglei','Upper Nile','Other state'],
+'Ethiopia':['Addis Ababa','Oromia','Amhara','Sidama','Other region'],
+'DR Congo (East)':['North Kivu','South Kivu','Ituri','Other province']};
+$('sv').innerHTML=SV.map(function(s,i){return '<option value="'+s+'">'+s+'</option>'}).join('');
+$('co').innerHTML=Object.keys(L).map(function(c){return '<option>'+c+'</option>'}).join('');
+function regs(){$('rg').innerHTML=L[$('co').value].map(function(r){return '<option>'+r+'</option>'}).join('');}
+$('co').onchange=regs;regs();
+var q=new URLSearchParams(location.search),s=parseInt(q.get('s'),10);
+if(s>=1&&s<=10)$('sv').selectedIndex=s-1;
+if(q.get('u')==='emergency')document.querySelector('input[value=emergency]').checked=true;
+$('dt').min=new Date().toISOString().slice(0,10);
+var lat=null,lng=null;
+try{var c=JSON.parse(localStorage.getItem('velosContact')||'{}');$('nm').value=c.n||'';$('ph').value=c.p||'';$('em').value=c.e||'';}catch(e){}
+$('gps').onclick=function(){
+  if(!navigator.geolocation){$('gm').textContent='GPS is not available on this device. Please type your area above.';return;}
+  $('gm').textContent='Getting your location…';
+  navigator.geolocation.getCurrentPosition(function(p){lat=+p.coords.latitude.toFixed(5);lng=+p.coords.longitude.toFixed(5);$('gm').textContent='Location pinned ✓ ('+lat+', '+lng+')';},
+  function(){$('gm').textContent='Could not get your location. You can still type your area above.';},{enableHighAccuracy:true,timeout:15000});
+};
+$('go').onclick=function(){
+  $('e').textContent='';
+  if($('hp').value){return done(0);}
+  var d={p_service:$('sv').value,p_description:$('ds').value.trim(),p_urgency:document.querySelector('input[name=ur]:checked').value,p_name:$('nm').value.trim(),p_phone:$('ph').value.trim(),
+    p_email:$('em').value.trim(),p_contact_pref:$('cp').value,p_country:$('co').value,p_region:$('rg').value,p_town:$('tw').value.trim(),p_address:$('ad').value.trim(),p_lat:lat,p_lng:lng,
+    p_date:$('dt').value||null,p_window:$('wn').value};
+  if(d.p_description.length<10){$('e').textContent='Please describe the problem in a few words.';return;}
+  if(!d.p_town){$('e').textContent='Please enter your town or area.';return;}
+  if(d.p_name.length<2||d.p_phone.length<7){$('e').textContent='Please enter your name and phone number.';return;}
+  this.disabled=true;this.textContent='Submitting…';var b=this;
+  var S=window.VELOS_SUPABASE;
+  fetch(S.url+'/rest/v1/rpc/submit_service_request',{method:'POST',headers:{apikey:S.key,'Content-Type':'application/json'},body:JSON.stringify(d)})
+  .then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.message||'Could not submit');return j})})
+  .then(function(no){
+    try{localStorage.setItem('velosContact',JSON.stringify({n:d.p_name,p:d.p_phone,e:d.p_email,a:d.p_town}));localStorage.setItem('velosLast','S'+no);}catch(e){}
+    done(no,d);
+  }).catch(function(e){b.disabled=false;b.textContent='Submit request';$('e').textContent=String(e.message).slice(0,160)+' — please try again or WhatsApp us.';});
+};
+function done(no,d){
+  $('f').hidden=true;$('ok').hidden=false;
+  $('okh').textContent='Request S'+no+' received ✓';
+  $('okp').textContent='Thank you. Our dispatch desk will review it and contact you'+(d?' on '+d.p_phone:'')+' shortly. Keep your request number to track progress.';
+  $('okt').href='track.html?o=S'+no;
+  var m='Hello Velos Global Services, I submitted service request S'+no+' on the website'+(d?' ('+d.p_service+', '+d.p_town+').':'.');
+  $('okw').href='https://wa.me/256755215751?text='+encodeURIComponent(m);
+}
+</script></body></html>

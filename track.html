@@ -12,7 +12,7 @@ button,a.b{display:block;text-align:center;width:100%;padding:13px;border:0;bord
 .row{display:flex;justify-content:space-between;gap:8px}.bad{color:#ff8a80}
 </style></head><body><div class="w">
 <h1>Track your order</h1><div class="m">The Velos Group · Velos Global Shop</div>
-<div class="c"><input id="o" inputmode="numeric" placeholder="Order number (e.g. 1005)"><input id="p" type="tel" placeholder="Phone number used on the order"><button onclick="go()">Check status</button><div id="e" class="m bad"></div></div>
+<div class="c"><input id="o" placeholder="Order number (1005) or request (S2001)"><input id="p" type="tel" placeholder="Phone number used on the order"><button onclick="go()">Check status</button><div id="e" class="m bad"></div></div>
 <div id="r"></div>
 <a class="b" style="background:none;border:1px solid var(--line);color:var(--txt)" href="shop.html">Back to shop</a>
 </div>
@@ -26,7 +26,8 @@ try{var c=JSON.parse(localStorage.getItem('velosContact')||'{}');if(c.p)$('p').v
 var q=new URLSearchParams(location.search);if(q.get('o'))$('o').value=q.get('o');
 function go(){
   $('e').textContent='';$('r').innerHTML='';
-  var no=parseInt($('o').value,10),ph=$('p').value.trim();
+  var raw=$('o').value.trim();if(/^s\d+/i.test(raw)){return svc(parseInt(raw.slice(1),10),$('p').value.trim());}
+  var no=parseInt(raw,10),ph=$('p').value.trim();
   if(!no||ph.length<7){$('e').textContent='Enter your order number and phone number.';return;}
   var S=window.VELOS_SUPABASE;
   fetch(S.url+'/rest/v1/rpc/track_order',{method:'POST',headers:{apikey:S.key,'Content-Type':'application/json'},body:JSON.stringify({p_order_no:no,p_phone:ph})})
@@ -43,6 +44,22 @@ function go(){
       +'<div class="row m"><span>Received</span><span>'+ugx(o.paid)+'</span></div><div class="row"><b>Balance due</b><b>'+ugx(bal)+'</b></div>'
       +'<div class="m">Method: '+esc(o.payment_method||'—')+' · Status: '+esc(o.payment_status)+(o.deposit&&o.status!=='delivered'?'<br>Balance is paid on delivery.':'')+'</div></div>'
       +'<div class="c"><b>Items</b>'+o.items.map(function(i){return '<div class="row m"><span>'+esc(i.name)+' ×'+i.qty+'</span><span>'+(i.price?ugx(i.price*i.qty):'Quote')+'</span></div>'}).join('')+'</div>';
+    $('r').innerHTML=h;
+  }).catch(function(){$('e').textContent='Could not load right now. Please try again.';});
+}
+var SST=[['new','Request received','We have your request and are reviewing it.'],['reviewing','Being reviewed','Our dispatch desk is matching the right technician.'],['assigned','Technician assigned','A verified technician has been assigned to you.'],['on_the_way','Technician on the way','Your technician is heading to you.'],['in_progress','Work in progress','Work is underway.'],['completed','Completed','Job completed. Thank you!']];
+function svc(no,ph){
+  if(!no||ph.length<7){$('e').textContent='Enter your request number and phone number.';return;}
+  var S=window.VELOS_SUPABASE;
+  fetch(S.url+'/rest/v1/rpc/track_service',{method:'POST',headers:{apikey:S.key,'Content-Type':'application/json'},body:JSON.stringify({p_req_no:no,p_phone:ph})})
+  .then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(o){
+    if(!o){$('e').textContent='No request found. Check the number and the phone you used.';return;}
+    var idx=SST.findIndex(function(s){return s[0]===o.status}),h='';
+    if(o.status==='cancelled')h+='<div class="c"><b class="bad">This request was cancelled.</b></div>';
+    else h+='<div class="c"><b>Request S'+o.req_no+'</b><div class="m">'+esc(o.service)+' · '+esc(o.urgency)+'</div><br>'+SST.map(function(s,i){return '<div class="st '+(i<idx?'on':(i===idx?(idx===5?'on':'now'):''))+'"><span class="dot"></span><div><b>'+s[1]+'</b><span class="m">'+(i===idx?s[2]:'')+'</span></div></div>'}).join('')+'</div>';
+    h+='<div class="c"><div class="row m"><span>Location</span><span>'+esc([o.town,o.region,o.country].filter(Boolean).join(', '))+'</span></div>'
+      +(o.preferred_date?'<div class="row m"><span>Preferred time</span><span>'+esc(o.preferred_date+' · '+(o.preferred_window||''))+'</span></div>':'')
+      +(o.technician?'<div class="row m"><span>Technician</span><span>'+esc(o.technician)+' (ID-verified)</span></div>':'')+'</div>';
     $('r').innerHTML=h;
   }).catch(function(){$('e').textContent='Could not load right now. Please try again.';});
 }

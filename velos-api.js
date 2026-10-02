@@ -98,6 +98,7 @@ function checkout(items, onDone){
           + (dep ? '<br><br><b style="color:#e8c766">Deposit to confirm: ' + formatUGX(dep) + '</b> (30%). The balance of ' + formatUGX(t.total - dep) + ' is paid on delivery.' : '')
           + '<br><br>Keep your order number <b>#' + no + '</b> to track progress.</div>',
           '<a class="vb go" href="track.html?o=' + no + '">Track my order</a><a class="vb cx" target="_blank" rel="noopener" href="' + waLink(msg) + '">Also message us on WhatsApp (optional)</a>');
+        try { localStorage.setItem('velosLast', 'O' + no); } catch(x){}
         onDone && onDone();
       })
       .catch(function(err){
@@ -126,7 +127,7 @@ function failModal(err, wa){
     '<div class="sum" style="font-size:15px;color:#f4f1ea">Please use WhatsApp so nothing is lost.<br><span style="font-size:12px;color:#8a93ab">' + esc(String(err.message).slice(0, 140)) + '</span></div>',
     '<a class="vb go" target="_blank" rel="noopener" href="' + waLink(wa) + '">Send on WhatsApp</a>');
 }
-if(window.sendInquiry) window.sendInquiry = function(){
+window.v_sendInquiry = window.sendInquiry = function(){
   var n = val('inqName'), ph = val('inqPhone'), dv = val('inqDivision'), m = val('inqMsg');
   if(!n || !m){ alert('Please enter your name and a short message.'); return; }
   var wa = 'Hello Velos Group Dispatch Desk,\n\nName: ' + n + '\nPhone: ' + ph + '\nDivision: ' + dv + '\n\nMessage: ' + m;
@@ -136,7 +137,7 @@ if(window.sendInquiry) window.sendInquiry = function(){
     var f = document.getElementById('inqMsg'); if(f) f.value = '';
   }).catch(function(e){ failModal(e, wa); });
 };
-if(window.sendTechRegistration) window.sendTechRegistration = function(){
+window.v_sendTechRegistration = window.sendTechRegistration = function(){
   var r = {name:val('techName'), phone:val('techPhone'), nin:val('techNIN'), country:val('techCountry'), city:val('techCity'), email:val('techEmail'), trade:val('techTrade'),
            exp:val('techExp'), loc:val('techLoc'), rn:val('techRefName'), rp:val('techRefPhone'), notes:val('techNotes')};
   if(!r.name || !r.phone || !r.nin || !r.country || !r.city || !r.trade || !r.exp || !r.loc || !r.rn || !r.rp){ alert('Please complete every required field before submitting.'); return; }
@@ -149,4 +150,28 @@ if(window.sendTechRegistration) window.sendTechRegistration = function(){
       '<a class="vb cx" target="_blank" rel="noopener" href="' + waLink(wa) + '">Also message us on WhatsApp (optional)</a>');
   }).catch(function(e){ failModal(e, wa); });
 };
+/* ---------- 4. PAGE TWEAKS ---------- */
+function dom(){
+  [['sendInquiry','Send inquiry'],['sendTechRegistration','Submit application']].forEach(function(p){
+    document.querySelectorAll('[onclick*="' + p[0] + '("]').forEach(function(e){
+      e.setAttribute('onclick', e.getAttribute('onclick').replace(p[0] + '(', 'v_' + p[0] + '(')); e.textContent = p[1];
+    });
+  });
+  document.querySelectorAll('[onclick*="sendCartOrder("]').forEach(function(e){ e.textContent = 'Place order'; });
+  if(document.body.getAttribute('data-page') === 'services'){
+    document.querySelectorAll('.service-card').forEach(function(c){
+      var n = (c.querySelector('.svc-num') || {}).textContent || '', m = n.match(/\d+/), a = c.querySelector('a.svc-link');
+      if(a && m){ a.href = 'book-service.html?s=' + parseInt(m[0], 10); a.removeAttribute('target'); var sp = a.querySelector('span'); if(sp) sp.textContent = 'Book this service'; var ic = a.querySelector('svg'); if(ic) ic.remove(); }
+    });
+    var b = document.querySelector('.dispatch-banner a.btn-primary');
+    if(b){ b.href = 'book-service.html?s=3&u=emergency'; b.removeAttribute('target'); }
+  }
+  var last = null; try { last = localStorage.getItem('velosLast'); } catch(x){}
+  if(last && !/track\.html|book-service/.test(location.pathname)){
+    var a = document.createElement('a'); a.href = 'track.html?o=' + last; a.textContent = 'Track ' + (last[0] === 'S' ? 'request ' : 'order #') + last.slice(1) + ' →';
+    a.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:9999;background:#0f1730;color:#e8c766;border:1px solid #2a3560;border-radius:99px;padding:9px 14px;font:600 13px system-ui;text-decoration:none';
+    document.body.appendChild(a);
+  }
+}
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', dom); else dom();
 })();
