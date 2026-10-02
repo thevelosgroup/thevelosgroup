@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><title>Velos Admin</title>
+<meta name="robots" content="noindex,nofollow"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://ptmedfjkapzqxltntynf.supabase.co; base-uri 'self'; form-action 'none'"><title>Velos Admin</title>
 <style>
 :root{--bg:#0c1226;--card:#141b34;--line:#26305a;--gold:#e8c766;--txt:#f4f1ea;--mut:#8a93ab;--ok:#7fd99a;--bad:#e6493f}
 *{box-sizing:border-box}body{margin:0;font:15px/1.45 system-ui,Arial,sans-serif;background:var(--bg);color:var(--txt)}
@@ -76,7 +76,7 @@ async function boot(){
   go('home');
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['report','Sales'],['products','Products'],['techs','Technicians'],['service','Services'],['inq','Inquiries'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['report','Sales'],['gifts','Gifts'],['products','Products'],['techs','Technicians'],['service','Services'],['inq','Inquiries'],['import','Import']];
 async function go(k){
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.id === 'n-'+k));
   $('#view').innerHTML = '<p class="mut">Loading…</p>';
@@ -90,6 +90,19 @@ async function st(table, id, v){
 const STL = {new:'received',confirmed:'confirmed',dispatched:'out for delivery',delivered:'delivered',cancelled:'cancelled'};
 const ntf = (p, txt) => 'https://wa.me/' + String(p||'').replace(/\D/g,'') + '?text=' + encodeURIComponent(txt);
 const tbase = () => location.href.replace(/admin\.html.*$/, '') + 'track.html';
+async function saveQuote(id){
+  const v = $('#q-'+id).value, {error} = await db.from('gift_requests').update({quote_ugx: v===''?null:Number(v)}).eq('id', id);
+  toast(error ? error.message : 'Quote saved', !!error);
+}
+async function docs(id){
+  const t = TD.find(x => x.id === id), box = $('#d-'+id); box.innerHTML = '<span class="mut">Opening…</span>';
+  const out = [];
+  for(const p of (t.doc_paths||[])){
+    const {data,error} = await db.storage.from('technician-docs').createSignedUrl(p, 300);
+    out.push(error ? `<div class="mut">${esc(p)}: ${esc(error.message)}</div>` : `<div><a href="${data.signedUrl}" target="_blank" rel="noopener">${esc(p.split('/').pop().split('-')[0] + ' — ' + p.split('.').pop())}</a></div>`);
+  }
+  box.innerHTML = out.join('') + '<div class="mut">Links expire in 5 minutes.</div>';
+}
 async function assignT(id){
   const v = $('#as-'+id).value; if(!v) return toast('Choose a technician first', true);
   const {error} = await db.from('service_requests').update({assigned_to:v, status:'assigned'}).eq('id', id);
@@ -144,13 +157,13 @@ const VIEWS = {
   async techs(){
     const {data,error} = await db.from('technician_applications').select('*').order('created_at',{ascending:false});
     if(error) throw error;
-    $('#view').innerHTML = '<h2>Technician applications</h2>' + (data.length ? data.map(t => `<div class="card">
+    window.TD = data; $('#view').innerHTML = '<h2>Technician applications</h2>' + (data.length ? data.map(t => `<div class="card">
       <div class="row"><b>${esc(t.full_name)}</b>${sel('technician_applications',t.id,t.status,['pending','verified','rejected','suspended'])}</div>
       <div>${esc(t.trade)} · ${esc(t.experience)}</div>
       <div class="mut">${esc(t.country)} / ${esc(t.city)} / ${esc(t.area)}</div>
       <div><a href="${wa(t.phone)}" target="_blank">${esc(t.phone)}</a> · ${esc(t.email||'')}</div>
       <div class="mut">National ID: ${esc(t.national_id)}<br>Reference: ${esc(t.ref_name)} (${esc(t.ref_phone)})<br>${esc(t.notes||'')}</div>
-      <div class="mut">${dt(t.created_at)}</div></div>`).join('') : '<p class="mut">No applications yet.</p>');
+      <div class="mut">${dt(t.created_at)} · ${(t.doc_paths||[]).length} document(s)</div>${(t.doc_paths||[]).length?`<button onclick="docs('${t.id}')">View documents</button><div id="d-${t.id}"></div>`:''}</div>`).join('') : '<p class="mut">No applications yet.</p>');
   },
 
   async service(){
@@ -200,6 +213,20 @@ const VIEWS = {
     drawR();
   },
 
+  async gifts(){
+    const {data,error} = await db.from('gift_requests').select('*').order('created_at',{ascending:false}).limit(100);
+    if(error) throw error;
+    $('#view').innerHTML = '<h2>Gift requests</h2>' + (data.length ? data.map(g => `<div class="card">
+      <div class="row"><b class="gold">G${g.req_no}</b>${sel('gift_requests',g.id,g.status,['new','sourcing','quote_sent','approved','delivered','cancelled'])}</div>
+      <div><b>${esc(g.occasion)}</b> for ${esc(g.recipient||'—')} · <span class="mut">${esc(g.mode)}</span></div>
+      <div class="mut">Budget: ${esc(g.budget_label||'')}${g.budget_ugx?' ('+ugx(g.budget_ugx)+')':''}</div><div>${esc(g.gift_idea||'')}</div><div class="mut">${esc(g.interests||'')}</div>
+      <div>${esc(g.customer_name)} · <a href="${wa(g.customer_phone)}" target="_blank">${esc(g.customer_phone)}</a></div>
+      <div class="mut">📍 ${esc([g.address,g.town,g.country].filter(Boolean).join(', '))} · Needed by ${esc(g.deadline||'flexible')}</div>
+      <div class="row"><input class="sm" id="q-${g.id}" type="number" placeholder="Quote UGX" value="${g.quote_ugx??''}" style="width:150px"><button onclick="saveQuote('${g.id}')">Save quote</button></div>
+      <a href="${ntf(g.customer_phone, `Hello ${g.customer_name}, about your Velos gift request G${g.req_no}: ${g.quote_ugx?'our quote is '+ugx(g.quote_ugx)+'. ':''}Track it anytime: ${tbase()}?o=G${g.req_no}`)}" target="_blank">💬 Reply on WhatsApp</a>
+      <div class="mut">${dt(g.created_at)}</div></div>`).join('') : '<p class="mut">No gift requests yet.</p>');
+  },
+
   async import(){
     $('#view').innerHTML = `<h2>Import catalog</h2><div class="card"><p>Copies every category and product from your website's <b>app.js</b> into the database.
       <br><span class="mut">Run this once. Running it again resets prices and names to what app.js says.</span></p>
@@ -211,14 +238,14 @@ function drawP(){
   const q = ($('#q')?.value || '').toLowerCase();
   $('#plist').innerHTML = PR.filter(p => !q || (p.name + ' ' + p.id + ' ' + (p.subcategory||'')).toLowerCase().includes(q)).slice(0,60).map(p => `
     <div class="card" id="p-${p.id}">
-      <div class="row"><span><img src="${esc(p.image_url||'')}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:8px" onerror="this.style.display='none'"><b>${esc(p.name)}</b></span><span class="mut">${esc(p.id)} · ${esc(p.category_key)}</span></div>
+      <div class="row"><span><img src="${esc(p.image_url||'')}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:8px" onerror="this.style.display='none'">${p.in_stock===false?'<span class="pill" style="color:var(--bad)">OUT</span> ':''}<b>${esc(p.name)}</b></span><span class="mut">${esc(p.id)} · ${esc(p.category_key)}</span></div>
       <div class="grid2"><input class="nm" value="${esc(p.name)}"><input class="pr" type="number" value="${p.price_ugx ?? ''}" placeholder="Request Quote"></div>
-      <label class="mut">Change photo</label><input class="ph" type="file" accept="image/*"><div class="row"><label><input class="sm ac" type="checkbox" ${p.is_active?'checked':''}> Visible on shop</label>
+      <label class="mut">Change photo</label><input class="ph" type="file" accept="image/*"><div class="row"><label><input class="sm ac" type="checkbox" ${p.is_active?'checked':''}> Visible</label> <label><input class="sm st" type="checkbox" ${p.in_stock!==false?'checked':''}> In stock</label>
       <button onclick="saveP('${p.id}')">Save</button></div></div>`).join('') + (PR.length > 60 && !q ? '<p class="mut">Showing 60 — use search to find others.</p>' : '');
 }
 async function saveP(id){
   const r = $('#p-'+id), v = r.querySelector('.pr').value;
-  const upd = {name:r.querySelector('.nm').value.trim(), price_ugx: v===''?null:Number(v), is_active:r.querySelector('.ac').checked, updated_at:new Date().toISOString()};
+  const upd = {name:r.querySelector('.nm').value.trim(), price_ugx: v===''?null:Number(v), is_active:r.querySelector('.ac').checked, in_stock:r.querySelector('.st').checked, updated_at:new Date().toISOString()};
   const f = r.querySelector('.ph').files[0];
   try { if(f) upd.image_url = await upImg(f, id); } catch(e){ return toast('Photo upload failed: ' + e.message, true); }
   const {error} = await db.from('products').update(upd).eq('id', id);

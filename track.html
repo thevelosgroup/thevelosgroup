@@ -26,7 +26,7 @@ try{var c=JSON.parse(localStorage.getItem('velosContact')||'{}');if(c.p)$('p').v
 var q=new URLSearchParams(location.search);if(q.get('o'))$('o').value=q.get('o');
 function go(){
   $('e').textContent='';$('r').innerHTML='';
-  var raw=$('o').value.trim();if(/^s\d+/i.test(raw)){return svc(parseInt(raw.slice(1),10),$('p').value.trim());}
+  var raw=$('o').value.trim();if(/^[sg]\d+/i.test(raw)){return svc(parseInt(raw.slice(1),10),$('p').value.trim(),raw[0].toUpperCase());}
   var no=parseInt(raw,10),ph=$('p').value.trim();
   if(!no||ph.length<7){$('e').textContent='Enter your order number and phone number.';return;}
   var S=window.VELOS_SUPABASE;
@@ -48,7 +48,21 @@ function go(){
   }).catch(function(){$('e').textContent='Could not load right now. Please try again.';});
 }
 var SST=[['new','Request received','We have your request and are reviewing it.'],['reviewing','Being reviewed','Our dispatch desk is matching the right technician.'],['assigned','Technician assigned','A verified technician has been assigned to you.'],['on_the_way','Technician on the way','Your technician is heading to you.'],['in_progress','Work in progress','Work is underway.'],['completed','Completed','Job completed. Thank you!']];
-function svc(no,ph){
+var GST=[['new','Request received','We have your request.'],['sourcing','Sourcing options','We are finding the best gift options and prices for you.'],['quote_sent','Quote sent','We have sent you options and a quote. Please reply to confirm.'],['approved','Confirmed','Your gift is confirmed and being arranged.'],['delivered','Delivered','Delivered. We hope they loved it!']];
+function gift(no,ph){
+  var S=window.VELOS_SUPABASE;
+  fetch(S.url+'/rest/v1/rpc/track_gift',{method:'POST',headers:{apikey:S.key,'Content-Type':'application/json'},body:JSON.stringify({p_req_no:no,p_phone:ph})})
+  .then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(o){
+    if(!o){$('e').textContent='No request found. Check the number and the phone you used.';return;}
+    var idx=GST.findIndex(function(s){return s[0]===o.status}),h='';
+    if(o.status==='cancelled')h+='<div class="c"><b class="bad">This request was cancelled.</b></div>';
+    else h+='<div class="c"><b>Gift request G'+o.req_no+'</b><div class="m">'+esc(o.occasion)+(o.recipient?' · for '+esc(o.recipient):'')+'</div><br>'+GST.map(function(s,i){return '<div class="st '+(i<idx?'on':(i===idx?(idx===4?'on':'now'):''))+'"><span class="dot"></span><div><b>'+s[1]+'</b><span class="m">'+(i===idx?s[2]:'')+'</span></div></div>'}).join('')+'</div>';
+    if(o.quote)h+='<div class="c"><div class="row"><b>Our quote</b><b>'+ugx(o.quote)+'</b></div></div>';
+    $('r').innerHTML=h;
+  }).catch(function(){$('e').textContent='Could not load right now. Please try again.';});
+}
+function svc(no,ph,k){
+  if(k==='G'){if(!no||ph.length<7){$('e').textContent='Enter your request number and phone number.';return;}return gift(no,ph);}
   if(!no||ph.length<7){$('e').textContent='Enter your request number and phone number.';return;}
   var S=window.VELOS_SUPABASE;
   fetch(S.url+'/rest/v1/rpc/track_service',{method:'POST',headers:{apikey:S.key,'Content-Type':'application/json'},body:JSON.stringify({p_req_no:no,p_phone:ph})})

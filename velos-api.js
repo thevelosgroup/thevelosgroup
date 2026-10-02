@@ -31,7 +31,7 @@ Promise.all([api('categories?select=*&order=sort_order'), api('products?select=*
   Object.keys(CATEGORY_NOTES).forEach(function(k){ delete CATEGORY_NOTES[k]; });
   cs.forEach(function(c){ CATEGORIES.push({key:c.key, label:c.label, thumb:c.thumb_url}); if(c.note) CATEGORY_NOTES[c.key] = c.note; });
   PRODUCTS.length = 0;
-  ps.forEach(function(p){ PRODUCTS.push({id:p.id, cat:p.category_key, sub:p.subcategory || undefined, name:p.name, price:p.price_ugx, img:p.image_url, real:p.verified_photo, 'new':p.is_new}); });
+  ps.forEach(function(p){ PRODUCTS.push({id:p.id, cat:p.category_key, sub:p.subcategory || undefined, name:p.name, price:p.price_ugx, img:p.image_url, real:p.verified_photo, 'new':p.is_new, inStock:p.in_stock !== false}); });
   ['renderTabs', 'renderProducts', 'updateCartUI'].forEach(function(f){ try { if(window[f]) window[f](); } catch(e){} });
 }).catch(function(e){ console.warn('Velos: using built-in catalog', e); });
 
@@ -69,6 +69,8 @@ function lineText(items){
   return {lines: lines, total: total};
 }
 function checkout(items, onDone){
+  var oos = items.filter(function(it){ var p = PRODUCTS.find(function(x){ return x.id === it.product_id; }); return p && p.inStock === false; });
+  if(oos.length){ alert('Sorry, an item in your order is currently out of stock. Please remove it or contact us.'); return; }
   var c = {}; try { c = JSON.parse(localStorage.getItem('velosContact') || '{}'); } catch(e){}
   var t = lineText(items), dep = t.total > 1000000 ? Math.round(t.total * 0.3) : 0;
   var d = modal('Complete your order',
@@ -78,7 +80,7 @@ function checkout(items, onDone){
     + '<input id="vx_e" type="email" placeholder="Email (optional)" value="' + esc(c.e) + '"><input id="vx_a" placeholder="Delivery location / address *" value="' + esc(c.a) + '">'
     + '<div class="sum">Payment method</div>'
     + ['Cash on delivery', 'MTN Mobile Money', 'Airtel Money', 'Bank transfer'].map(function(m, i){ return '<label class="pm"><input type="radio" name="vxpm" value="' + m + '"' + (i === 0 ? ' checked' : '') + '> ' + m + '</label>'; }).join('')
-    + '<div class="sum">Our team confirms payment details with you after you order. Online card payment is coming soon.</div>'
+    + '<div class="sum">Our team confirms payment details with you after you order. Online card payment is coming soon.<br>By ordering you agree to our <a href="terms.html" target="_blank" style="color:#e8c766">Terms</a> and <a href="privacy.html" target="_blank" style="color:#e8c766">Privacy Policy</a>.</div>'
     + '<textarea id="vx_o" rows="2" placeholder="Notes (optional)"></textarea>',
     '<button class="go" id="vx_go">Place order</button>');
   document.getElementById('vx_go').onclick = function(){
@@ -137,19 +139,47 @@ window.v_sendInquiry = window.sendInquiry = function(){
     var f = document.getElementById('inqMsg'); if(f) f.value = '';
   }).catch(function(e){ failModal(e, wa); });
 };
+function loadSB(cb){
+  if(window.supabase) return cb();
+  var e = document.createElement('script'); e.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
+  e.onload = function(){ cb(); }; e.onerror = function(){ cb(new Error('Upload library failed to load')); }; document.head.appendChild(e);
+}
+function docFiles(){
+  return [['fdIdF','id-front'],['fdIdB','id-back'],['fdPhoto','photo'],['fdCert','certificate']].map(function(x){
+    var e = document.getElementById(x[0]); return e && e.files && e.files[0] ? {f:e.files[0], k:x[1]} : null; }).filter(Boolean);
+}
 window.v_sendTechRegistration = window.sendTechRegistration = function(){
   var r = {name:val('techName'), phone:val('techPhone'), nin:val('techNIN'), country:val('techCountry'), city:val('techCity'), email:val('techEmail'), trade:val('techTrade'),
            exp:val('techExp'), loc:val('techLoc'), rn:val('techRefName'), rp:val('techRefPhone'), notes:val('techNotes')};
   if(!r.name || !r.phone || !r.nin || !r.country || !r.city || !r.trade || !r.exp || !r.loc || !r.rn || !r.rp){ alert('Please complete every required field before submitting.'); return; }
   if(!(chk('std1') && chk('std2') && chk('std3') && chk('std4'))){ alert('You must agree to all points of the Velos Standard, including the UGX 50,000 verification & ID processing fee, to submit your application.'); return; }
-  var wa = 'Hello Velos Global Services, I have submitted my Technician Application online.\n\nName: ' + r.name + '\nWhatsApp: ' + r.phone + '\nTrade: ' + r.trade + '\nCity: ' + r.city + '\nArea: ' + r.loc
-         + '\n\nI will upload my ID, certifications and passport photo to the shared Drive folder.';
+  var fl = docFiles();
+  if(!fl.some(function(x){ return x.k === 'id-front'; }) || !fl.some(function(x){ return x.k === 'photo'; })){ alert('Please upload your National ID (front) and a passport photo.'); return; }
+  if(fl.some(function(x){ return x.f.size > 5 * 1024 * 1024; })){ alert('Each document must be under 5 MB.'); return; }
+  var btn = document.querySelector('[onclick*="v_sendTechRegistration("]'); if(btn){ btn.disabled = true; btn.textContent = 'Submitting…'; }
+  var wa = 'Hello Velos Global Services, I submitted my Technician Application online.\n\nName: ' + r.name + '\nWhatsApp: ' + r.phone + '\nTrade: ' + r.trade + '\nCity: ' + r.city;
   api('rpc/submit_technician', {method:'POST', body:{p_full_name:r.name, p_phone:r.phone, p_email:r.email, p_national_id:r.nin, p_country:r.country, p_city:r.city, p_area:r.loc,
-      p_trade:r.trade, p_experience:r.exp, p_ref_name:r.rn, p_ref_phone:r.rp, p_notes:r.notes}}).then(function(){
-    modal('Application received ✓', '<div class="sum" style="font-size:15px;color:#f4f1ea">Thank you, ' + esc(r.name) + '. Our team will review your application and contact you on ' + esc(r.phone) + '.</div>',
-      '<a class="vb cx" target="_blank" rel="noopener" href="' + waLink(wa) + '">Also message us on WhatsApp (optional)</a>');
-  }).catch(function(e){ failModal(e, wa); });
+      p_trade:r.trade, p_experience:r.exp, p_ref_name:r.rn, p_ref_phone:r.rp, p_notes:r.notes}})
+  .then(function(res){ return new Promise(function(ok){
+    loadSB(function(err){
+      if(err || !window.supabase) return ok(false);
+      var cl = window.supabase.createClient(SB.url, SB.key);
+      Promise.all(fl.map(function(x, i){
+        var ext = (x.f.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, ''), p = res.id + '/' + x.k + '-' + Date.now() + '-' + i + '.' + ext;
+        return cl.storage.from('technician-docs').upload(p, x.f, {contentType:x.f.type}).then(function(u){ if(u.error) throw u.error; return p; });
+      })).then(function(paths){ return api('rpc/attach_technician_docs', {method:'POST', body:{p_id:res.id, p_token:res.token, p_paths:paths}}); })
+        .then(function(){ ok(true); }).catch(function(e){ console.warn(e); ok(false); });
+    });
+  }); })
+  .then(function(up){
+    modal('Application received ✓', '<div class="sum" style="font-size:15px;color:#f4f1ea">Thank you, ' + esc(r.name) + '. Our team will review your application and contact you on ' + esc(r.phone) + '.'
+      + (up ? '<br><br>Your documents were uploaded securely.' : '<br><br><b style="color:#e8c766">Some documents did not upload.</b> Please send them to us on WhatsApp so we can complete your file.') + '</div>',
+      '<a class="vb cx" target="_blank" rel="noopener" href="' + waLink(wa) + '">Message us on WhatsApp (optional)</a>');
+    if(btn){ btn.disabled = false; btn.textContent = 'Submit application'; }
+  })
+  .catch(function(e){ if(btn){ btn.disabled = false; btn.textContent = 'Submit application'; } failModal(e, wa); });
 };
+
 /* ---------- 4. PAGE TWEAKS ---------- */
 function dom(){
   [['sendInquiry','Send inquiry'],['sendTechRegistration','Submit application']].forEach(function(p){
@@ -166,6 +196,26 @@ function dom(){
     var b = document.querySelector('.dispatch-banner a.btn-primary');
     if(b){ b.href = 'book-service.html?s=3&u=emergency'; b.removeAttribute('target'); }
   }
+  var tb = document.querySelector('[onclick*="sendTechRegistration("]');
+  if(tb && document.getElementById('techName') && !document.getElementById('fdIdF')){
+    var bx = document.createElement('div'), L = 'display:block;margin:10px 0 2px;font-size:14px', I = 'width:100%;margin-top:4px';
+    bx.innerHTML = '<div style="margin:18px 0;padding:14px;border:1px solid rgba(232,199,102,.45);border-radius:12px"><b>Upload your documents</b>'
+      + '<div style="font-size:13px;opacity:.8;margin:4px 0 6px">Stored securely and seen only by Velos verification staff. Photo or PDF, max 5 MB each.</div>'
+      + '<label style="' + L + '">National ID — front *<input id="fdIdF" type="file" accept="image/*,application/pdf" style="' + I + '"></label>'
+      + '<label style="' + L + '">National ID — back<input id="fdIdB" type="file" accept="image/*,application/pdf" style="' + I + '"></label>'
+      + '<label style="' + L + '">Passport photo *<input id="fdPhoto" type="file" accept="image/*" style="' + I + '"></label>'
+      + '<label style="' + L + '">Certificate / licence (optional)<input id="fdCert" type="file" accept="image/*,application/pdf" style="' + I + '"></label></div>';
+    tb.parentNode.insertBefore(bx, tb);
+  }
+  if(document.body.getAttribute('data-page') === 'gifts'){
+    var host = document.querySelector('main') || document.querySelector('.container') || document.body, g = document.createElement('a');
+    g.href = 'gift-request.html';
+    g.innerHTML = '<b style="font-size:17px;font-family:Georgia,serif">🎁 Any gift, any budget</b><br><span style="font-size:14px">Tell us the occasion and budget, or the gift you have in mind. We source it for you, anywhere. Tap to start →</span>';
+    g.style.cssText = 'display:block;margin:16px;padding:16px;border:1px solid #e8c766;border-radius:14px;background:#0f1730;color:#f4f1ea;text-decoration:none';
+    host.insertBefore(g, host.firstChild);
+  }
+  var ft = document.querySelector('footer');
+  if(ft){ var lk = document.createElement('div'); lk.style.cssText = 'text-align:center;padding:10px;font-size:13px'; lk.innerHTML = '<a href="terms.html" style="color:#e8c766">Terms &amp; Conditions</a> · <a href="privacy.html" style="color:#e8c766">Privacy Policy</a>'; ft.appendChild(lk); }
   var last = null; try { last = localStorage.getItem('velosLast'); } catch(x){}
   if(last && !/track\.html|book-service/.test(location.pathname)){
     var a = document.createElement('a'); a.href = 'track.html?o=' + last; a.textContent = 'Track ' + (last[0] === 'S' ? 'request ' : 'order #') + last.slice(1) + ' →';
