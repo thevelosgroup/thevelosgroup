@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Velos Admin</title>
+<style>
+:root{--bg:#0c1226;--card:#141b34;--line:#26305a;--gold:#e8c766;--txt:#f4f1ea;--mut:#8a93ab;--ok:#7fd99a;--bad:#e6493f}
+*{box-sizing:border-box}body{margin:0;font:15px/1.45 system-ui,Arial,sans-serif;background:var(--bg);color:var(--txt)}
+[hidden]{display:none!important}
+h1,h2{font-family:Georgia,serif;margin:0}h2{font-size:20px;margin:16px 0 10px}
+.box{max-width:380px;margin:12vh auto;padding:24px;background:var(--card);border:1px solid var(--line);border-radius:14px}
+input,select,textarea{width:100%;padding:11px;margin:6px 0;background:#0c1226;color:var(--txt);border:1px solid var(--line);border-radius:8px;font:inherit}
+button{padding:10px 14px;border:0;border-radius:8px;background:var(--gold);color:#080d1a;font-weight:700;cursor:pointer}
+button.ghost{background:none;border:1px solid var(--line);color:var(--txt)}
+header{position:sticky;top:0;background:#080d1a;border-bottom:1px solid var(--line);padding:10px 12px;z-index:5}
+.top{display:flex;justify-content:space-between;align-items:center}
+nav{display:flex;gap:6px;overflow-x:auto;padding-top:8px}nav button{white-space:nowrap;background:none;color:var(--mut);border:1px solid var(--line)}
+nav button.on{background:var(--gold);color:#080d1a;border-color:var(--gold)}
+main{padding:12px;max-width:900px;margin:auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.mut{color:var(--mut);font-size:13px}.gold{color:var(--gold)}a{color:var(--gold)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{text-align:center}.stat b{font-size:28px;display:block;color:var(--gold)}
+.pill{font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid var(--line)}
+.sm{width:auto;display:inline-block;margin:0}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ok);color:#06210f;padding:10px 16px;border-radius:99px;font-weight:700;z-index:9}
+#toast.bad{background:var(--bad);color:#fff}pre{white-space:pre-wrap;color:var(--mut);font-size:13px}
+</style></head><body>
+
+<div id="login" class="box" hidden>
+  <h1 class="gold">Velos Admin</h1><p class="mut">Staff sign-in only</p>
+  <input id="em" type="email" placeholder="Email" autocomplete="username">
+  <input id="pw" type="password" placeholder="Password" autocomplete="current-password">
+  <button style="width:100%;margin-top:8px" onclick="signIn()">Sign in</button>
+  <p id="err" style="color:var(--bad)"></p>
+</div>
+
+<div id="app" hidden>
+  <header>
+    <div class="top"><b class="gold">VELOS ADMIN</b><span><span id="who" class="mut"></span> <button class="ghost" onclick="signOut()">Sign out</button></span></div>
+    <nav id="nav"></nav>
+  </header>
+  <main id="view"></main>
+</div>
+<div id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="supabase-config.js"></script>
+<script>
+const db = supabase.createClient(VELOS_SUPABASE.url, VELOS_SUPABASE.key);
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ugx = n => n == null ? 'Request Quote' : 'UGX ' + Number(n).toLocaleString('en-US');
+const dt = s => new Date(s).toLocaleString('en-GB', {dateStyle:'medium', timeStyle:'short'});
+const wa = p => 'https://wa.me/' + String(p || '').replace(/\D/g, '');
+let me = null, cats = [];
+
+function toast(m, bad){ const t=$('#toast'); t.textContent=m; t.className=bad?'bad':''; t.hidden=false; setTimeout(()=>t.hidden=true,2200); }
+function show(inApp){ $('#login').hidden = inApp; $('#app').hidden = !inApp; }
+
+async function signIn(){
+  $('#err').textContent = '';
+  const {error} = await db.auth.signInWithPassword({email:$('#em').value.trim(), password:$('#pw').value});
+  if(error){ $('#err').textContent = error.message; return; }
+  boot();
+}
+async function signOut(){ await db.auth.signOut(); show(false); }
+
+async function boot(){
+  const {data:{session}} = await db.auth.getSession();
+  if(!session) return show(false);
+  const {data:p, error:pe} = await db.from('profiles').select('full_name,role').eq('id', session.user.id).maybeSingle();
+  if(!p){ await db.auth.signOut(); show(false); $('#err').textContent = pe ? 'Database error: ' + pe.message : 'This account is not authorised as staff. (login id ' + session.user.id + ')'; return; }
+  me = p; $('#who').textContent = p.full_name || p.role; show(true);
+  const {data} = await db.from('categories').select('*').order('sort_order'); cats = data || [];
+  $('#nav').innerHTML = TABS.map(t => `<button id="n-${t[0]}" onclick="go('${t[0]}')">${t[1]}</button>`).join('');
+  go('home');
+}
+
+const TABS = [['home','Home'],['orders','Orders'],['report','Sales'],['products','Products'],['techs','Technicians'],['dispatch','Dispatch'],['inq','Inquiries'],['import','Import']];
+async function go(k){
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.id === 'n-'+k));
+  $('#view').innerHTML = '<p class="mut">Loading…</p>';
+  try { await VIEWS[k](); } catch(e){ $('#view').innerHTML = '<p style="color:var(--bad)">'+esc(e.message)+'</p>'; }
+}
+
+async function st(table, id, v){
+  const {error} = await db.from(table).update({status:v}).eq('id', id);
+  toast(error ? error.message : 'Saved', !!error);
+}
+const sel = (table, id, cur, opts) => `<select class="sm" onchange="st('${table}','${id}',this.value)">${opts.map(o=>`<option ${o===cur?'selected':''}>${o}</option>`).join('')}</select>`;
+
+const VIEWS = {
+  async home(){
+    const n = async (t, f) => { let q = db.from(t).select('*', {count:'exact', head:true}); if(f) q = q.eq('status', f); return (await q).count ?? 0; };
+    const [o,d,t,i,p] = await Promise.all([n('orders','new'), n('dispatch_requests','new'), n('technician_applications','pending'), n('inquiries','new'), n('products')]);
+    const S = (v,l,k) => `<div class="card stat" onclick="go('${k}')"><b>${v}</b><span class="mut">${l}</span></div>`;
+    $('#view').innerHTML = `<h2>Overview</h2><div class="stats">${S(o,'New orders','orders')}${S(d,'New dispatch requests','dispatch')}${S(t,'Pending technicians','techs')}${S(i,'New inquiries','inq')}${S(p,'Products','products')}</div>`;
+  },
+
+  async orders(){
+    const {data,error} = await db.from('orders').select('*, order_items(product_name,qty,unit_price_ugx)').order('created_at',{ascending:false}).limit(100);
+    if(error) throw error;
+    $('#view').innerHTML = '<h2>Orders</h2>' + (data.length ? data.map(o => `<div class="card">
+      <div class="row"><b class="gold">#${o.order_no}</b>${sel('orders',o.id,o.status,['new','confirmed','dispatched','delivered','cancelled'])}</div>
+      <div>${esc(o.customer_name)} · <a href="${wa(o.customer_phone)}" target="_blank">${esc(o.customer_phone)}</a></div>
+      <div class="mut">${o.order_items.map(i=>`${esc(i.product_name)} ×${i.qty}`).join('<br>')}</div>
+      <div class="row"><b>${ugx(o.total_ugx)}</b><span class="mut">${dt(o.created_at)}</span></div></div>`).join('') : '<p class="mut">No orders yet.</p>');
+  },
+
+  async products(){
+    const {data,error} = await db.from('products').select('*').order('category_key').order('id');
+    if(error) throw error;
+    window.PR = data;
+    $('#view').innerHTML = `<h2>Products (${data.length})</h2>
+      <input id="q" placeholder="Search products…" oninput="drawP()">
+      <details class="card"><summary class="gold">+ Add product</summary>
+        <input id="a_id" placeholder="Unique ID e.g. ph12"><input id="a_name" placeholder="Name">
+        <select id="a_cat">${cats.map(c=>`<option value="${c.key}">${esc(c.label)}</option>`).join('')}</select>
+        <input id="a_sub" placeholder="Sub-category (optional)"><input id="a_price" type="number" placeholder="Price UGX (blank = Request Quote)">
+        <input id="a_img" placeholder="Image URL (optional)"><label class="mut">Or upload a photo</label><input id="a_file" type="file" accept="image/*"><button onclick="addP()">Add</button></details>
+      <div id="plist"></div>`;
+    drawP();
+  },
+
+  async techs(){
+    const {data,error} = await db.from('technician_applications').select('*').order('created_at',{ascending:false});
+    if(error) throw error;
+    $('#view').innerHTML = '<h2>Technician applications</h2>' + (data.length ? data.map(t => `<div class="card">
+      <div class="row"><b>${esc(t.full_name)}</b>${sel('technician_applications',t.id,t.status,['pending','verified','rejected','suspended'])}</div>
+      <div>${esc(t.trade)} · ${esc(t.experience)}</div>
+      <div class="mut">${esc(t.country)} / ${esc(t.city)} / ${esc(t.area)}</div>
+      <div><a href="${wa(t.phone)}" target="_blank">${esc(t.phone)}</a> · ${esc(t.email||'')}</div>
+      <div class="mut">National ID: ${esc(t.national_id)}<br>Reference: ${esc(t.ref_name)} (${esc(t.ref_phone)})<br>${esc(t.notes||'')}</div>
+      <div class="mut">${dt(t.created_at)}</div></div>`).join('') : '<p class="mut">No applications yet.</p>');
+  },
+
+  async dispatch(){
+    const {data,error} = await db.from('dispatch_requests').select('*').order('created_at',{ascending:false}).limit(100);
+    if(error) throw error;
+    $('#view').innerHTML = '<h2>Dispatch requests</h2>' + (data.length ? data.map(r => `<div class="card">
+      <div class="row"><b>${esc(r.name)} ${r.urgency==='emergency'?'<span class="pill" style="color:var(--bad)">EMERGENCY</span>':''}</b>${sel('dispatch_requests',r.id,r.status,['new','assigned','in_progress','done','cancelled'])}</div>
+      <div><a href="${wa(r.phone)}" target="_blank">${esc(r.phone)}</a> · ${esc(r.location||'')}</div>
+      <div class="mut">${esc(r.description||'')}</div><div class="mut">${dt(r.created_at)}</div></div>`).join('') : '<p class="mut">No requests yet.</p>');
+  },
+
+  async inq(){
+    const {data,error} = await db.from('inquiries').select('*').order('created_at',{ascending:false}).limit(100);
+    if(error) throw error;
+    $('#view').innerHTML = '<h2>Inquiries</h2>' + (data.length ? data.map(r => `<div class="card">
+      <div class="row"><b>${esc(r.name)}</b>${sel('inquiries',r.id,r.status,['new','replied','closed'])}</div>
+      <div class="mut">${esc(r.division||'')} · ${r.phone?`<a href="${wa(r.phone)}" target="_blank">${esc(r.phone)}</a>`:''}</div>
+      <div>${esc(r.message)}</div><div class="mut">${dt(r.created_at)}</div></div>`).join('') : '<p class="mut">No inquiries yet.</p>');
+  },
+
+  async report(){
+    const {data,error} = await db.from('orders').select('created_at,order_items(qty,unit_price_ugx,products(category_key))').in('status',['confirmed','dispatched','delivered']).order('created_at').limit(5000);
+    if(error) throw error; window.RP = data;
+    $('#view').innerHTML = `<h2>Sales report</h2><div class="grid2"><select id="rg" onchange="drawR()"><option value="day">By day</option><option value="week">By week</option><option value="month" selected>By month</option><option value="year">By year</option></select>
+      <select id="rc" onchange="drawR()"><option value="">All categories</option>${cats.map(c=>`<option value="${c.key}">${esc(c.label)}</option>`).join('')}</select></div>
+      <div id="rout"></div><p class="mut">Counts orders you have marked Confirmed, Dispatched or Delivered. Change an order's status in the Orders tab.</p>`;
+    drawR();
+  },
+
+  async import(){
+    $('#view').innerHTML = `<h2>Import catalog</h2><div class="card"><p>Copies every category and product from your website's <b>app.js</b> into the database.
+      <br><span class="mut">Run this once. Running it again resets prices and names to what app.js says.</span></p>
+      <button onclick="importCatalog()">Import from app.js</button><pre id="ilog"></pre></div>`;
+  }
+};
+
+function drawP(){
+  const q = ($('#q')?.value || '').toLowerCase();
+  $('#plist').innerHTML = PR.filter(p => !q || (p.name + ' ' + p.id + ' ' + (p.subcategory||'')).toLowerCase().includes(q)).slice(0,60).map(p => `
+    <div class="card" id="p-${p.id}">
+      <div class="row"><span><img src="${esc(p.image_url||'')}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:8px" onerror="this.style.display='none'"><b>${esc(p.name)}</b></span><span class="mut">${esc(p.id)} · ${esc(p.category_key)}</span></div>
+      <div class="grid2"><input class="nm" value="${esc(p.name)}"><input class="pr" type="number" value="${p.price_ugx ?? ''}" placeholder="Request Quote"></div>
+      <label class="mut">Change photo</label><input class="ph" type="file" accept="image/*"><div class="row"><label><input class="sm ac" type="checkbox" ${p.is_active?'checked':''}> Visible on shop</label>
+      <button onclick="saveP('${p.id}')">Save</button></div></div>`).join('') + (PR.length > 60 && !q ? '<p class="mut">Showing 60 — use search to find others.</p>' : '');
+}
+async function saveP(id){
+  const r = $('#p-'+id), v = r.querySelector('.pr').value;
+  const upd = {name:r.querySelector('.nm').value.trim(), price_ugx: v===''?null:Number(v), is_active:r.querySelector('.ac').checked, updated_at:new Date().toISOString()};
+  const f = r.querySelector('.ph').files[0];
+  try { if(f) upd.image_url = await upImg(f, id); } catch(e){ return toast('Photo upload failed: ' + e.message, true); }
+  const {error} = await db.from('products').update(upd).eq('id', id);
+  toast(error ? error.message : 'Saved', !!error);
+}
+async function addP(){
+  const v = $('#a_price').value;
+  const row = {id:$('#a_id').value.trim(), name:$('#a_name').value.trim(), category_key:$('#a_cat').value, subcategory:$('#a_sub').value.trim()||null, price_ugx:v===''?null:Number(v), image_url:$('#a_img').value.trim()||null};
+  if(!row.id || !row.name){ return toast('ID and name are required', true); }
+  const f = $('#a_file').files[0];
+  try { if(f) row.image_url = await upImg(f, row.id); } catch(e){ return toast('Photo upload failed: ' + e.message, true); }
+  const {error} = await db.from('products').insert(row);
+  toast(error ? error.message : 'Product added', !!error); if(!error) go('products');
+}
+
+async function upImg(f, id){
+  if(f.size > 5*1024*1024) throw Error('Photo is over 5 MB');
+  const ext = (f.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const path = id.replace(/[^\w-]/g,'_') + '-' + Date.now() + '.' + ext;
+  const {error} = await db.storage.from('product-images').upload(path, f, {contentType:f.type});
+  if(error) throw error;
+  return db.storage.from('product-images').getPublicUrl(path).data.publicUrl;
+}
+
+function drawR(){
+  const g = $('#rg').value, c = $('#rc').value, per = {}, cat = {}; let tot = 0, cnt = 0;
+  const p2 = n => String(n).padStart(2,'0');
+  const key = d => { const x = new Date(d), y = x.getFullYear(), m = p2(x.getMonth()+1), dd = p2(x.getDate());
+    if(g==='year') return ''+y; if(g==='month') return y+'-'+m; if(g==='day') return y+'-'+m+'-'+dd;
+    const w = new Date(x); w.setDate(x.getDate() - ((x.getDay()+6)%7)); return 'Week of '+w.getFullYear()+'-'+p2(w.getMonth()+1)+'-'+p2(w.getDate()); };
+  RP.forEach(o => { let rev = 0;
+    o.order_items.forEach(i => { const ck = i.products?.category_key || 'other'; if(c && ck !== c) return; const v = (i.unit_price_ugx||0) * i.qty; rev += v; cat[ck] = (cat[ck]||0) + v; });
+    if(c && !rev) return; const k = key(o.created_at); per[k] = per[k] || {r:0,n:0}; per[k].r += rev; per[k].n++; tot += rev; cnt++; });
+  window.RR = Object.keys(per).sort().reverse().map(k => [k, per[k].n, per[k].r]);
+  const lab = k => (cats.find(x => x.key === k) || {label:k}).label;
+  $('#rout').innerHTML = `<div class="card stat"><b>${ugx(tot)}</b><span class="mut">Grand total · ${cnt} orders</span></div>
+    <h2>By period</h2>${RR.length ? RR.map(r => `<div class="card row"><b>${esc(r[0])}</b><span>${r[1]} orders · <b class="gold">${ugx(r[2])}</b></span></div>`).join('') : '<p class="mut">No sales in this view yet.</p>'}
+    <h2>By category</h2>${Object.keys(cat).sort((a,b)=>cat[b]-cat[a]).map(k => `<div class="card row"><span>${esc(lab(k))}</span><b class="gold">${ugx(cat[k])}</b></div>`).join('')}
+    <button class="ghost" onclick="csvR()">Download CSV</button>`;
+}
+function csvR(){
+  const rows = [['Period','Orders','Revenue UGX'], ...RR];
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([rows.map(r => r.join(',')).join('\n')], {type:'text/csv'}));
+  a.download = 'velos-sales.csv'; a.click();
+}
+
+async function importCatalog(){
+  if(!confirm('Import all products from app.js now?')) return;
+  const log = m => $('#ilog').textContent += m + '\n';
+  try {
+    const src = await (await fetch('app.js?' + Date.now())).text();
+    const grab = name => {
+      const i = src.indexOf('const ' + name + ' ='); if(i < 0) throw Error(name + ' not found in app.js');
+      const o = src.slice(i).search(name === 'CATEGORY_NOTES' ? /\{/ : /\[/) + i;
+      const open = src[o], close = open === '{' ? '}' : ']'; let d = 0, q = null;
+      for(let j = o; j < src.length; j++){
+        const c = src[j];
+        if(q){ if(c === '\\') j++; else if(c === q) q = null; continue; }
+        if(c === '/' && src[j+1] === '/'){ j = src.indexOf('\n', j); continue; }
+        if(c === "'" || c === '"' || c === '`'){ q = c; continue; }
+        if(c === open) d++; else if(c === close && --d === 0) return new Function('return ' + src.slice(o, j+1))();
+      }
+      throw Error('Could not read ' + name);
+    };
+    const C = grab('CATEGORIES'), N = grab('CATEGORY_NOTES'), P = grab('PRODUCTS');
+    log(`Found ${C.length} categories and ${P.length} products.`);
+    let r = await db.from('categories').upsert(C.map((c,i) => ({key:c.key, label:c.label, thumb_url:c.thumb, note:N[c.key]||null, sort_order:i})));
+    if(r.error) throw r.error; log('Categories saved.');
+    const rows = P.map(p => ({id:p.id, category_key:p.cat, subcategory:p.sub||null, name:p.name, price_ugx:p.price??null, image_url:p.img, verified_photo:!!p.real, is_new:!!p.new}));
+    for(let i = 0; i < rows.length; i += 50){
+      r = await db.from('products').upsert(rows.slice(i, i+50)); if(r.error) throw r.error;
+      log(`Products ${Math.min(i+50, rows.length)} / ${rows.length} saved.`);
+    }
+    log('Done ✔'); toast('Catalog imported');
+  } catch(e){ log('ERROR: ' + (e.message || JSON.stringify(e))); toast('Import failed', true); }
+}
+
+document.addEventListener('keydown', e => { if(e.key === 'Enter' && !$('#login').hidden) signIn(); });
+boot();
+</script></body></html>
