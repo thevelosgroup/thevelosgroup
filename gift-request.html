@@ -36,6 +36,11 @@ a.g{background:none;border:1px solid var(--line);color:var(--txt)}.m{color:var(-
 var $=function(i){return document.getElementById(i)};
 try{var c=JSON.parse(localStorage.getItem('velosContact')||'{}');$('nm').value=c.n||'';$('ph').value=c.p||'';$('em').value=c.e||'';}catch(e){}
 $('dl').min=new Date().toISOString().slice(0,10);
+var Q=new URLSearchParams(location.search),OM={birthday:'Birthday',wedding:'Wedding / Anniversary',anniversary:'Wedding / Anniversary',corporate:'Corporate / Thank-you',surprise:'Just because'},BM={under50:'Under UGX 100,000',low:'UGX 100,000 – 300,000',mid:'UGX 300,000 – 700,000',high:'UGX 700,000 – 1,500,000',lux:'Above UGX 1,500,000'};
+if(Q.get('idea')){$('id').value=Q.get('idea');document.querySelector('input[value=price]').checked=true;}
+if(Q.get('occasion')&&OM[Q.get('occasion')])$('oc').value=OM[Q.get('occasion')];
+if(Q.get('bk')&&BM[Q.get('bk')])$('bl').value=BM[Q.get('bk')];
+if(Q.get('budget')){var bn=Q.get('budget').replace(/\D/g,'');if(bn)$('bu').value=bn;}
 document.querySelectorAll('input[name=md]').forEach(function(r){r.onchange=function(){$('gi').style.display=this.value==='surprise'?'none':'block';}});
 $('go').onclick=function(){
   $('e').textContent='';if($('hp').value)return;

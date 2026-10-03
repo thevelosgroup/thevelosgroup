@@ -1,0 +1,49 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Start a Design Project | Velos Global Designs</title><meta name="description" content="Websites, branding, packaging and custom products. Tell us about your project and get a quote.">
+<style>
+:root{--bg:#080d1f;--card:#0f1730;--line:#2a3560;--gold:#e8c766;--txt:#f4f1ea;--mut:#8a93ab}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 Inter,system-ui,sans-serif}
+.w{max-width:560px;margin:0 auto;padding:22px 16px 60px}h1{font-family:Georgia,serif;color:var(--gold);margin:0 0 4px}
+.c{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:14px 0}.c>b{display:block;margin-bottom:6px}
+input,select,textarea{width:100%;padding:12px;margin:5px 0;background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:8px;font:inherit}textarea{min-height:90px}
+button,a.b{display:block;text-align:center;width:100%;padding:14px;border:0;border-radius:8px;background:var(--gold);color:#080d1f;font-weight:700;margin-top:8px;text-decoration:none;cursor:pointer;font-size:15px}
+a.g{background:none;border:1px solid var(--line);color:var(--txt)}.m{color:var(--mut);font-size:13px}.bad{color:#ff8a80}.hp{position:absolute;left:-9999px}
+</style></head><body><div class="w">
+<h1>Start a design project</h1><div class="m">Global Designs · made to order, quoted individually</div>
+<div id="f">
+<div class="c"><b>What do you need?</b><select id="ty"><option>Website &amp; Digital Design</option><option>Brand Identity &amp; Logo</option><option>Product &amp; Retail Packaging</option><option>Bag &amp; Accessory Design</option><option>Footwear Concept</option><option>Custom Gifts &amp; Corporate Branding</option><option>Not sure — advise me</option></select></div>
+<div class="c"><b>About your business or project</b><input id="bn" placeholder="Business / project name"><textarea id="ab" placeholder="What do you do or sell? Who are your customers?"></textarea></div>
+<div class="c"><b>Style &amp; inspiration</b><textarea id="st" placeholder="Colours, styles or brands you like. Paste links if you have them (optional)"></textarea></div>
+<div class="c"><b>Project details</b><textarea id="br" placeholder="Anything else we should know: pages needed, quantities, sizes, deadlines…"></textarea>
+<select id="bl"><option>Not sure yet</option><option>Under UGX 300,000</option><option>UGX 300,000 – 1,000,000</option><option>UGX 1,000,000 – 3,000,000</option><option>Above UGX 3,000,000</option></select>
+<input id="dl" type="date"><div class="m">Date you need it by (optional)</div></div>
+<div class="c"><b>Your contact</b><input id="nm" placeholder="Full name *"><input id="ph" type="tel" placeholder="WhatsApp / phone number *"><input id="em" type="email" placeholder="Email (optional)"></div>
+<input class="hp" id="hp" tabindex="-1" autocomplete="off">
+<button id="go">Send my brief</button><div id="e" class="m bad"></div>
+<div class="m" style="margin-top:10px">We review your brief and reply with a clear quote. You pay nothing until you approve it. See our <a href="terms.html" style="color:var(--gold)">Terms</a> and <a href="privacy.html" style="color:var(--gold)">Privacy Policy</a>.</div></div>
+<div id="ok" hidden><div class="c"><h1 id="okh"></h1><p id="okp"></p><a class="b" id="okt">Track my project</a><a class="b g" id="okw" target="_blank" rel="noopener">Also message us on WhatsApp (optional)</a><a class="b g" href="designs.html">Back to designs</a></div></div>
+</div>
+<script src="supabase-config.js"></script>
+<script>
+var $=function(i){return document.getElementById(i)};
+try{var c=JSON.parse(localStorage.getItem('velosContact')||'{}');$('nm').value=c.n||'';$('ph').value=c.p||'';$('em').value=c.e||'';}catch(e){}
+var q=new URLSearchParams(location.search),d=parseInt(q.get('d'),10);if(d>=0&&d<=6)$('ty').selectedIndex=d;
+$('dl').min=new Date().toISOString().slice(0,10);
+$('go').onclick=function(){
+  $('e').textContent='';if($('hp').value)return;
+  var x={p_type:$('ty').value,p_business:$('bn').value.trim(),p_about:$('ab').value.trim(),p_style:$('st').value.trim(),p_budget_label:$('bl').value,p_deadline:$('dl').value||null,p_brief:$('br').value.trim(),
+    p_name:$('nm').value.trim(),p_phone:$('ph').value.trim(),p_email:$('em').value.trim()};
+  if(x.p_about.length<5&&x.p_brief.length<5){$('e').textContent='Please tell us a little about your project.';return;}
+  if(x.p_name.length<2||x.p_phone.length<7){$('e').textContent='Please enter your name and phone number.';return;}
+  var b=this;b.disabled=true;b.textContent='Sending…';var S=window.VELOS_SUPABASE;
+  fetch(S.url+'/rest/v1/rpc/submit_design_request',{method:'POST',headers:{apikey:S.key,'Content-Type':'application/json'},body:JSON.stringify(x)})
+  .then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.message||'Could not send');return j})})
+  .then(function(no){
+    try{localStorage.setItem('velosContact',JSON.stringify({n:x.p_name,p:x.p_phone,e:x.p_email}));localStorage.setItem('velosLast','D'+no);}catch(e){}
+    $('f').hidden=true;$('ok').hidden=false;$('okh').textContent='Project D'+no+' received ✓';
+    $('okp').textContent='Thank you! Our design team will review your brief and send a quote to '+x.p_phone+'. Keep your reference to track progress.';
+    $('okt').href='track.html?o=D'+no;
+    $('okw').href='https://wa.me/256755215751?text='+encodeURIComponent('Hello Velos Designs, I sent design request D'+no+' ('+x.p_type+') on the website.');
+  }).catch(function(e){b.disabled=false;b.textContent='Send my brief';$('e').textContent=String(e.message).slice(0,160);});
+};
+</script></body></html>

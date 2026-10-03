@@ -22,7 +22,8 @@ function toast(m, bad){
 }
 
 /* ---------- 1. LIVE CATALOG ---------- */
-Promise.all([api('categories?select=*&order=sort_order'), api('products?select=*')]).then(function(res){
+var catP = Promise.all([api('categories?select=*&order=sort_order'), api('products?select=*')]);
+catP.then(function(res){
   var cs = res[0], ps = res[1];
   if(!cs || !cs.length || !ps || !ps.length) return;
   var order = {}; cs.forEach(function(c, i){ order[c.key] = i; });
@@ -63,8 +64,8 @@ function lineText(items){
   var lines = [], total = 0;
   items.forEach(function(it){
     var p = PRODUCTS.find(function(x){ return x.id === it.product_id; }); if(!p) return;
-    lines.push('• ' + p.name + ' (x' + it.qty + ') — ' + (p.price ? formatUGX(p.price * it.qty) : 'Quote requested'));
-    if(p.price) total += p.price * it.qty;
+    lines.push('• ' + p.name + ' (x' + it.qty + ') — ' + (effPrice(p) ? formatUGX(effPrice(p) * it.qty) : 'Quote requested'));
+    if(effPrice(p)) total += effPrice(p) * it.qty;
   });
   return {lines: lines, total: total};
 }
@@ -180,6 +181,157 @@ window.v_sendTechRegistration = window.sendTechRegistration = function(){
   .catch(function(e){ if(btn){ btn.disabled = false; btn.textContent = 'Submit application'; } failModal(e, wa); });
 };
 
+/* ---------- 5. STOREFRONT UPGRADE ---------- */
+var PROMO = {};
+function effPrice(p){ var d = PROMO[p.id]; return (p.price && d) ? Math.round(p.price * (100 - d) / 100) : p.price; }
+api('promotions?select=product_id,discount_percent,starts_at,ends_at&is_active=eq.true').then(function(rows){
+  var n = Date.now();
+  (rows || []).forEach(function(r){ if(new Date(r.starts_at).getTime() <= n && new Date(r.ends_at).getTime() >= n) PROMO[r.product_id] = Math.max(PROMO[r.product_id] || 0, r.discount_percent); });
+  try { renderProducts(); updateCartUI(); } catch(e){}
+}).catch(function(){});
+
+window.productCard = function(p){
+  var disc = PROMO[p.id], eff = effPrice(p), oos = p.inStock === false, b = [];
+  b.push(oos ? '<span class="product-badge" style="background:#b3261e;color:#fff">Out of stock</span>' : '<span class="product-badge verified">In stock</span>');
+  if(disc) b.push('<span class="product-badge" style="background:#e6493f;color:#fff">-' + disc + '% OFF</span>');
+  if(p.real) b.push('<span class="product-badge verified">Verified Photo</span>');
+  if(CATEGORY_NOTES[p.cat]) b.push('<span class="product-badge wholesale">Wholesale Available</span>');
+  var cat = CATEGORIES.find(function(c){ return c.key === p.cat; });
+  var price = disc ? '<span class="price">' + formatUGX(eff) + ' <s style="opacity:.55;font-size:.78em">' + formatUGX(p.price) + '</s></span>' : '<span class="price">' + formatUGX(p.price) + '</span>';
+  return '<div class="product-card"' + (oos ? ' style="opacity:.8"' : '') + '><div class="img-wrap' + (p.real ? ' real-tile' : '') + '">' + (p['new'] ? '<span class="new-ribbon">New</span>' : '')
+    + '<button class="card-share-btn" onclick="shareProduct(\'' + p.id + '\')" aria-label="Share ' + esc(p.name) + '">' + SHARE_ICON + '</button>'
+    + '<img src="' + esc(p.img) + '" alt="' + esc(p.name) + '" loading="lazy" onerror="this.closest(\'.img-wrap\').classList.add(\'img-fallback\');this.outerHTML=\'<div class=img-fallback-inner><span>Photo coming soon</span></div>\'"></div>'
+    + '<div class="product-info"><div class="badge-row">' + b.join('') + '</div><span class="cat-tag">' + esc(p.sub || (cat ? cat.label : '')) + '</span><h4>' + esc(p.name) + '</h4>' + price
+    + '<div class="product-actions">' + (oos ? '<button class="btn-mini order" disabled style="opacity:.55;cursor:not-allowed">Out of stock</button>'
+      : '<button class="btn-mini add" onclick="addToCart(\'' + p.id + '\', this)">+ Cart</button><button class="btn-mini order" onclick="orderNow(\'' + p.id + '\')">Order Now</button>') + '</div></div></div>';
+};
+
+/* Sharing: the link opens the product so the customer can order and track it, exactly like on the website */
+window.buildPromoImage = async function(o){
+  var photo; try { photo = await loadImage(o.imgSrc); } catch(e){ return null; }
+  var W = 1080, H = 1080, PH = 300, c = document.createElement('canvas'); c.width = W; c.height = H; var x = c.getContext('2d'), ph = H - PH;
+  x.fillStyle = '#fff'; x.fillRect(0, 0, W, ph);
+  var sc = Math.min((W - 80) / photo.width, (ph - 80) / photo.height); x.drawImage(photo, (W - photo.width * sc) / 2, (ph - photo.height * sc) / 2, photo.width * sc, photo.height * sc);
+  if(o.badgeText){ x.font = '700 28px Arial'; var tw = x.measureText(o.badgeText).width; x.fillStyle = '#e6493f'; roundRect(x, 28, 28, tw + 44, 56, 28); x.fill(); x.fillStyle = '#fff'; x.textBaseline = 'middle'; x.fillText(o.badgeText, 50, 57); }
+  var g = x.createLinearGradient(0, ph, 0, H); g.addColorStop(0, '#0c1226'); g.addColorStop(1, '#080d1a'); x.fillStyle = g; x.fillRect(0, ph, W, PH);
+  x.textBaseline = 'alphabetic'; x.font = '700 28px Georgia, serif'; x.fillStyle = '#e8c766'; x.textAlign = 'right'; x.fillText('THE VELOS GROUP', W - 32, ph + 44); x.textAlign = 'left';
+  x.font = '600 42px Georgia, serif'; x.fillStyle = '#f4f1ea'; var ls = wrapText(x, o.title, W - 64, 2); ls.forEach(function(l, i){ x.fillText(l, 32, ph + 100 + i * 50); });
+  var py = ph + 100 + ls.length * 50 + 26; x.font = '700 46px Arial'; x.fillStyle = '#7fd99a'; x.fillText(o.priceText, 32, py);
+  if(o.oldPriceText){ var pw = x.measureText(o.priceText).width; x.font = '400 28px Arial'; x.fillStyle = '#8a93ab'; x.fillText(o.oldPriceText, 52 + pw, py); var ow = x.measureText(o.oldPriceText).width; x.strokeStyle = '#8a93ab'; x.lineWidth = 2; x.beginPath(); x.moveTo(52 + pw, py - 10); x.lineTo(52 + pw + ow, py - 10); x.stroke(); }
+  x.font = 'italic 600 26px Arial'; x.fillStyle = '#e8c766'; x.fillText('Tap the link below to order and track it online', 32, H - 32);
+  return new Promise(function(r){ c.toBlob(r, 'image/jpeg', 0.9); });
+};
+window.shareContent = async function(title, bodyText, waLink, pageLink, imgSrc, imgName, promoOpts){
+  var text = bodyText + (pageLink ? '\n\nOrder online and track your order: ' + pageLink : '');
+  if(navigator.share){
+    var file = null;
+    if(promoOpts){ var bl = await window.buildPromoImage(promoOpts); if(bl){ file = new File([bl], imgName || 'velos-deal.jpg', {type:'image/jpeg'}); if(navigator.canShare && !navigator.canShare({files:[file]})) file = null; } }
+    try { await navigator.share(file ? {title:title, text:text, files:[file]} : {title:title, text:text}); return; } catch(e){}
+  }
+  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener');
+};
+window.shareProduct = function(id){
+  var p = PRODUCTS.find(function(x){ return x.id === id; }); if(!p) return;
+  var eff = effPrice(p), d = PROMO[id];
+  window.shareContent(p.name, p.name + '\n' + (eff ? formatUGX(eff) : 'Request a quote') + (d ? '  (-' + d + '% offer)' : ''), '', siteUrl('shop.html') + '?p=' + encodeURIComponent(id), p.img, 'velos-product.jpg',
+    {imgSrc:p.img, title:p.name, priceText:eff ? formatUGX(eff) : 'Request a quote', oldPriceText:d ? formatUGX(p.price) : null, badgeText:d ? '-' + d + '% OFF' : null});
+};
+
+/* Open a shared product link (?p=ID) with real ordering */
+function openFromUrl(){
+  var id = new URLSearchParams(location.search).get('p'); if(!id) return;
+  var p = PRODUCTS.find(function(x){ return x.id === id; }); if(!p) return;
+  var eff = effPrice(p), d = PROMO[id], oos = p.inStock === false, close = "document.getElementById('vx').remove();";
+  modal(esc(p.name),
+    '<img src="' + esc(p.img) + '" alt="" style="width:100%;max-height:260px;object-fit:contain;background:#fff;border-radius:10px;margin:6px 0" onerror="this.style.display=\'none\'">'
+    + '<div style="font-size:22px;font-weight:700;color:#7fd99a">' + (eff ? formatUGX(eff) : 'Request a quote') + (d ? ' <s style="font-size:14px;color:#8a93ab">' + formatUGX(p.price) + '</s> <span style="color:#e6493f;font-size:14px">-' + d + '%</span>' : '') + '</div>'
+    + '<div class="sum">' + (oos ? '<b style="color:#ff8a80">Currently out of stock</b>' : '<b style="color:#7fd99a">In stock</b> · Order online, pay as agreed, track every step.') + '</div>',
+    (oos ? '' : '<button class="go" onclick="' + close + 'orderNow(\'' + id + '\')">Order now</button><button class="cx" onclick="' + close + 'addToCart(\'' + id + '\')">Add to cart</button>')
+    + '<a class="vb cx" href="shop.html">Browse the shop</a>');
+}
+catP.catch(function(){}).then(function(){ setTimeout(openFromUrl, 400); });
+
+/* Gift finder: live catalog, any occasion, any budget */
+var GIFT_CATS = {birthday:['phones','accessories','audio','cameras'], wedding:['appliances','furniture','audio','tvs'], anniversary:['audio','tvs','phones','cameras','accessories'], surprise:['accessories','audio','cameras','phones'], corporate:['laptops','printers','accessories','audio']};
+var GIFT_RANGE = {under50:[0, 50000], low:[50000, 150000], mid:[150000, 500000], high:[500000, 2500000], lux:[2500000, 1e12]};
+window.getGiftSuggestion = function(){
+  var occ = document.getElementById('giftOccasion').value, bk = document.getElementById('giftBudget').value, r = GIFT_RANGE[bk] || [0, 1e12], cats = GIFT_CATS[occ] || [];
+  var pool = PRODUCTS.filter(function(p){ var e = effPrice(p); return e && e >= r[0] && e <= r[1] && p.inStock !== false && cats.indexOf(p.cat) > -1; });
+  pool.sort(function(a, b){ return (cats.indexOf(a.cat) - cats.indexOf(b.cat)) || (effPrice(b) - effPrice(a)); });
+  var seen = {}, pick = [];
+  pool.forEach(function(p){ if(pick.length < 3 && !seen[p.cat]){ seen[p.cat] = 1; pick.push(p); } });
+  pool.forEach(function(p){ if(pick.length < 3 && pick.indexOf(p) < 0) pick.push(p); });
+  var box = document.getElementById('giftResult'), more = 'gift-request.html?occasion=' + occ + '&bk=' + bk;
+  box.innerHTML = '<div style="padding:4px 0"><b style="font-family:Georgia,serif;font-size:19px">' + (pick.length ? 'Our picks for you' : 'Let us find the perfect gift') + '</b>'
+    + (pick.length ? pick.map(function(p){ return '<div style="display:flex;gap:12px;align-items:center;margin:12px 0;padding:10px;border:1px solid rgba(232,199,102,.35);border-radius:12px"><img src="' + esc(p.img) + '" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:8px;background:#fff" onerror="this.style.display=\'none\'"><div style="flex:1"><div style="font-weight:600">' + esc(p.name) + '</div><div style="color:#7fd99a">' + formatUGX(effPrice(p)) + '</div></div><button class="btn-mini order" onclick="orderNow(\'' + p.id + '\')">Order</button></div>'; }).join('')
+      : '<p style="opacity:.85">Nothing in our shop fits that exact mix, but we can source it for you.</p>')
+    + '<a href="' + more + '" style="display:block;text-align:center;margin-top:10px;padding:13px;border-radius:8px;background:#e8c766;color:#080d1f;font-weight:700;text-decoration:none">Not quite right? We\'ll source any gift for you →</a></div>';
+  box.classList.add('show');
+};
+window.getCustomConciergeEstimate = function(){
+  var t = document.getElementById('customAsk').value.trim(), b = document.getElementById('customBudget').value.trim();
+  if(!t){ alert('Please describe what you are looking for first.'); return; }
+  var box = document.getElementById('customResult'), url = 'gift-request.html?idea=' + encodeURIComponent(t) + (b ? '&budget=' + encodeURIComponent(b) : '');
+  box.innerHTML = '<div style="padding:4px 0"><b style="font-family:Georgia,serif;font-size:19px">We can source that</b><p style="opacity:.85">"' + esc(t) + '"<br>Send us the details and our concierge will come back with options and a clear quote. You pay nothing until you approve.</p>'
+    + '<a href="' + url + '" style="display:block;text-align:center;padding:13px;border-radius:8px;background:#e8c766;color:#080d1f;font-weight:700;text-decoration:none">Send my request →</a></div>';
+  box.classList.add('show');
+};
+
+/* Assistant: answers from the live catalog and routes to the right flow */
+function chatLink(url, label, wa){
+  var b = document.getElementById('chatBody'), a = document.createElement('a'); a.href = url; a.className = 'chat-msg bot chat-link'; if(/^http/.test(url)){ a.target = '_blank'; a.rel = 'noopener'; }
+  a.textContent = (wa ? '💬 ' : '→ ') + label; b.appendChild(a); b.scrollTop = b.scrollHeight;
+}
+function parseBudget(t){
+  var m = t.match(/(under|below|less than|within|up to|max)\s*(?:ugx\s*)?(\d[\d,\.]*)\s*(m|million|k|thousand)?/); if(!m) return null;
+  var n = parseFloat(m[2].replace(/,/g, '')); if(m[3] === 'm' || m[3] === 'million') n *= 1e6; else if(m[3] === 'k' || m[3] === 'thousand') n *= 1e3; return n;
+}
+function searchCatalog(t){
+  var stop = {the:1, and:1, for:1, with:1, any:1, have:1, you:1, are:1, can:1, get:1, want:1, need:1, buy:1, looking:1, find:1, show:1, under:1, below:1, price:1, much:1, how:1, what:1, which:1, best:1, cheap:1, good:1, your:1, ugx:1};
+  var toks = t.replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(function(w){ return w.length > 2 && !stop[w] && !/^\d/.test(w); }), bud = parseBudget(t);
+  if(!toks.length && !bud) return [];
+  var syn = {phone:'phones', phones:'phones', smartphone:'phones', iphone:'phones', tv:'tvs', television:'tvs', fridge:'appliances', freezer:'appliances', cooker:'appliances', oven:'appliances', sofa:'furniture', bed:'furniture', couch:'furniture'};
+  return PRODUCTS.map(function(p){
+    var cat = CATEGORIES.find(function(c){ return c.key === p.cat; }), hay = (p.name + ' ' + (p.sub || '') + ' ' + (cat ? cat.label : '') + ' ' + p.cat).toLowerCase(), s = 0;
+    toks.forEach(function(w){ if(hay.indexOf(w) > -1) s += 2; else if(syn[w] && p.cat === syn[w]) s += 1.5; else if(w.length > 4 && hay.indexOf(w.slice(0, -1)) > -1) s += 1; });
+    var e = effPrice(p); if(bud && (!e || e > bud)) s = 0;
+    return {p:p, s:s};
+  }).filter(function(x){ return x.s > 0 && x.p.inStock !== false; }).sort(function(a, b){ return b.s - a.s; }).slice(0, 4).map(function(x){ return x.p; });
+}
+window.chatRespond = function(text){
+  var t = text.toLowerCase();
+  if(/track|where is my|order status|my order|progress/.test(t)) return {text:'You can follow any order, service request, gift request or design project with its reference number and your phone number.', links:[['track.html', 'Track my order or request']]};
+  if(/pay|deposit|momo|mobile money|airtel|mtn|cash|install/.test(t)) return {text:'Orders above UGX 1,000,000 (including bulk) need a 30% deposit to confirm, with the balance on delivery. Smaller orders can be cash on delivery or mobile money. Our team confirms payment details with you after you order, so never pay a number you did not get from us.', links:[]};
+  if(/technician|apply|join|register|vacanc/.test(t)) return {text:'You can apply to join our verified technician network online and upload your documents securely.', links:[['technicians.html', 'Apply as a technician']]};
+  if(/gift|present|surprise|birthday|wedding|anniversary/.test(t)) return {text:'Tell us the occasion and budget, or the gift you have in mind. We can source almost anything, locally or from abroad.', links:[['gifts.html', 'Open the Gift Concierge'], ['gift-request.html', 'Request a gift']]};
+  if(/design|website|logo|brand|packag|footwear|corporate gift/.test(t)) return {text:'Global Designs makes websites, branding, packaging and custom products to order. Send us a short brief and get a quote.', links:[['design-request.html', 'Start a design project']]};
+  if(/repair|fix|electric|plumb|solar|generator|install|clean|inspect|security|wifi|wi-fi|emergency|dispatch|technic/.test(t)) return {text:'Book a service in a minute: describe the problem, your location, when you are free and how urgent it is, and we send the nearest verified technician.', links:[['book-service.html', 'Book a service']]};
+  if(/deliver|ship|how long/.test(t)) return {text:'We deliver across Uganda and arrange shipping elsewhere in East Africa. Delivery details are confirmed when we contact you about your order.', links:[]};
+  if(/return|refund|warrant|guarantee/.test(t)) return {text:'Returns and warranty are agreed in writing at the time of sale, in line with Ugandan consumer law. See our Terms for details.', links:[['terms.html', 'Read the Terms']]};
+  if(/contact|whatsapp|phone|call|email|reach|office|location/.test(t)) return {text:'Our dispatch desk is on WhatsApp +256 755 215 751, or email dispatch@thevelosgroup.com (orders) or info@thevelosgroup.com (everything else). We are based in Kampala.', links:[['contact.html', 'Contact page']]};
+  var hits = searchCatalog(t);
+  if(hits.length) return {text:'Here is what we have in stock:', products:hits};
+  return {text:'I could not find that in our catalog, but we can probably source it for you. Tell us what you need and your budget and our concierge will come back with options and a quote.', links:[['gift-request.html?idea=' + encodeURIComponent(text), 'Request this item']]};
+};
+window.sendChat = function(prompt){
+  var inp = document.getElementById('chatInput'), text = (typeof prompt === 'string' ? prompt : inp.value).trim(); if(!text) return;
+  chatAppend(text, 'user'); inp.value = '';
+  setTimeout(function(){
+    var r = window.chatRespond(text); chatAppend(r.text, 'bot');
+    (r.products || []).forEach(function(p){ var e = effPrice(p); chatLink('shop.html?p=' + p.id, p.name + ' · ' + (e ? formatUGX(e) : 'Quote') + (PROMO[p.id] ? ' (-' + PROMO[p.id] + '%)' : '')); });
+    (r.links || []).forEach(function(l){ chatLink(l[0], l[1]); });
+    chatLink('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent('Hello Velos, I need help: ' + text), 'Talk to a person on WhatsApp', true);
+  }, 350);
+};
+window.toggleChat = function(open){
+  var w = document.getElementById('chatWindow'); w.classList.toggle('open', open);
+  if(open && !w.dataset.started){
+    w.dataset.started = '1';
+    chatAppend('Hello, I am the Velos Assistant. I can find products in our shop, help you book a service, source a gift, start a design project or track your order. What do you need?', 'bot');
+    document.getElementById('chatQuick').innerHTML = ['Track my order', 'Find a phone', 'Book a service', 'Gift ideas', 'Payment terms'].map(function(q){ return '<button onclick="sendChat(\'' + q + '\')">' + q + '</button>'; }).join('');
+  }
+};
+
 /* ---------- 4. PAGE TWEAKS ---------- */
 function dom(){
   [['sendInquiry','Send inquiry'],['sendTechRegistration','Submit application']].forEach(function(p){
@@ -196,6 +348,17 @@ function dom(){
     var b = document.querySelector('.dispatch-banner a.btn-primary');
     if(b){ b.href = 'book-service.html?s=3&u=emergency'; b.removeAttribute('target'); }
   }
+  document.querySelectorAll('a[href*="drive.google.com"]').forEach(function(a){ a.remove(); });
+  if(document.body.getAttribute('data-page') === 'designs'){
+    document.querySelectorAll('.design-card a.btn-whatsapp').forEach(function(a, i){ a.href = 'design-request.html?d=' + i; a.removeAttribute('target'); var v = a.querySelector('svg'); if(v) v.remove(); });
+    var db = document.querySelector('.dispatch-banner a.btn-primary'); if(db){ db.href = 'design-request.html?d=6'; db.removeAttribute('target'); }
+  }
+  setTimeout(function(){
+    try { document.querySelectorAll('.spotlight-slide').forEach(function(sl){
+      var s = SPOTLIGHT_SLIDES[parseInt(sl.getAttribute('data-i'), 10)]; if(!s || !s.productId) return;
+      sl.querySelectorAll('a[href*="shop.html"]').forEach(function(a){ a.href = 'shop.html?p=' + s.productId; a.textContent = 'Order now'; a.removeAttribute('target'); });
+    }); } catch(e){}
+  }, 900);
   var tb = document.querySelector('[onclick*="sendTechRegistration("]');
   if(tb && document.getElementById('techName') && !document.getElementById('fdIdF')){
     var bx = document.createElement('div'), L = 'display:block;margin:10px 0 2px;font-size:14px', I = 'width:100%;margin-top:4px';

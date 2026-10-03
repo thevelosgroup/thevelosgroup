@@ -76,7 +76,7 @@ async function boot(){
   go('home');
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['report','Sales'],['gifts','Gifts'],['products','Products'],['techs','Technicians'],['service','Services'],['inq','Inquiries'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['report','Sales'],['gifts','Gifts'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['inq','Inquiries'],['import','Import']];
 async function go(k){
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.id === 'n-'+k));
   $('#view').innerHTML = '<p class="mut">Loading…</p>';
@@ -90,6 +90,10 @@ async function st(table, id, v){
 const STL = {new:'received',confirmed:'confirmed',dispatched:'out for delivery',delivered:'delivered',cancelled:'cancelled'};
 const ntf = (p, txt) => 'https://wa.me/' + String(p||'').replace(/\D/g,'') + '?text=' + encodeURIComponent(txt);
 const tbase = () => location.href.replace(/admin\.html.*$/, '') + 'track.html';
+async function saveDQuote(id){
+  const v = $('#dq-'+id).value, {error} = await db.from('design_requests').update({quote_ugx: v===''?null:Number(v)}).eq('id', id);
+  toast(error ? error.message : 'Quote saved', !!error);
+}
 async function saveQuote(id){
   const v = $('#q-'+id).value, {error} = await db.from('gift_requests').update({quote_ugx: v===''?null:Number(v)}).eq('id', id);
   toast(error ? error.message : 'Quote saved', !!error);
@@ -142,7 +146,7 @@ const VIEWS = {
   async products(){
     const {data,error} = await db.from('products').select('*').order('category_key').order('id');
     if(error) throw error;
-    window.PR = data;
+    window.PR = data; const pr = await db.from('promotions').select('product_id,discount_percent').eq('is_active',true).gt('ends_at', new Date().toISOString()); window.PM = {}; (pr.data||[]).forEach(x => PM[x.product_id] = x.discount_percent);
     $('#view').innerHTML = `<h2>Products (${data.length})</h2>
       <input id="q" placeholder="Search products…" oninput="drawP()">
       <details class="card"><summary class="gold">+ Add product</summary>
@@ -227,6 +231,19 @@ const VIEWS = {
       <div class="mut">${dt(g.created_at)}</div></div>`).join('') : '<p class="mut">No gift requests yet.</p>');
   },
 
+  async designs(){
+    const {data,error} = await db.from('design_requests').select('*').order('created_at',{ascending:false}).limit(100);
+    if(error) throw error;
+    $('#view').innerHTML = '<h2>Design requests</h2>' + (data.length ? data.map(g => `<div class="card">
+      <div class="row"><b class="gold">D${g.req_no}</b>${sel('design_requests',g.id,g.status,['new','brief_review','quoted','approved','in_design','review','completed','cancelled'])}</div>
+      <div><b>${esc(g.design_type)}</b> · ${esc(g.business_name||'')}</div><div class="mut">Budget: ${esc(g.budget_label||'')} · Needed by ${esc(g.deadline||'flexible')}</div>
+      <div>${esc(g.about||'')}</div><div class="mut">${esc(g.style_notes||'')}</div><div>${esc(g.brief||'')}</div>
+      <div>${esc(g.customer_name)} · <a href="${wa(g.customer_phone)}" target="_blank">${esc(g.customer_phone)}</a></div>
+      <div class="row"><input class="sm" id="dq-${g.id}" type="number" placeholder="Quote UGX" value="${g.quote_ugx??''}" style="width:150px"><button onclick="saveDQuote('${g.id}')">Save quote</button></div>
+      <a href="${ntf(g.customer_phone, `Hello ${g.customer_name}, about your Velos design request D${g.req_no}: ${g.quote_ugx?'our quote is '+ugx(g.quote_ugx)+'. ':''}Track it anytime: ${tbase()}?o=D${g.req_no}`)}" target="_blank">💬 Reply on WhatsApp</a>
+      <div class="mut">${dt(g.created_at)}</div></div>`).join('') : '<p class="mut">No design requests yet.</p>');
+  },
+
   async import(){
     $('#view').innerHTML = `<h2>Import catalog</h2><div class="card"><p>Copies every category and product from your website's <b>app.js</b> into the database.
       <br><span class="mut">Run this once. Running it again resets prices and names to what app.js says.</span></p>
@@ -238,9 +255,9 @@ function drawP(){
   const q = ($('#q')?.value || '').toLowerCase();
   $('#plist').innerHTML = PR.filter(p => !q || (p.name + ' ' + p.id + ' ' + (p.subcategory||'')).toLowerCase().includes(q)).slice(0,60).map(p => `
     <div class="card" id="p-${p.id}">
-      <div class="row"><span><img src="${esc(p.image_url||'')}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:8px" onerror="this.style.display='none'">${p.in_stock===false?'<span class="pill" style="color:var(--bad)">OUT</span> ':''}<b>${esc(p.name)}</b></span><span class="mut">${esc(p.id)} · ${esc(p.category_key)}</span></div>
+      <div class="row"><span><img src="${esc(p.image_url||'')}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:8px" onerror="this.style.display='none'">${p.in_stock===false?'<span class="pill" style="color:var(--bad)">OUT</span> ':''}${(window.PM||{})[p.id]?`<span class="pill gold">-${PM[p.id]}%</span> `:''}<b>${esc(p.name)}</b></span><span class="mut">${esc(p.id)} · ${esc(p.category_key)}</span></div>
       <div class="grid2"><input class="nm" value="${esc(p.name)}"><input class="pr" type="number" value="${p.price_ugx ?? ''}" placeholder="Request Quote"></div>
-      <label class="mut">Change photo</label><input class="ph" type="file" accept="image/*"><div class="row"><label><input class="sm ac" type="checkbox" ${p.is_active?'checked':''}> Visible</label> <label><input class="sm st" type="checkbox" ${p.in_stock!==false?'checked':''}> In stock</label>
+      <div class="grid2"><input class="pd" type="number" placeholder="Discount % (0 = end)"><input class="pdays" type="number" placeholder="Days (default 7)"></div><label class="mut">Change photo</label><input class="ph" type="file" accept="image/*"><div class="row"><label><input class="sm ac" type="checkbox" ${p.is_active?'checked':''}> Visible</label> <label><input class="sm st" type="checkbox" ${p.in_stock!==false?'checked':''}> In stock</label>
       <button onclick="saveP('${p.id}')">Save</button></div></div>`).join('') + (PR.length > 60 && !q ? '<p class="mut">Showing 60 — use search to find others.</p>' : '');
 }
 async function saveP(id){
@@ -249,6 +266,8 @@ async function saveP(id){
   const f = r.querySelector('.ph').files[0];
   try { if(f) upd.image_url = await upImg(f, id); } catch(e){ return toast('Photo upload failed: ' + e.message, true); }
   const {error} = await db.from('products').update(upd).eq('id', id);
+  const pd = r.querySelector('.pd').value, pdays = r.querySelector('.pdays').value;
+  if(!error && pd !== ''){ await db.from('promotions').update({is_active:false}).eq('product_id', id); if(Number(pd) > 0){ await db.from('promotions').insert({product_id:id, discount_percent:Number(pd), ends_at:new Date(Date.now() + (Number(pdays)||7)*86400000).toISOString()}); } }
   toast(error ? error.message : 'Saved', !!error);
 }
 async function addP(){
