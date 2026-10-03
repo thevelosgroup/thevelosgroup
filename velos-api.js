@@ -182,11 +182,12 @@ window.v_sendTechRegistration = window.sendTechRegistration = function(){
 };
 
 /* ---------- 5. STOREFRONT UPGRADE ---------- */
-var PROMO = {};
+var PROMO = {}, PINFO = {};
 function effPrice(p){ var d = PROMO[p.id]; return (p.price && d) ? Math.round(p.price * (100 - d) / 100) : p.price; }
-api('promotions?select=product_id,discount_percent,starts_at,ends_at&is_active=eq.true').then(function(rows){
+var promoP = api('promotions?select=product_id,discount_percent,starts_at,ends_at&is_active=eq.true');
+promoP.then(function(rows){
   var n = Date.now();
-  (rows || []).forEach(function(r){ if(new Date(r.starts_at).getTime() <= n && new Date(r.ends_at).getTime() >= n) PROMO[r.product_id] = Math.max(PROMO[r.product_id] || 0, r.discount_percent); });
+  (rows || []).forEach(function(r){ if(new Date(r.starts_at).getTime() <= n && new Date(r.ends_at).getTime() >= n){ PROMO[r.product_id] = Math.max(PROMO[r.product_id] || 0, r.discount_percent); PINFO[r.product_id] = {end:new Date(r.ends_at).getTime()}; } });
   try { renderProducts(); updateCartUI(); } catch(e){}
 }).catch(function(){});
 
@@ -238,8 +239,7 @@ window.shareProduct = function(id){
 };
 
 /* Open a shared product link (?p=ID) with real ordering */
-function openFromUrl(){
-  var id = new URLSearchParams(location.search).get('p'); if(!id) return;
+window.openProductSheet = function(id){
   var p = PRODUCTS.find(function(x){ return x.id === id; }); if(!p) return;
   var eff = effPrice(p), d = PROMO[id], oos = p.inStock === false, close = "document.getElementById('vx').remove();";
   modal(esc(p.name),
@@ -248,8 +248,78 @@ function openFromUrl(){
     + '<div class="sum">' + (oos ? '<b style="color:#ff8a80">Currently out of stock</b>' : '<b style="color:#7fd99a">In stock</b> · Order online, pay as agreed, track every step.') + '</div>',
     (oos ? '' : '<button class="go" onclick="' + close + 'orderNow(\'' + id + '\')">Order now</button><button class="cx" onclick="' + close + 'addToCart(\'' + id + '\')">Add to cart</button>')
     + '<a class="vb cx" href="shop.html">Browse the shop</a>');
-}
+};
+window.vProd = function(id){ openProductSheet(id); return false; };
+function openFromUrl(){ var id = new URLSearchParams(location.search).get('p'); if(id) openProductSheet(id); }
 catP.catch(function(){}).then(function(){ setTimeout(openFromUrl, 400); });
+
+
+/* Home page: real flash deal and a rotating, varied carousel built from the live catalog */
+function pad2(n){ return (n < 10 ? '0' : '') + n; }
+function vFlash(f, d){
+  try { clearInterval(flashCountdownTimer); } catch(e){}
+  window.renderFlashDeal = function(){};
+  if(!d){ f.style.display = 'none'; return; }
+  f.style.display = '';
+  var p = d.p;
+  f.innerHTML = '<div class="fd-media"><img src="' + esc(p.img) + '" alt="' + esc(p.name) + '"></div><div class="fd-text"><span class="fd-badge">⚡ FLASH DEAL · -' + d.d + '%</span><h3>' + esc(p.name) + '</h3>'
+    + '<div class="spotlight-price"><span class="was">' + formatUGX(p.price) + '</span><span class="now">' + formatUGX(effPrice(p)) + '</span></div><div class="spotlight-countdown" id="vCd"></div>'
+    + '<a class="btn-primary" href="shop.html?p=' + p.id + '" onclick="return vProd(\'' + p.id + '\')">Order now</a></div>';
+  function tick(){
+    var s = Math.max(0, Math.floor((d.end - Date.now()) / 1000)), el = document.getElementById('vCd'); if(!el) return;
+    el.textContent = s <= 0 ? 'Offer ended' : 'Ends in ' + (s >= 86400 ? Math.floor(s / 86400) + 'd ' : '') + pad2(Math.floor(s % 86400 / 3600)) + ':' + pad2(Math.floor(s % 3600 / 60)) + ':' + pad2(s % 60);
+  }
+  tick(); setInterval(tick, 1000);
+}
+function vCarousel(sp, promos){
+  try { clearInterval(spotlightTimer); } catch(e){}
+  var seed = Math.floor(Date.now() / 3600000), rnd = function(){ seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  var pool = PRODUCTS.filter(function(p){ return p.inStock !== false && p.price && p.img; }), byCat = {}, used = {}, picks = [];
+  pool.forEach(function(p){ (byCat[p.cat] = byCat[p.cat] || []).push(p); });
+  var cats = Object.keys(byCat).sort(function(){ return rnd() - 0.5; });
+  promos.slice(0, 3).forEach(function(d){ picks.push({p:d.p, d:d.d}); used[d.p.id] = 1; });
+  for(var i = 0; picks.length < 9 && i < 80 && cats.length; i++){
+    var arr = byCat[cats[i % cats.length]], p = arr[Math.floor(rnd() * arr.length)];
+    if(!used[p.id]){ used[p.id] = 1; picks.push({p:p, d:PROMO[p.id] || 0}); }
+  }
+  function prod(x){
+    var p = x.p, cat = CATEGORIES.find(function(c){ return c.key === p.cat; });
+    return '<div class="spotlight-slide"><div class="spotlight-media light">' + (x.d ? '<span class="flash-badge">-' + x.d + '%</span>' : '') + '<img src="' + esc(p.img) + '" alt="' + esc(p.name) + '" loading="lazy"></div>'
+      + '<div class="spotlight-text"><span class="sl-tag">' + (x.d ? 'Limited offer' : 'Featured') + ' · ' + esc(cat ? cat.label : '') + '</span><h3>' + esc(p.name) + '</h3><p>' + (CATEGORY_NOTES[p.cat] ? 'Wholesale pricing available. Order online and track every step.' : 'In stock. Order online and track every step.') + '</p>'
+      + '<div class="spotlight-price">' + (x.d ? '<span class="was">' + formatUGX(p.price) + '</span>' : '') + '<span class="now">' + formatUGX(effPrice(p)) + '</span></div>'
+      + '<a class="btn-primary" href="shop.html?p=' + p.id + '" onclick="return vProd(\'' + p.id + '\')">Order now</a></div></div>';
+  }
+  function st(img, tag, title, text, href, cta){
+    return '<div class="spotlight-slide"><div class="spotlight-media dark"><img src="' + img + '" alt="" loading="lazy"></div><div class="spotlight-text"><span class="sl-tag">' + tag + '</span><h3>' + title + '</h3><p>' + text + '</p><a class="btn-primary" href="' + href + '">' + cta + '</a></div></div>';
+  }
+  var statics = [
+    st('services-hero-drone.jpg', 'Global Services', 'Verified technicians, anywhere in East Africa', 'Describe the problem and we send the nearest ID-verified technician.', 'book-service.html', 'Book a service'),
+    st('hero-cargo-ship.jpg', 'Sourcing &amp; shipping', 'Can’t find it? We source it for you', 'Any product, any budget, from Uganda or abroad. Get a clear quote first.', 'gift-request.html?src=1', 'Request a quote'),
+    st('dispatch-van.jpg', '24/7 emergency dispatch', 'Electrical, plumbing or structural emergency?', 'Our dispatch desk assigns a verified technician fast.', 'book-service.html?s=3&u=emergency', 'Request emergency help')
+  ];
+  var slides = [], k = 0;
+  picks.forEach(function(x, n){ slides.push(prod(x)); if((n + 1) % 3 === 0 && k < statics.length) slides.push(statics[k++]); });
+  while(k < statics.length) slides.push(statics[k++]);
+  slides = slides.slice(0, 11);
+  var chev = function(d){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="' + d + '"/></svg>'; };
+  sp.innerHTML = '<div class="spotlight-track">' + slides.join('') + '</div><div class="spotlight-nav"><button class="spotlight-arrow" id="vP" aria-label="Previous">' + chev('M15 18l-6-6 6-6') + '</button><div class="spotlight-dots">'
+    + slides.map(function(_, i){ return '<button class="spotlight-dot" data-i="' + i + '" aria-label="Slide ' + (i + 1) + '"></button>'; }).join('') + '</div><button class="spotlight-arrow" id="vN" aria-label="Next">' + chev('M9 18l6-6-6-6') + '</button></div>';
+  var sl = sp.querySelectorAll('.spotlight-slide'), dots = sp.querySelectorAll('.spotlight-dot'), cur = 0, t;
+  function show(i){ cur = (i + sl.length) % sl.length; sl.forEach(function(s, j){ s.classList.toggle('active', j === cur); }); dots.forEach(function(d, j){ d.classList.toggle('active', j === cur); }); }
+  function auto(){ clearInterval(t); t = setInterval(function(){ show(cur + 1); }, 6500); }
+  document.getElementById('vP').onclick = function(){ show(cur - 1); auto(); };
+  document.getElementById('vN').onclick = function(){ show(cur + 1); auto(); };
+  dots.forEach(function(d){ d.onclick = function(){ show(parseInt(d.getAttribute('data-i'), 10)); auto(); }; });
+  sp.addEventListener('mouseenter', function(){ clearInterval(t); }); sp.addEventListener('mouseleave', auto);
+  show(0); auto();
+}
+function home(){
+  var sp = document.querySelector('.spotlight'), fd = document.querySelector('.flash-deal'); if(!sp && !fd) return;
+  var promos = Object.keys(PINFO).map(function(id){ return {p:PRODUCTS.find(function(x){ return x.id === id; }), d:PROMO[id], end:PINFO[id].end}; })
+    .filter(function(x){ return x.p && x.p.inStock !== false && x.p.price && x.end > Date.now(); }).sort(function(a, b){ return a.end - b.end; });
+  if(fd) vFlash(fd, promos[0]); if(sp) vCarousel(sp, promos);
+}
+Promise.all([catP.catch(function(){}), promoP.catch(function(){})]).then(function(){ setTimeout(home, 50); });
 
 /* Gift finder: live catalog, any occasion, any budget */
 var GIFT_CATS = {birthday:['phones','accessories','audio','cameras'], wedding:['appliances','furniture','audio','tvs'], anniversary:['audio','tvs','phones','cameras','accessories'], surprise:['accessories','audio','cameras','phones'], corporate:['laptops','printers','accessories','audio']};
@@ -349,6 +419,7 @@ function dom(){
     if(b){ b.href = 'book-service.html?s=3&u=emergency'; b.removeAttribute('target'); }
   }
   document.querySelectorAll('a[href*="drive.google.com"]').forEach(function(a){ a.remove(); });
+  var sn = document.querySelector('.shop-note a.btn-secondary'); if(sn){ sn.href = 'gift-request.html?src=1'; sn.removeAttribute('target'); sn.textContent = 'Request a sourcing quote'; }
   if(document.body.getAttribute('data-page') === 'designs'){
     document.querySelectorAll('.design-card a.btn-whatsapp').forEach(function(a, i){ a.href = 'design-request.html?d=' + i; a.removeAttribute('target'); var v = a.querySelector('svg'); if(v) v.remove(); });
     var db = document.querySelector('.dispatch-banner a.btn-primary'); if(db){ db.href = 'design-request.html?d=6'; db.removeAttribute('target'); }

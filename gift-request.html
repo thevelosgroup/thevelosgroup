@@ -37,6 +37,7 @@ var $=function(i){return document.getElementById(i)};
 try{var c=JSON.parse(localStorage.getItem('velosContact')||'{}');$('nm').value=c.n||'';$('ph').value=c.p||'';$('em').value=c.e||'';}catch(e){}
 $('dl').min=new Date().toISOString().slice(0,10);
 var Q=new URLSearchParams(location.search),OM={birthday:'Birthday',wedding:'Wedding / Anniversary',anniversary:'Wedding / Anniversary',corporate:'Corporate / Thank-you',surprise:'Just because'},BM={under50:'Under UGX 100,000',low:'UGX 100,000 – 300,000',mid:'UGX 300,000 – 700,000',high:'UGX 700,000 – 1,500,000',lux:'Above UGX 1,500,000'};
+if(Q.get('src')){document.querySelector('h1').textContent='Source it for me';document.querySelector('.w>.m').textContent='Tell us what you need. We find it, locally or abroad, and send you a clear quote.';document.querySelector('input[value=price]').checked=true;$('oc').value='Other';}
 if(Q.get('idea')){$('id').value=Q.get('idea');document.querySelector('input[value=price]').checked=true;}
 if(Q.get('occasion')&&OM[Q.get('occasion')])$('oc').value=OM[Q.get('occasion')];
 if(Q.get('bk')&&BM[Q.get('bk')])$('bl').value=BM[Q.get('bk')];
