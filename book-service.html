@@ -17,6 +17,12 @@ button.g,a.g{background:none;border:1px solid var(--line);color:var(--txt)}.m{co
 <div id="f">
 <div class="c"><b>1 · What do you need?</b><select id="sv"></select>
 <div class="u" style="margin-top:8px"><label><input type="radio" name="ur" value="standard" checked><span>Standard</span></label><label><input type="radio" name="ur" value="urgent"><span>Urgent</span></label><label><input type="radio" name="ur" value="emergency"><span>Emergency</span></label></div></div>
+<div class="c" id="secp" hidden><b>Security details</b>
+<select id="se"><option>Casual / one-off (hours or days)</option><option>Short-term (a few weeks)</option><option>Contract (monthly or long-term)</option></select>
+<select id="sw"><option>Home / residence</option><option>Office / business premises</option><option>Shop / retail</option><option>Warehouse / stock</option><option>Construction site</option><option>Event / function</option><option>Vehicle / cargo escort</option><option>Other</option></select>
+<div class="g2"><select id="sg"><option>1 guard</option><option>2 guards</option><option>3–5 guards</option><option>6 or more guards</option><option>Not sure — advise me</option></select><select id="ss"><option>Day shift</option><option>Night shift</option><option>24 hours</option><option>Event hours</option></select></div>
+<input id="sd" placeholder="Start date and how long (e.g. from 1 Nov, 6 months)"><textarea id="sn" placeholder="Special requirements, known risks, access rules, site size…"></textarea>
+<div class="m">We assess the site, then send you a clear proposal before anything starts.</div></div>
 <div class="c"><b>2 · Describe the problem</b><textarea id="ds" placeholder="What is happening? Since when? Any damage or safety risk?"></textarea></div>
 <div class="c"><b>3 · Where is the job?</b>
 <div class="g2"><select id="co"></select><select id="rg"></select></div>
@@ -33,7 +39,7 @@ button.g,a.g{background:none;border:1px solid var(--line);color:var(--txt)}.m{co
 <script src="supabase-config.js"></script>
 <script>
 var $=function(i){return document.getElementById(i)};
-var SV=['Site Inspection (Diaspora Oversight)','Project Rescue','24/7 Emergency Repair','Facility Maintenance Retainer','Pre-Purchase Inspection','Smart Security & Wi-Fi','Solar, Generators & Electrical','Turnkey Property Management','Post-Construction Cleaning','Other / not sure'];
+var SV=['Site Inspection (Diaspora Oversight)','Project Rescue','24/7 Emergency Repair','Facility Maintenance Retainer','Pre-Purchase Inspection','Smart Security & Wi-Fi','Solar, Generators & Electrical','Turnkey Property Management','Post-Construction Cleaning','Security Services (guards, patrol, events)','Other / not sure'];
 var L={
 'Uganda':['Kampala','Wakiso','Mukono','Jinja','Mbale','Gulu','Lira','Mbarara','Masaka','Kabarole (Fort Portal)','Arua','Hoima','Kabale','Soroti','Kasese','Iganga','Tororo','Busia','Kitgum','Masindi','Ntungamo','Bushenyi','Rukungiri','Kamuli','Mityana','Mpigi','Luwero','Kayunga','Buikwe','Kisoro','Moroto','Adjumani','Apac','Nebbi','Other district'],
 'Kenya':['Nairobi','Mombasa','Kisumu','Nakuru','Kiambu','Machakos','Kajiado','Uasin Gishu (Eldoret)','Kakamega','Bungoma','Busia','Kisii','Meru','Nyeri','Kilifi','Kwale','Garissa','Turkana','Other county'],
@@ -47,9 +53,12 @@ $('sv').innerHTML=SV.map(function(s,i){return '<option value="'+s+'">'+s+'</opti
 $('co').innerHTML=Object.keys(L).map(function(c){return '<option>'+c+'</option>'}).join('');
 function regs(){$('rg').innerHTML=L[$('co').value].map(function(r){return '<option>'+r+'</option>'}).join('');}
 $('co').onchange=regs;regs();
+function secT(){$('secp').hidden=$('sv').value.indexOf('Security')!==0;}
+$('sv').onchange=secT;
 var q=new URLSearchParams(location.search),s=parseInt(q.get('s'),10);
-if(s>=1&&s<=10)$('sv').selectedIndex=s-1;
+if(s>=1&&s<=11)$('sv').selectedIndex=s-1;
 if(q.get('u')==='emergency')document.querySelector('input[value=emergency]').checked=true;
+secT();
 $('dt').min=new Date().toISOString().slice(0,10);
 var lat=null,lng=null;
 try{var c=JSON.parse(localStorage.getItem('velosContact')||'{}');$('nm').value=c.n||'';$('ph').value=c.p||'';$('em').value=c.e||'';}catch(e){}
@@ -65,6 +74,7 @@ $('go').onclick=function(){
   var d={p_service:$('sv').value,p_description:$('ds').value.trim(),p_urgency:document.querySelector('input[name=ur]:checked').value,p_name:$('nm').value.trim(),p_phone:$('ph').value.trim(),
     p_email:$('em').value.trim(),p_contact_pref:$('cp').value,p_country:$('co').value,p_region:$('rg').value,p_town:$('tw').value.trim(),p_address:$('ad').value.trim(),p_lat:lat,p_lng:lng,
     p_date:$('dt').value||null,p_window:$('wn').value};
+  if($('sv').value.indexOf('Security')===0){d.p_description+='\n\n[Security brief]\nEngagement: '+$('se').value+'\nWhat to safeguard: '+$('sw').value+'\nGuards needed: '+$('sg').value+'\nShift: '+$('ss').value+'\nStart / duration: '+($('sd').value.trim()||'to discuss')+'\nSpecial requirements: '+($('sn').value.trim()||'none');}
   if(d.p_description.length<10){$('e').textContent='Please describe the problem in a few words.';return;}
   if(!d.p_town){$('e').textContent='Please enter your town or area.';return;}
   if(d.p_name.length<2||d.p_phone.length<7){$('e').textContent='Please enter your name and phone number.';return;}
@@ -74,7 +84,7 @@ $('go').onclick=function(){
   .then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.message||'Could not submit');return j})})
   .then(function(no){
     try{localStorage.setItem('velosContact',JSON.stringify({n:d.p_name,p:d.p_phone,e:d.p_email,a:d.p_town}));localStorage.setItem('velosLast','S'+no);}catch(e){}
-    done(no,d);
+    window.velosAttachRef&&velosAttachRef('service',no);done(no,d);
   }).catch(function(e){b.disabled=false;b.textContent='Submit request';$('e').textContent=String(e.message).slice(0,160)+' — please try again or WhatsApp us.';});
 };
 function done(no,d){

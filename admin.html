@@ -72,11 +72,13 @@ async function boot(){
   if(!p){ await db.auth.signOut(); show(false); $('#err').textContent = pe ? 'Database error: ' + pe.message : 'This account is not authorised as staff. (login id ' + session.user.id + ')'; return; }
   me = p; $('#who').textContent = p.full_name || p.role; show(true);
   const {data} = await db.from('categories').select('*').order('sort_order'); cats = data || [];
-  $('#nav').innerHTML = TABS.map(t => `<button id="n-${t[0]}" onclick="go('${t[0]}')">${t[1]}</button>`).join('');
+  const hide = ({manager:['team'], staff:['report','products','agents','leads','team','import']})[p.role] || [];
+  window.TB = TABS.filter(t => !hide.includes(t[0]));
+  $('#nav').innerHTML = TB.map(t => `<button id="n-${t[0]}" onclick="go('${t[0]}')">${t[1]}</button>`).join('');
   go('home');
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['report','Sales'],['gifts','Gifts'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['inq','Inquiries'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['inq','Inquiries'],['team','Team'],['import','Import']];
 async function go(k){
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.id === 'n-'+k));
   $('#view').innerHTML = '<p class="mut">Loading…</p>';
@@ -90,6 +92,21 @@ async function st(table, id, v){
 const STL = {new:'received',confirmed:'confirmed',dispatched:'out for delivery',delivered:'delivered',cancelled:'cancelled'};
 const ntf = (p, txt) => 'https://wa.me/' + String(p||'').replace(/\D/g,'') + '?text=' + encodeURIComponent(txt);
 const tbase = () => location.href.replace(/admin\.html.*$/, '') + 'track.html';
+async function saveAmt(id){
+  const v = $('#am-'+id).value, {error} = await db.from('service_requests').update({amount_ugx: v===''?null:Number(v)}).eq('id', id);
+  toast(error ? error.message : 'Amount saved', !!error);
+}
+async function saveRate(id){ const {error} = await db.from('agents').update({commission_rate:Number($('#cr-'+id).value)}).eq('id', id); toast(error ? error.message : 'Rate saved', !!error); }
+async function payAgent(id){
+  const v = Number($('#pa-'+id).value); if(!(v > 0)) return toast('Enter the payout amount', true);
+  const {error} = await db.from('agent_payouts').insert({agent_id:id, amount_ugx:v, reference:$('#pr-'+id).value.trim()||null});
+  toast(error ? error.message : 'Payout recorded', !!error); if(!error) go('agents');
+}
+async function saveLeadNote(id){ const {error} = await db.from('leads').update({admin_note:$('#ln-'+id).value.trim()||null}).eq('id', id); toast(error ? error.message : 'Saved', !!error); }
+async function setRole(){
+  const {error} = await db.rpc('set_staff_role', {p_email:$('#te').value.trim(), p_role:$('#tr').value});
+  toast(error ? error.message : 'Team updated', !!error); if(!error) go('team');
+}
 async function saveDQuote(id){
   const v = $('#dq-'+id).value, {error} = await db.from('design_requests').update({quote_ugx: v===''?null:Number(v)}).eq('id', id);
   toast(error ? error.message : 'Quote saved', !!error);
@@ -184,6 +201,7 @@ const VIEWS = {
         <div>${esc(r.customer_name)} · <a href="${wa(r.customer_phone)}" target="_blank">${esc(r.customer_phone)}</a> <span class="mut">(${esc(r.contact_pref||'')})</span></div>
         <div class="mut">📍 ${esc([r.address,r.town,r.region,r.country].filter(Boolean).join(', '))} · <a href="${map}" target="_blank">Open map</a></div>
         <div class="mut">🕒 ${esc(r.preferred_date||'Any day')} · ${esc(r.preferred_window||'')}</div><div>${esc(r.description)}</div>
+        <div class="row"><input class="sm" id="am-${r.id}" type="number" placeholder="Billed amount UGX" value="${r.amount_ugx??''}" style="width:170px"><button onclick="saveAmt('${r.id}')">Save amount</button></div>
         <div class="row"><select class="sm" id="as-${r.id}" style="flex:1"><option value="">— Assign technician —</option>${opts}</select><button onclick="assignT('${r.id}')">Assign</button></div>
         <div class="row">${tech ? `<a href="${ntf(tech.phone, `Velos job S${r.req_no}: ${r.service} (${r.urgency}). Location: ${[r.address,r.town,r.region].filter(Boolean).join(', ')} ${map}. Client: ${r.customer_name} ${r.customer_phone}. Preferred: ${r.preferred_date||'any day'} ${r.preferred_window||''}. Issue: ${r.description}`)}" target="_blank">📤 Send job to ${esc(tech.full_name)}</a>` : '<span class="mut">No technician assigned yet</span>'}
         <a href="${ntf(r.customer_phone, `Hello ${r.customer_name}, your Velos service request S${r.req_no} is now ${r.status.replace('_',' ')}. Track it anytime: ${tbase()}?o=S${r.req_no}`)}" target="_blank">💬 Notify customer</a></div>
@@ -242,6 +260,38 @@ const VIEWS = {
       <div class="row"><input class="sm" id="dq-${g.id}" type="number" placeholder="Quote UGX" value="${g.quote_ugx??''}" style="width:150px"><button onclick="saveDQuote('${g.id}')">Save quote</button></div>
       <a href="${ntf(g.customer_phone, `Hello ${g.customer_name}, about your Velos design request D${g.req_no}: ${g.quote_ugx?'our quote is '+ugx(g.quote_ugx)+'. ':''}Track it anytime: ${tbase()}?o=D${g.req_no}`)}" target="_blank">💬 Reply on WhatsApp</a>
       <div class="mut">${dt(g.created_at)}</div></div>`).join('') : '<p class="mut">No design requests yet.</p>');
+  },
+
+  async agents(){
+    const [a,p,s] = await Promise.all([db.from('agents').select('*').order('created_at',{ascending:false}), db.from('agent_payouts').select('agent_id,amount_ugx'), db.rpc('agent_stats',{p_agent:null})]);
+    if(a.error) throw a.error; const earn = {}, rev = {}, paid = {};
+    (s.data||[]).forEach(r => { earn[r.agent_id] = (earn[r.agent_id]||0) + Number(r.commission); rev[r.agent_id] = (rev[r.agent_id]||0) + Number(r.revenue); });
+    (p.data||[]).forEach(x => paid[x.agent_id] = (paid[x.agent_id]||0) + Number(x.amount_ugx));
+    $('#view').innerHTML = '<h2>Sales agents</h2>' + (a.data.length ? a.data.map(g => `<div class="card">
+      <div class="row"><b class="gold">${esc(g.agent_code)}</b>${sel('agents',g.id,g.status,['pending','active','suspended','rejected'])}</div>
+      <div><b>${esc(g.full_name)}</b> · <a href="${wa(g.phone)}" target="_blank">${esc(g.phone)}</a></div>
+      <div class="mut">${esc(g.city||'')}, ${esc(g.country||'')} · ID ${esc(g.id_number||'—')} · Payout: ${esc(g.payout_method||'—')} ${esc(g.payout_number||'')}</div>
+      <div class="mut">Revenue ${ugx(rev[g.id]||0)} · Earned ${ugx(earn[g.id]||0)} · Paid ${ugx(paid[g.id]||0)} · <b class="gold">Balance ${ugx((earn[g.id]||0)-(paid[g.id]||0))}</b></div>
+      <div class="row"><span class="mut">Commission %</span><input class="sm" id="cr-${g.id}" type="number" step="0.5" value="${g.commission_rate}" style="width:90px"><button onclick="saveRate('${g.id}')">Save</button></div>
+      ${me.role==='admin'?`<div class="row"><input class="sm" id="pa-${g.id}" type="number" placeholder="Payout UGX" style="width:130px"><input class="sm" id="pr-${g.id}" placeholder="Reference" style="flex:1"><button onclick="payAgent('${g.id}')">Record payout</button></div>`:''}
+      <div class="mut">Joined ${dt(g.created_at)}</div></div>`).join('') : '<p class="mut">No agent applications yet.</p>');
+  },
+
+  async leads(){
+    const [l,a] = await Promise.all([db.from('leads').select('*').order('created_at',{ascending:false}).limit(200), db.from('agents').select('id,full_name,agent_code')]);
+    if(l.error) throw l.error; const nm = {}; (a.data||[]).forEach(x => nm[x.id] = x.full_name + ' (' + x.agent_code + ')');
+    $('#view').innerHTML = '<h2>Agent leads</h2>' + (l.data.length ? l.data.map(x => `<div class="card">
+      <div class="row"><b>${esc(x.customer_name)}</b>${sel('leads',x.id,x.status,['submitted','approved','rejected','converted'])}</div>
+      <div><a href="${wa(x.customer_phone)}" target="_blank">${esc(x.customer_phone)}</a> · ${esc(x.location||'')} · <span class="pill">${esc(x.interest)}</span></div>
+      <div>${esc(x.notes||'')}</div><div class="mut">Agent: ${esc(nm[x.agent_id]||'—')} · ${dt(x.created_at)}</div>
+      <div class="row"><input class="sm" id="ln-${x.id}" placeholder="Note to agent" value="${esc(x.admin_note||'')}" style="flex:1"><button onclick="saveLeadNote('${x.id}')">Save</button></div></div>`).join('') : '<p class="mut">No leads yet.</p>');
+  },
+
+  async team(){
+    const {data,error} = await db.from('profiles').select('*').order('created_at'); if(error) throw error;
+    $('#view').innerHTML = `<h2>Team</h2><div class="card"><b>Add or change a team member</b><p class="mut">They first create an account on the agent page (agent.html). Then enter their email here.</p>
+      <input id="te" type="email" placeholder="Their email"><select id="tr"><option value="staff">Staff: day-to-day operations</option><option value="manager">Manager: approvals, products, reports</option><option value="admin">Admin: everything</option><option value="none">Remove access</option></select><button onclick="setRole()">Save</button></div>`
+      + data.map(p => `<div class="card row"><span>${esc(p.full_name||'')}</span><span class="pill gold">${esc(p.role)}</span></div>`).join('');
   },
 
   async import(){

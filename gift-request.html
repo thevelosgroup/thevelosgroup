@@ -56,7 +56,7 @@ $('go').onclick=function(){
   .then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.message||'Could not send');return j})})
   .then(function(no){
     try{localStorage.setItem('velosContact',JSON.stringify({n:d.p_name,p:d.p_phone,e:d.p_email,a:d.p_town}));localStorage.setItem('velosLast','G'+no);}catch(e){}
-    $('f').hidden=true;$('ok').hidden=false;$('okh').textContent='Request G'+no+' received ✓';
+    window.velosAttachRef&&velosAttachRef('gift',no);$('f').hidden=true;$('ok').hidden=false;$('okh').textContent='Request G'+no+' received ✓';
     $('okp').textContent='Thank you! Our concierge will source the best options and send you a quote on '+d.p_phone+'. Keep your request number to track progress.';
     $('okt').href='track.html?o=G'+no;
     $('okw').href='https://wa.me/256755215751?text='+encodeURIComponent('Hello Velos, I sent gift request G'+no+' ('+d.p_occasion+') on the website.');

@@ -40,7 +40,7 @@ $('go').onclick=function(){
   .then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.message||'Could not send');return j})})
   .then(function(no){
     try{localStorage.setItem('velosContact',JSON.stringify({n:x.p_name,p:x.p_phone,e:x.p_email}));localStorage.setItem('velosLast','D'+no);}catch(e){}
-    $('f').hidden=true;$('ok').hidden=false;$('okh').textContent='Project D'+no+' received ✓';
+    window.velosAttachRef&&velosAttachRef('design',no);$('f').hidden=true;$('ok').hidden=false;$('okh').textContent='Project D'+no+' received ✓';
     $('okp').textContent='Thank you! Our design team will review your brief and send a quote to '+x.p_phone+'. Keep your reference to track progress.';
     $('okt').href='track.html?o=D'+no;
     $('okw').href='https://wa.me/256755215751?text='+encodeURIComponent('Hello Velos Designs, I sent design request D'+no+' ('+x.p_type+') on the website.');

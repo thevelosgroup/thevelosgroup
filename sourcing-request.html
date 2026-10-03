@@ -1,0 +1,55 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Request a Sourcing Quote | Velos Global Shop</title><meta name="description" content="Need something that is not in our catalog? Tell us exactly what you need and we source it locally or internationally.">
+<style>
+:root{--bg:#080d1f;--card:#0f1730;--line:#2a3560;--gold:#e8c766;--txt:#f4f1ea;--mut:#a3adc6}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.55 Inter,system-ui,sans-serif}
+.w{max-width:600px;margin:0 auto;padding:24px 16px 60px}h1{font-family:Georgia,serif;color:var(--gold);margin:0 0 4px}
+.c{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin:14px 0}.c>b{display:block;margin-bottom:6px}
+input,select,textarea{width:100%;padding:12px;margin:5px 0;background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:8px;font:inherit}textarea{min-height:90px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button,a.b{display:block;text-align:center;width:100%;padding:14px;border:0;border-radius:8px;background:var(--gold);color:#080d1f;font-weight:700;margin-top:8px;text-decoration:none;cursor:pointer;font-size:15px}
+a.g{background:none;border:1px solid var(--line);color:var(--txt)}.m{color:var(--mut);font-size:13px}.bad{color:#ff8a80}.hp{position:absolute;left:-9999px}
+@media(min-width:900px){.w{max-width:700px}}
+</style></head><body><div class="w">
+<h1>Request a sourcing quote</h1><div class="m">Not in our catalog? Tell us exactly what you need. We find it, locally or abroad, and send you a clear quote. You pay nothing until you approve.</div>
+<div id="f">
+<div class="c"><b>What do you need? *</b><input id="it" placeholder="Item name, e.g. 55-inch Samsung QLED TV, 5 kVA generator, office chairs"><textarea id="sp" placeholder="Brand, model, size, colour, specifications, or anything that matters"></textarea>
+<input id="lk" placeholder="Link to a photo or product page (optional)"></div>
+<div class="c"><b>Quantity and condition</b><div class="g2"><input id="qt" type="number" min="1" value="1" placeholder="Quantity"><select id="cd"><option>Brand new</option><option>New or refurbished is fine</option><option>Used is fine</option></select></div>
+<select id="sh"><option>Deliver within Uganda</option><option>Ship to another East African country</option></select></div>
+<div class="c"><b>Budget and timing</b><div class="g2"><select id="bl"><option>Not sure yet</option><option>Under UGX 500,000</option><option>UGX 500,000 – 2,000,000</option><option>UGX 2,000,000 – 10,000,000</option><option>Above UGX 10,000,000</option></select><input id="bu" type="number" placeholder="Exact budget UGX (optional)"></div><input id="dl" type="date"><div class="m">Date you need it by (optional)</div></div>
+<div class="c"><b>Delivery location</b><div class="g2"><input id="co" value="Uganda"><input id="tw" placeholder="Town / area *"></div></div>
+<div class="c"><b>Your contact</b><input id="nm" placeholder="Full name *"><input id="ph" type="tel" placeholder="WhatsApp / phone number *"><input id="em" type="email" placeholder="Email (optional)"></div>
+<input class="hp" id="hp" tabindex="-1" autocomplete="off">
+<button id="go">Send my request</button><div id="e" class="m bad"></div>
+<div class="m" style="margin-top:10px">See our <a href="terms.html" style="color:var(--gold)">Terms</a> and <a href="privacy.html" style="color:var(--gold)">Privacy Policy</a>.</div></div>
+<div id="ok" hidden><div class="c"><h1 id="okh"></h1><p id="okp"></p><a class="b" id="okt">Track my request</a><a class="b g" id="okw" target="_blank" rel="noopener">Also message us on WhatsApp (optional)</a><a class="b g" href="shop.html">Back to the shop</a></div></div>
+</div>
+<script src="supabase-config.js"></script>
+<script>
+var $=function(i){return document.getElementById(i)};
+try{var c=JSON.parse(localStorage.getItem('velosContact')||'{}');$('nm').value=c.n||'';$('ph').value=c.p||'';$('em').value=c.e||'';}catch(e){}
+$('dl').min=new Date().toISOString().slice(0,10);
+var Q=new URLSearchParams(location.search);if(Q.get('idea'))$('it').value=Q.get('idea');
+$('go').onclick=function(){
+  $('e').textContent='';if($('hp').value)return;
+  var it=$('it').value.trim(),sp=$('sp').value.trim(),lk=$('lk').value.trim();
+  var d={p_mode:'sourcing',p_occasion:'Custom sourcing',p_recipient:'Qty '+($('qt').value||1)+' · '+$('cd').value+' · '+$('sh').value,p_interests:sp,p_budget_label:$('bl').value,
+    p_budget_ugx:$('bu').value?parseInt($('bu').value,10):null,p_gift_idea:it+(lk?'\nLink: '+lk:''),p_deadline:$('dl').value||null,p_country:$('co').value.trim(),p_town:$('tw').value.trim(),
+    p_address:'',p_name:$('nm').value.trim(),p_phone:$('ph').value.trim(),p_email:$('em').value.trim()};
+  if(it.length<3){$('e').textContent='Please tell us what you need.';return;}
+  if(!d.p_town){$('e').textContent='Please enter the delivery town or area.';return;}
+  if(d.p_name.length<2||d.p_phone.length<7){$('e').textContent='Please enter your name and phone number.';return;}
+  var b=this;b.disabled=true;b.textContent='Sending…';var S=window.VELOS_SUPABASE;
+  fetch(S.url+'/rest/v1/rpc/submit_gift_request',{method:'POST',headers:{apikey:S.key,'Content-Type':'application/json'},body:JSON.stringify(d)})
+  .then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.message||'Could not send');return j})})
+  .then(function(no){
+    try{localStorage.setItem('velosContact',JSON.stringify({n:d.p_name,p:d.p_phone,e:d.p_email,a:d.p_town}));localStorage.setItem('velosLast','G'+no);}catch(e){}
+    window.velosAttachRef&&velosAttachRef('gift',no);
+    $('f').hidden=true;$('ok').hidden=false;$('okh').textContent='Request G'+no+' received ✓';
+    $('okp').textContent='Thank you! Our sourcing team will find options and send you a quote on '+d.p_phone+'. Keep your request number to track progress.';
+    $('okt').href='track.html?o=G'+no;
+    $('okw').href='https://wa.me/256755215751?text='+encodeURIComponent('Hello Velos, I sent sourcing request G'+no+' ('+it+') on the website.');
+  }).catch(function(e){b.disabled=false;b.textContent='Send my request';$('e').textContent=String(e.message).slice(0,160);});
+};
+</script></body></html>
