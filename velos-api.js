@@ -73,10 +73,10 @@ function checkout(items, onDone){
   var oos = items.filter(function(it){ var p = PRODUCTS.find(function(x){ return x.id === it.product_id; }); return p && p.inStock === false; });
   if(oos.length){ alert('Sorry, an item in your order is currently out of stock. Please remove it or contact us.'); return; }
   var c = {}; try { c = JSON.parse(localStorage.getItem('velosContact') || '{}'); } catch(e){}
-  var t = lineText(items), dep = t.total > 1000000 ? Math.round(t.total * 0.3) : 0;
+  var t = lineText(items), bulk = items.some(function(it){ return it.qty >= RULES.bulkMin; }), pct = bulk ? RULES.bulk : RULES.single, dep = t.total > RULES.thr ? Math.round(t.total * pct / 100) : 0;
   var d = modal('Complete your order',
     '<div class="sum">' + t.lines.map(esc).join('<br>') + '<br><b>Estimated total: ' + formatUGX(t.total) + '</b>'
-    + (dep ? '<br><b style="color:#e8c766">30% deposit to confirm: ' + formatUGX(dep) + ' · Balance on delivery: ' + formatUGX(t.total - dep) + '</b>' : '') + '</div>'
+    + (dep ? '<br><b style="color:#e8c766">' + pct + '% deposit to confirm' + (bulk ? ' (bulk order)' : '') + ': ' + formatUGX(dep) + ' · Balance on delivery: ' + formatUGX(t.total - dep) + '</b>' : '') + '</div>'
     + '<input id="vx_n" placeholder="Full name *" value="' + esc(c.n) + '"><input id="vx_p" type="tel" placeholder="WhatsApp / phone number *" value="' + esc(c.p) + '">'
     + '<input id="vx_e" type="email" placeholder="Email (optional)" value="' + esc(c.e) + '"><input id="vx_a" placeholder="Delivery location / address *" value="' + esc(c.a) + '">'
     + '<div class="sum">Payment method</div>'
@@ -93,12 +93,12 @@ function checkout(items, onDone){
     this.disabled = true; this.textContent = 'Placing order…';
     api('rpc/place_order_v2', {method:'POST', body:{p_name:n, p_phone:p, p_email:e || null, p_address:a, p_payment:pm, p_notes:o, p_items:items}})
       .then(function(no){
-        d.remove();
+        d.remove(); try { window.velosAttachRef('order', no); } catch(x){}
         var msg = 'Hello Velos Global Shop, I placed Order #' + no + ' on the website.\n\n' + t.lines.join('\n') + '\n\nEstimated Total: ' + formatUGX(t.total)
-          + (dep ? '\n30% deposit: ' + formatUGX(dep) : '') + '\nName: ' + n + '\nPhone: ' + p + '\nDelivery: ' + a + '\nPayment: ' + pm;
+          + (dep ? '\n' + pct + '% deposit: ' + formatUGX(dep) : '') + '\nName: ' + n + '\nPhone: ' + p + '\nDelivery: ' + a + '\nPayment: ' + pm;
         modal('Order #' + no + ' received ✓',
           '<div class="sum" style="font-size:15px;color:#f4f1ea">Thank you, ' + esc(n) + '. Your order is in and our team will contact you on ' + esc(p) + ' to confirm.'
-          + (dep ? '<br><br><b style="color:#e8c766">Deposit to confirm: ' + formatUGX(dep) + '</b> (30%). The balance of ' + formatUGX(t.total - dep) + ' is paid on delivery.' : '')
+          + (dep ? '<br><br><b style="color:#e8c766">Deposit to confirm: ' + formatUGX(dep) + '</b> (' + pct + '%). The balance of ' + formatUGX(t.total - dep) + ' is paid on delivery.' : '')
           + '<br><br>Keep your order number <b>#' + no + '</b> to track progress.</div>',
           '<a class="vb go" href="track.html?o=' + no + '">Track my order</a><a class="vb cx" target="_blank" rel="noopener" href="' + waLink(msg) + '">Also message us on WhatsApp (optional)</a>');
         try { localStorage.setItem('velosLast', 'O' + no); } catch(x){}
@@ -182,6 +182,8 @@ window.v_sendTechRegistration = window.sendTechRegistration = function(){
 };
 
 /* ---------- 5. STOREFRONT UPGRADE ---------- */
+var RULES = {thr:1000000, single:30, bulk:70, bulkMin:5};
+api('settings?select=key,value&key=like.rule_*').then(function(r){ (r || []).forEach(function(x){ var v = Number(x.value); if(x.key === 'rule_deposit_threshold_ugx') RULES.thr = v; else if(x.key === 'rule_deposit_single_pct') RULES.single = v; else if(x.key === 'rule_deposit_bulk_pct') RULES.bulk = v; else if(x.key === 'rule_bulk_min_units') RULES.bulkMin = v; }); }).catch(function(){});
 var PROMO = {}, PINFO = {};
 function effPrice(p){ var d = PROMO[p.id]; return (p.price && d) ? Math.round(p.price * (100 - d) / 100) : p.price; }
 var promoP = api('promotions?select=product_id,discount_percent,starts_at,ends_at&is_active=eq.true');
@@ -294,7 +296,8 @@ function vCarousel(sp, promos){
   }
   var statics = [
     st('services-hero-drone.jpg', 'Global Services', 'Verified technicians, anywhere in East Africa', 'Describe the problem and we send the nearest ID-verified technician.', 'book-service.html', 'Book a service'),
-    st('hero-cargo-ship.jpg', 'Sourcing &amp; shipping', 'Can’t find it? We source it for you', 'Any product, any budget, from Uganda or abroad. Get a clear quote first.', 'gift-request.html?src=1', 'Request a quote'),
+    st('hero-cargo-ship.jpg', 'Sourcing &amp; shipping', 'Can’t find it? We source it for you', 'Any product, any budget, from Uganda or abroad. Get a clear quote first.', 'sourcing-request.html', 'Request a quote'),
+    st('security-guard-1.jpg', 'Security services', 'Vetted, licensed security managed by Velos', 'Guards for homes, offices, sites and events. Casual or on contract, one monthly invoice, full accountability.', 'book-service.html?s=10', 'Request security'),
     st('dispatch-van.jpg', '24/7 emergency dispatch', 'Electrical, plumbing or structural emergency?', 'Our dispatch desk assigns a verified technician fast.', 'book-service.html?s=3&u=emergency', 'Request emergency help')
   ];
   var slides = [], k = 0;
@@ -371,7 +374,9 @@ function searchCatalog(t){
 window.chatRespond = function(text){
   var t = text.toLowerCase();
   if(/track|where is my|order status|my order|progress/.test(t)) return {text:'You can follow any order, service request, gift request or design project with its reference number and your phone number.', links:[['track.html', 'Track my order or request']]};
-  if(/pay|deposit|momo|mobile money|airtel|mtn|cash|install/.test(t)) return {text:'Orders above UGX 1,000,000 (including bulk) need a 30% deposit to confirm, with the balance on delivery. Smaller orders can be cash on delivery or mobile money. Our team confirms payment details with you after you order, so never pay a number you did not get from us.', links:[]};
+  if(/pay|deposit|momo|mobile money|airtel|mtn|cash|install/.test(t)) return {text:'Orders above UGX 1,000,000 need a deposit to confirm: 30% for single-item orders and 70% for bulk orders (5 or more units of the same item), with the balance on delivery. Smaller orders can be cash on delivery or mobile money. Our team confirms payment details with you after you order, so never pay a number you did not get from us.', links:[]};
+  if(/security|guard|patrol|watchman|bodyguard/.test(t)) return {text:'We provide security cover, casual or on contract. Tell us what you need to safeguard, how many guards and which shifts, and we send a clear proposal after assessing the site.', links:[['book-service.html?s=10', 'Request security services']]};
+  if(/agent|commission|earn money|sell for/.test(t)) return {text:'Become a Velos sales agent: refer customers, earn commission on every completed sale, and track your performance on your own dashboard.', links:[['agent.html', 'Agent sign in or apply']]};
   if(/technician|apply|join|register|vacanc/.test(t)) return {text:'You can apply to join our verified technician network online and upload your documents securely.', links:[['technicians.html', 'Apply as a technician']]};
   if(/gift|present|surprise|birthday|wedding|anniversary/.test(t)) return {text:'Tell us the occasion and budget, or the gift you have in mind. We can source almost anything, locally or from abroad.', links:[['gifts.html', 'Open the Gift Concierge'], ['gift-request.html', 'Request a gift']]};
   if(/design|website|logo|brand|packag|footwear|corporate gift/.test(t)) return {text:'Global Designs makes websites, branding, packaging and custom products to order. Send us a short brief and get a quote.', links:[['design-request.html', 'Start a design project']]};
@@ -381,7 +386,7 @@ window.chatRespond = function(text){
   if(/contact|whatsapp|phone|call|email|reach|office|location/.test(t)) return {text:'Our dispatch desk is on WhatsApp +256 755 215 751, or email dispatch@thevelosgroup.com (orders) or info@thevelosgroup.com (everything else). We are based in Kampala.', links:[['contact.html', 'Contact page']]};
   var hits = searchCatalog(t);
   if(hits.length) return {text:'Here is what we have in stock:', products:hits};
-  return {text:'I could not find that in our catalog, but we can probably source it for you. Tell us what you need and your budget and our concierge will come back with options and a quote.', links:[['gift-request.html?idea=' + encodeURIComponent(text), 'Request this item']]};
+  return {text:'I could not find that in our catalog, but we can probably source it for you. Tell us what you need and your budget and our concierge will come back with options and a quote.', links:[['sourcing-request.html?idea=' + encodeURIComponent(text), 'Request this item']]};
 };
 window.sendChat = function(prompt){
   var inp = document.getElementById('chatInput'), text = (typeof prompt === 'string' ? prompt : inp.value).trim(); if(!text) return;
@@ -404,6 +409,12 @@ window.toggleChat = function(open){
 
 /* ---------- 4. PAGE TWEAKS ---------- */
 function dom(){
+  if(!document.getElementById('vx-desk')){
+    var cs = document.createElement('style'); cs.id = 'vx-desk';
+    cs.textContent = ':root{--slate:#b9c2da;--slate-dim:#98a3c1}body{-webkit-font-smoothing:antialiased}.brand img,.logo img{filter:drop-shadow(0 0 1px rgba(255,255,255,.75)) drop-shadow(0 0 10px rgba(232,199,102,.55))}'
+      + '@media(min-width:1024px){body{font-size:16.5px}.brand img,.logo img{height:48px;width:auto}.wrap,.container{max-width:1280px}.product-grid{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}}';
+    document.head.appendChild(cs);
+  }
   [['sendInquiry','Send inquiry'],['sendTechRegistration','Submit application']].forEach(function(p){
     document.querySelectorAll('[onclick*="' + p[0] + '("]').forEach(function(e){
       e.setAttribute('onclick', e.getAttribute('onclick').replace(p[0] + '(', 'v_' + p[0] + '(')); e.textContent = p[1];
@@ -417,9 +428,15 @@ function dom(){
     });
     var b = document.querySelector('.dispatch-banner a.btn-primary');
     if(b){ b.href = 'book-service.html?s=3&u=emergency'; b.removeAttribute('target'); }
+    var gr = document.querySelector('.services-grid');
+    if(gr && !document.getElementById('vSec')){
+      var sc = document.createElement('div'); sc.className = 'service-card'; sc.id = 'vSec';
+      sc.innerHTML = '<img src="security-guard-1.jpg" alt="Professional security guard" style="width:100%;height:150px;object-fit:cover;border-radius:10px;margin-bottom:12px"><span class="svc-num">10</span><h4>Security Services</h4><p>Vetted, licensed and insured guards for homes, offices, sites and events, casual or on contract. One contract and one monthly invoice, managed by Velos.</p><a class="svc-link btn-whatsapp" href="book-service.html?s=10"><span>Book this service</span></a>';
+      gr.appendChild(sc);
+    }
   }
   document.querySelectorAll('a[href*="drive.google.com"]').forEach(function(a){ a.remove(); });
-  var sn = document.querySelector('.shop-note a.btn-secondary'); if(sn){ sn.href = 'gift-request.html?src=1'; sn.removeAttribute('target'); sn.textContent = 'Request a sourcing quote'; }
+  var sn = document.querySelector('.shop-note a.btn-secondary'); if(sn){ sn.href = 'sourcing-request.html'; sn.removeAttribute('target'); sn.textContent = 'Request a sourcing quote'; }
   if(document.body.getAttribute('data-page') === 'designs'){
     document.querySelectorAll('.design-card a.btn-whatsapp').forEach(function(a, i){ a.href = 'design-request.html?d=' + i; a.removeAttribute('target'); var v = a.querySelector('svg'); if(v) v.remove(); });
     var db = document.querySelector('.dispatch-banner a.btn-primary'); if(db){ db.href = 'design-request.html?d=6'; db.removeAttribute('target'); }
@@ -449,7 +466,7 @@ function dom(){
     host.insertBefore(g, host.firstChild);
   }
   var ft = document.querySelector('footer');
-  if(ft){ var lk = document.createElement('div'); lk.style.cssText = 'text-align:center;padding:10px;font-size:13px'; lk.innerHTML = '<a href="terms.html" style="color:#e8c766">Terms &amp; Conditions</a> · <a href="privacy.html" style="color:#e8c766">Privacy Policy</a>'; ft.appendChild(lk); }
+  if(ft){ var lk = document.createElement('div'); lk.style.cssText = 'text-align:center;padding:10px;font-size:13px'; lk.innerHTML = '<a href="terms.html" style="color:#e8c766">Terms &amp; Conditions</a> · <a href="privacy.html" style="color:#e8c766">Privacy Policy</a> · <a href="agent.html" style="color:#e8c766">Sales agents</a> · <a href="security-partners.html" style="color:#e8c766">Security partners</a> · <a href="partner.html" style="color:#e8c766">Partner login</a>'; ft.appendChild(lk); }
   var last = null; try { last = localStorage.getItem('velosLast'); } catch(x){}
   if(last && !/track\.html|book-service/.test(location.pathname)){
     var a = document.createElement('a'); a.href = 'track.html?o=' + last; a.textContent = 'Track ' + (last[0] === 'S' ? 'request ' : 'order #') + last.slice(1) + ' →';

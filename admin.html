@@ -72,13 +72,13 @@ async function boot(){
   if(!p){ await db.auth.signOut(); show(false); $('#err').textContent = pe ? 'Database error: ' + pe.message : 'This account is not authorised as staff. (login id ' + session.user.id + ')'; return; }
   me = p; $('#who').textContent = p.full_name || p.role; show(true);
   const {data} = await db.from('categories').select('*').order('sort_order'); cats = data || [];
-  const hide = ({manager:['team'], staff:['report','products','agents','leads','team','import']})[p.role] || [];
+  const hide = ({manager:['team','settings'], staff:['report','products','agents','leads','team','import','export','security','settings']})[p.role] || [];
   window.TB = TABS.filter(t => !hide.includes(t[0]));
   $('#nav').innerHTML = TB.map(t => `<button id="n-${t[0]}" onclick="go('${t[0]}')">${t[1]}</button>`).join('');
   go('home');
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['inq','Inquiries'],['team','Team'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['inq','Inquiries'],['team','Team'],['export','Export'],['settings','Settings'],['import','Import']];
 async function go(k){
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.id === 'n-'+k));
   $('#view').innerHTML = '<p class="mut">Loading…</p>';
@@ -92,9 +92,56 @@ async function st(table, id, v){
 const STL = {new:'received',confirmed:'confirmed',dispatched:'out for delivery',delivered:'delivered',cancelled:'cancelled'};
 const ntf = (p, txt) => 'https://wa.me/' + String(p||'').replace(/\D/g,'') + '?text=' + encodeURIComponent(txt);
 const tbase = () => location.href.replace(/admin\.html.*$/, '') + 'track.html';
+function drawC(){
+  const q = ($('#cq')?.value || '').toLowerCase();
+  $('#clist').innerHTML = CU.filter(c => !q || (String(c.n) + ' ' + c.p).toLowerCase().includes(q)).slice(0,80).map(c => `<div class="card"><div class="row"><b>${esc(c.n)}</b><b class="gold">${ugx(c.spent)}</b></div>
+    <div><a href="${wa(c.p)}" target="_blank">${esc(c.p)}</a></div><div class="mut">${c.o} order(s) · ${c.s} service request(s) · last activity ${dt(c.last)}</div></div>`).join('') || '<p class="mut">No customers yet.</p>';
+}
+async function exportT(t){
+  const {data,error} = await db.from(t).select('*').limit(10000);
+  if(error) return toast(error.message, true); if(!data.length) return toast('Nothing to export yet', true);
+  const cols = Object.keys(data[0]), q = v => '"' + String(v == null ? '' : (typeof v === 'object' ? JSON.stringify(v) : v)).replace(/"/g,'""') + '"';
+  const csv = [cols.join(',')].concat(data.map(r => cols.map(c => q(r[c])).join(','))).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'velos-' + t + '-' + new Date().toISOString().slice(0,10) + '.csv'; a.click();
+}
 async function saveAmt(id){
-  const v = $('#am-'+id).value, {error} = await db.from('service_requests').update({amount_ugx: v===''?null:Number(v)}).eq('id', id);
-  toast(error ? error.message : 'Amount saved', !!error);
+  const v = $('#am-'+id).value, p = $('#tp-'+id).value, {error} = await db.from('service_requests').update({amount_ugx: v===''?null:Number(v), tech_pay_ugx: p===''?null:Number(p)}).eq('id', id);
+  toast(error ? error.message : 'Saved', !!error);
+}
+async function techPaid(id){ const {error} = await db.from('service_requests').update({tech_paid_at:new Date().toISOString()}).eq('id', id); toast(error ? error.message : 'Marked paid', !!error); if(!error) go('service'); }
+async function linkP(fn, id){
+  const e = $('#lk-'+id).value.trim(); if(!e) return toast('Enter their login email', true);
+  const {error} = await db.rpc(fn, fn === 'link_company' ? {p_company:id, p_email:e} : {p_app:id, p_email:e}); toast(error ? error.message : 'Login linked', !!error);
+}
+const period = () => new Date().toISOString().slice(0,7);
+async function cdocs(id){
+  const c = SC.find(x => x.id === id), box = $('#cd-'+id); box.innerHTML = '<span class="mut">Opening…</span>'; const out = [];
+  for(const p of (c.doc_paths||[])){ const {data,error} = await db.storage.from('company-docs').createSignedUrl(p, 300); out.push(error ? `<div class="mut">${esc(p)}: ${esc(error.message)}</div>` : `<div><a href="${data.signedUrl}" target="_blank" rel="noopener">${esc(p.split('/').pop().split('-')[0])}</a></div>`); }
+  box.innerHTML = out.join('') + '<div class="mut">Links expire in 5 minutes.</div>';
+}
+async function saveCo(id){ const {error} = await db.from('security_companies').update({staff_notes:$('#sn-'+id).value.trim()||null}).eq('id', id); toast(error ? error.message : 'Saved', !!error); }
+async function newContract(){
+  const g = i => $('#'+i).value.trim(), row = {client_name:g('nc_n'), client_phone:g('nc_p'), site_address:g('nc_a'), company_id:g('nc_c')||null, guards:Number(g('nc_g'))||1, shift:g('nc_s')||null,
+    start_date:g('nc_sd'), end_date:g('nc_ed')||null, client_monthly_fee_ugx:Number(g('nc_f'))||0, partner_monthly_payout_ugx:Number(g('nc_o'))||0, service_req_no:g('nc_r')?Number(g('nc_r').replace(/\D/g,'')):null, status:'active'};
+  if(!row.client_name || !row.client_phone || !row.site_address || !row.start_date) return toast('Client, phone, site and start date are required', true);
+  const {error} = await db.from('security_contracts').insert(row); toast(error ? error.message : 'Contract created', !!error); if(!error) go('security');
+}
+async function makePay(cid, coid, amt){
+  const {error} = await db.from('partner_payments').upsert({contract_id:cid, company_id:coid, period:period(), amount_ugx:amt}, {onConflict:'contract_id,period', ignoreDuplicates:true});
+  toast(error ? error.message : 'Payout for ' + period() + ' queued', !!error); if(!error) go('security');
+}
+async function recReceipt(cid){
+  const v = Number($('#rc-'+cid).value); if(!(v > 0)) return toast('Enter the amount received', true);
+  const {error} = await db.from('contract_receipts').insert({contract_id:cid, period:period(), amount_ugx:v, reference:$('#rr-'+cid).value.trim()||null}); toast(error ? error.message : 'Receipt recorded', !!error);
+}
+async function payPartner(id){
+  const {error} = await db.from('partner_payments').update({status:'paid', paid_at:new Date().toISOString(), reference:$('#pp-'+id).value.trim()||null}).eq('id', id);
+  toast(error ? error.message : 'Marked paid', !!error); if(!error) go('security');
+}
+async function saveRules(){
+  const R = {rule_deposit_threshold_ugx:'rt', rule_deposit_single_pct:'rs', rule_deposit_bulk_pct:'rb', rule_bulk_min_units:'rm'};
+  for(const k in R){ const {error} = await db.from('settings').upsert({key:k, value:String(Number($('#'+R[k]).value))}); if(error) return toast(error.message, true); }
+  toast('Rules saved');
 }
 async function saveRate(id){ const {error} = await db.from('agents').update({commission_rate:Number($('#cr-'+id).value)}).eq('id', id); toast(error ? error.message : 'Rate saved', !!error); }
 async function payAgent(id){
@@ -140,6 +187,19 @@ const sel = (table, id, cur, opts) => `<select class="sm" onchange="st('${table}
 
 const VIEWS = {
   async home(){
+    await VIEWS.home0();
+    if(me.role === 'staff') return;
+    const now = new Date(), sod = new Date(now.getFullYear(), now.getMonth(), now.getDate()), sow = new Date(sod); sow.setDate(sod.getDate() - ((now.getDay()+6)%7)); const som = new Date(now.getFullYear(), now.getMonth(), 1);
+    const [r,l,x] = await Promise.all([db.from('orders').select('created_at,total_ugx').in('status',['confirmed','dispatched','delivered']).gte('created_at', som.toISOString()),
+      db.from('products').select('name,stock_qty').not('stock_qty','is',null).lte('stock_qty',3).order('stock_qty').limit(10), db.from('products').select('*',{count:'exact',head:true}).eq('in_stock',false)]);
+    let d = 0, w = 0, m = 0; (r.data||[]).forEach(o => { const t = new Date(o.created_at), v = Number(o.total_ugx||0); m += v; if(t >= sow) w += v; if(t >= sod) d += v; });
+    const K = (v,t) => `<div class="card stat"><b>${ugx(v)}</b><span class="mut">${t}</span></div>`;
+    $('#view').insertAdjacentHTML('afterbegin', `<h2>Sales (confirmed orders)</h2><div class="stats">${K(d,'Today')}${K(w,'This week')}${K(m,'This month')}</div>`
+      + ((l.data||[]).length ? `<div class="card"><b>Low stock</b>${l.data.map(p => `<div class="row"><span>${esc(p.name)}</span><span class="pill" style="color:var(--bad)">${p.stock_qty} left</span></div>`).join('')}</div>` : '')
+      + (x.count ? `<p class="mut">${x.count} product(s) are marked out of stock.</p>` : ''));
+  },
+
+  async home0(){
     const n = async (t, f) => { let q = db.from(t).select('*', {count:'exact', head:true}); if(f) q = q.eq('status', f); return (await q).count ?? 0; };
     const [o,d,t,i,p] = await Promise.all([n('orders','new'), n('service_requests','new'), n('technician_applications','pending'), n('inquiries','new'), n('products')]);
     const S = (v,l,k) => `<div class="card stat" onclick="go('${k}')"><b>${v}</b><span class="mut">${l}</span></div>`;
@@ -184,7 +244,7 @@ const VIEWS = {
       <div class="mut">${esc(t.country)} / ${esc(t.city)} / ${esc(t.area)}</div>
       <div><a href="${wa(t.phone)}" target="_blank">${esc(t.phone)}</a> · ${esc(t.email||'')}</div>
       <div class="mut">National ID: ${esc(t.national_id)}<br>Reference: ${esc(t.ref_name)} (${esc(t.ref_phone)})<br>${esc(t.notes||'')}</div>
-      <div class="mut">${dt(t.created_at)} · ${(t.doc_paths||[]).length} document(s)</div>${(t.doc_paths||[]).length?`<button onclick="docs('${t.id}')">View documents</button><div id="d-${t.id}"></div>`:''}</div>`).join('') : '<p class="mut">No applications yet.</p>');
+      <div class="row"><input class="sm" id="lk-${t.id}" type="email" placeholder="Their login email" style="flex:1"><button onclick="linkP('link_technician','${t.id}')">${t.user_id?'Re-link login':'Link login'}</button></div><div class="mut">${dt(t.created_at)} · ${(t.doc_paths||[]).length} document(s)</div>${(t.doc_paths||[]).length?`<button onclick="docs('${t.id}')">View documents</button><div id="d-${t.id}"></div>`:''}</div>`).join('') : '<p class="mut">No applications yet.</p>');
   },
 
   async service(){
@@ -201,7 +261,7 @@ const VIEWS = {
         <div>${esc(r.customer_name)} · <a href="${wa(r.customer_phone)}" target="_blank">${esc(r.customer_phone)}</a> <span class="mut">(${esc(r.contact_pref||'')})</span></div>
         <div class="mut">📍 ${esc([r.address,r.town,r.region,r.country].filter(Boolean).join(', '))} · <a href="${map}" target="_blank">Open map</a></div>
         <div class="mut">🕒 ${esc(r.preferred_date||'Any day')} · ${esc(r.preferred_window||'')}</div><div>${esc(r.description)}</div>
-        <div class="row"><input class="sm" id="am-${r.id}" type="number" placeholder="Billed amount UGX" value="${r.amount_ugx??''}" style="width:170px"><button onclick="saveAmt('${r.id}')">Save amount</button></div>
+        <div class="row"><input class="sm" id="am-${r.id}" type="number" placeholder="Billed to client UGX" value="${r.amount_ugx??''}" style="width:150px"><input class="sm" id="tp-${r.id}" type="number" placeholder="Technician pay UGX" value="${r.tech_pay_ugx??''}" style="width:150px"><button onclick="saveAmt('${r.id}')">Save</button>${r.tech_paid_at?'<span class="pill gold">tech paid</span>':`<button class="ghost" onclick="techPaid('${r.id}')">Mark tech paid</button>`}</div>
         <div class="row"><select class="sm" id="as-${r.id}" style="flex:1"><option value="">— Assign technician —</option>${opts}</select><button onclick="assignT('${r.id}')">Assign</button></div>
         <div class="row">${tech ? `<a href="${ntf(tech.phone, `Velos job S${r.req_no}: ${r.service} (${r.urgency}). Location: ${[r.address,r.town,r.region].filter(Boolean).join(', ')} ${map}. Client: ${r.customer_name} ${r.customer_phone}. Preferred: ${r.preferred_date||'any day'} ${r.preferred_window||''}. Issue: ${r.description}`)}" target="_blank">📤 Send job to ${esc(tech.full_name)}</a>` : '<span class="mut">No technician assigned yet</span>'}
         <a href="${ntf(r.customer_phone, `Hello ${r.customer_name}, your Velos service request S${r.req_no} is now ${r.status.replace('_',' ')}. Track it anytime: ${tbase()}?o=S${r.req_no}`)}" target="_blank">💬 Notify customer</a></div>
@@ -294,6 +354,60 @@ const VIEWS = {
       + data.map(p => `<div class="card row"><span>${esc(p.full_name||'')}</span><span class="pill gold">${esc(p.role)}</span></div>`).join('');
   },
 
+  async customers(){
+    const [o,s] = await Promise.all([db.from('orders').select('customer_name,customer_phone,total_ugx,status,created_at').order('created_at',{ascending:false}).limit(3000),
+      db.from('service_requests').select('customer_name,customer_phone,created_at').order('created_at',{ascending:false}).limit(3000)]);
+    if(o.error) throw o.error; const M = {};
+    const add = (n,p,t,k,v) => { const key = String(p||'').replace(/\D/g,'').slice(-9); if(!key) return; const c = M[key] = M[key] || {n,p,o:0,s:0,spent:0,last:t}; c[k]++; if(v) c.spent += v; if(t > c.last) c.last = t; };
+    (o.data||[]).forEach(x => add(x.customer_name, x.customer_phone, x.created_at, 'o', ['confirmed','dispatched','delivered'].includes(x.status) ? Number(x.total_ugx||0) : 0));
+    (s.data||[]).forEach(x => add(x.customer_name, x.customer_phone, x.created_at, 's', 0));
+    window.CU = Object.values(M).sort((a,b) => b.spent - a.spent || (a.last < b.last ? 1 : -1));
+    $('#view').innerHTML = `<h2>Customers (${CU.length})</h2><input id="cq" placeholder="Search name or phone…" oninput="drawC()"><div id="clist"></div>`; drawC();
+  },
+
+  async export(){
+    const T = [['orders','Orders'],['order_items','Order items'],['products','Products'],['service_requests','Service requests'],['gift_requests','Gift & sourcing requests'],['design_requests','Design requests'],['inquiries','Inquiries'],['leads','Agent leads']];
+    if(me.role === 'admin') T.push(['agents','Agents'],['agent_payouts','Agent payouts'],['technician_applications','Technician applications']);
+    $('#view').innerHTML = '<h2>Export data (CSV)</h2><p class="mut">Download a copy for backup or accounting. Do this every week.</p>' + T.map(t => `<div class="card row"><span>${t[1]}</span><button onclick="exportT('${t[0]}')">Download</button></div>`).join('');
+  },
+
+  async security(){
+    const [co,ct,pm] = await Promise.all([db.from('security_companies').select('*').order('created_at',{ascending:false}),
+      db.from('security_contracts').select('*, security_companies(company_name)').order('created_at',{ascending:false}),
+      db.from('partner_payments').select('*, security_contracts(contract_no), security_companies(company_name)').eq('status','due').order('period')]);
+    if(co.error) throw co.error; window.SC = co.data; const ver = co.data.filter(c => c.status === 'verified'), adm = me.role === 'admin';
+    $('#view').innerHTML = `<h2>Security partner companies</h2>` + (co.data.length ? co.data.map(c => `<div class="card">
+      <div class="row"><b class="gold">P${c.ref_no}</b>${sel('security_companies',c.id,c.status,['pending','under_review','verified','rejected','suspended'])}</div>
+      <div><b>${esc(c.company_name)}</b> · Reg ${esc(c.reg_no)} · TIN ${esc(c.tin||'—')}</div>
+      <div class="mut">Licence ${esc(c.licence_no)} (exp ${esc(c.licence_expiry||'—')}) · Insurance ${esc(c.insurance_provider||'—')} (exp ${esc(c.insurance_expiry||'—')})</div>
+      <div>${esc(c.contact_name)} · <a href="${wa(c.phone)}" target="_blank">${esc(c.phone)}</a> · ${esc(c.email)}</div>
+      <div class="mut">${esc(c.city)}, ${esc(c.country)} · ${c.guards_count||'?'} guards · ${c.years_in_business||'?'} yrs · covers: ${esc(c.coverage||'')}</div>
+      <div class="mut">Refs: ${esc(c.ref1_name||'')} ${esc(c.ref1_phone||'')} · ${esc(c.ref2_name||'')} ${esc(c.ref2_phone||'')}</div>
+      ${(c.doc_paths||[]).length ? `<button onclick="cdocs('${c.id}')">View ${c.doc_paths.length} document(s)</button><div id="cd-${c.id}"></div>` : '<div class="mut">No documents uploaded</div>'}
+      <div class="row"><input class="sm" id="sn-${c.id}" placeholder="Internal vetting notes" value="${esc(c.staff_notes||'')}" style="flex:1"><button onclick="saveCo('${c.id}')">Save</button></div>
+      <div class="row"><input class="sm" id="lk-${c.id}" type="email" placeholder="Their login email" style="flex:1"><button onclick="linkP('link_company','${c.id}')">${c.user_id?'Re-link login':'Link login'}</button></div></div>`).join('') : '<p class="mut">No applications yet.</p>')
+    + `<h2>New security contract</h2><div class="card"><div class="grid2"><input id="nc_n" placeholder="Client name *"><input id="nc_p" placeholder="Client phone *"></div><input id="nc_a" placeholder="Site address *"><input id="nc_r" placeholder="Service request ref (e.g. S2001)">
+      <select id="nc_c"><option value="">— Verified company —</option>${ver.map(c => `<option value="${c.id}">${esc(c.company_name)}</option>`).join('')}</select>
+      <div class="grid2"><input id="nc_g" type="number" placeholder="Guards"><input id="nc_s" placeholder="Shift (day / night / 24h)"></div><div class="grid2"><input id="nc_sd" type="date"><input id="nc_ed" type="date"></div>
+      <div class="grid2"><input id="nc_f" type="number" placeholder="Client pays Velos / month UGX"><input id="nc_o" type="number" placeholder="Velos pays partner / month UGX"></div><button onclick="newContract()">Create contract</button></div>
+      <h2>Security contracts</h2>` + (ct.data.length ? ct.data.map(c => `<div class="card"><div class="row"><b class="gold">#${c.contract_no}</b>${sel('security_contracts',c.id,c.status,['draft','active','paused','ended','cancelled'])}</div>
+      <div><b>${esc(c.client_name)}</b> · ${esc(c.client_phone)} · ${esc(c.site_address)}</div><div class="mut">${c.guards} guard(s) · ${esc(c.shift||'')} · ${esc(c.start_date)} → ${esc(c.end_date||'open')} · Partner: ${esc(c.security_companies?.company_name||'unassigned')}</div>
+      <div class="mut">Client pays ${ugx(c.client_monthly_fee_ugx)}/mo · Partner payout ${ugx(c.partner_monthly_payout_ugx)}/mo · <b class="gold">Margin ${ugx(c.client_monthly_fee_ugx - c.partner_monthly_payout_ugx)}</b></div>
+      ${c.company_id && adm ? `<div class="row"><button class="ghost" onclick="makePay('${c.id}','${c.company_id}',${c.partner_monthly_payout_ugx})">Queue this month's partner payout</button></div>` : ''}
+      ${adm ? `<div class="row"><input class="sm" id="rc-${c.id}" type="number" placeholder="Client payment received UGX" style="width:190px"><input class="sm" id="rr-${c.id}" placeholder="Reference" style="flex:1"><button onclick="recReceipt('${c.id}')">Record receipt</button></div>` : ''}</div>`).join('') : '<p class="mut">No contracts yet.</p>')
+    + `<h2>Partner payments due</h2>` + (pm.data && pm.data.length ? pm.data.map(p => `<div class="card"><div class="row"><b>${esc(p.security_companies?.company_name||'')}</b><span class="gold">${ugx(p.amount_ugx)}</span></div><div class="mut">Contract #${p.security_contracts?.contract_no} · ${esc(p.period)}</div>
+      ${adm ? `<div class="row"><input class="sm" id="pp-${p.id}" placeholder="Payment reference" style="flex:1"><button onclick="payPartner('${p.id}')">Mark paid</button></div>` : ''}</div>`).join('') : '<p class="mut">Nothing due.</p>');
+  },
+
+  async settings(){
+    const {data} = await db.from('settings').select('*').like('key','rule_%'), v = k => (data||[]).find(x => x.key === k)?.value ?? '';
+    $('#view').innerHTML = `<h2>Pricing and deposit rules</h2><div class="card"><p class="mut">Orders above the threshold need a deposit to confirm. Bulk means any item ordered in the minimum quantity or more. The balance is paid on delivery.</p>
+      <label class="mut">Deposit applies to orders above (UGX)</label><input id="rt" type="number" value="${esc(v('rule_deposit_threshold_ugx')||1000000)}">
+      <label class="mut">Deposit for single-item orders (%)</label><input id="rs" type="number" value="${esc(v('rule_deposit_single_pct')||30)}">
+      <label class="mut">Deposit for bulk orders (%)</label><input id="rb" type="number" value="${esc(v('rule_deposit_bulk_pct')||70)}">
+      <label class="mut">Bulk means this many units of one item or more</label><input id="rm" type="number" value="${esc(v('rule_bulk_min_units')||5)}"><button onclick="saveRules()">Save rules</button></div>`;
+  },
+
   async import(){
     $('#view').innerHTML = `<h2>Import catalog</h2><div class="card"><p>Copies every category and product from your website's <b>app.js</b> into the database.
       <br><span class="mut">Run this once. Running it again resets prices and names to what app.js says.</span></p>
@@ -307,12 +421,12 @@ function drawP(){
     <div class="card" id="p-${p.id}">
       <div class="row"><span><img src="${esc(p.image_url||'')}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:8px" onerror="this.style.display='none'">${p.in_stock===false?'<span class="pill" style="color:var(--bad)">OUT</span> ':''}${(window.PM||{})[p.id]?`<span class="pill gold">-${PM[p.id]}%</span> `:''}<b>${esc(p.name)}</b></span><span class="mut">${esc(p.id)} · ${esc(p.category_key)}</span></div>
       <div class="grid2"><input class="nm" value="${esc(p.name)}"><input class="pr" type="number" value="${p.price_ugx ?? ''}" placeholder="Request Quote"></div>
-      <div class="grid2"><input class="pd" type="number" placeholder="Discount % (0 = end)"><input class="pdays" type="number" placeholder="Days (default 7)"></div><label class="mut">Change photo</label><input class="ph" type="file" accept="image/*"><div class="row"><label><input class="sm ac" type="checkbox" ${p.is_active?'checked':''}> Visible</label> <label><input class="sm st" type="checkbox" ${p.in_stock!==false?'checked':''}> In stock</label>
+      <input class="sq" type="number" min="0" placeholder="Units in stock (blank = don't count)" value="${p.stock_qty??''}"><div class="grid2"><input class="pd" type="number" placeholder="Discount % (0 = end)"><input class="pdays" type="number" placeholder="Days (default 7)"></div><label class="mut">Change photo</label><input class="ph" type="file" accept="image/*"><div class="row"><label><input class="sm ac" type="checkbox" ${p.is_active?'checked':''}> Visible</label> <label><input class="sm st" type="checkbox" ${p.in_stock!==false?'checked':''}> In stock</label>
       <button onclick="saveP('${p.id}')">Save</button></div></div>`).join('') + (PR.length > 60 && !q ? '<p class="mut">Showing 60 — use search to find others.</p>' : '');
 }
 async function saveP(id){
   const r = $('#p-'+id), v = r.querySelector('.pr').value;
-  const upd = {name:r.querySelector('.nm').value.trim(), price_ugx: v===''?null:Number(v), is_active:r.querySelector('.ac').checked, in_stock:r.querySelector('.st').checked, updated_at:new Date().toISOString()};
+  const upd = {name:r.querySelector('.nm').value.trim(), price_ugx: v===''?null:Number(v), is_active:r.querySelector('.ac').checked, in_stock:r.querySelector('.st').checked && r.querySelector('.sq').value !== '0', stock_qty: r.querySelector('.sq').value === '' ? null : Number(r.querySelector('.sq').value), updated_at:new Date().toISOString()};
   const f = r.querySelector('.ph').files[0];
   try { if(f) upd.image_url = await upImg(f, id); } catch(e){ return toast('Photo upload failed: ' + e.message, true); }
   const {error} = await db.from('products').update(upd).eq('id', id);

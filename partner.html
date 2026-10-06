@@ -1,0 +1,64 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Partner Portal | The Velos Group</title><meta name="robots" content="noindex">
+<style>
+:root{--bg:#080d1f;--card:#0f1730;--line:#2a3560;--gold:#e8c766;--txt:#f4f1ea;--mut:#a3adc6;--ok:#7fd99a;--bad:#ff8a80}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.55 Inter,system-ui,sans-serif}
+.w{max-width:980px;margin:0 auto;padding:22px 16px 60px}h1{font-family:Georgia,serif;color:var(--gold);margin:0 0 4px}h2{font-family:Georgia,serif;margin:22px 0 8px;font-size:20px}
+.c{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
+input{width:100%;padding:12px;margin:5px 0;background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:8px;font:inherit}
+button,a.b{display:inline-block;text-align:center;padding:11px 15px;border:0;border-radius:8px;background:var(--gold);color:#080d1f;font-weight:700;cursor:pointer;font-size:15px;text-decoration:none;margin:3px 3px 3px 0}
+button.g,a.g{background:none;border:1px solid var(--line);color:var(--txt)}.full{width:100%}.m{color:var(--mut);font-size:13px}.bad{color:var(--bad)}.row{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.stat{text-align:center}.stat b{display:block;font-size:22px;color:var(--gold)}
+.pill{font-size:12px;padding:2px 9px;border-radius:99px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse}td,th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}th{color:var(--mut)}
+.box{max-width:480px;margin:6vh auto}#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ok);color:#06210f;padding:10px 16px;border-radius:99px;font-weight:700}
+</style></head><body><div class="w"><div id="v"><p class="m">Loading…</p></div></div><div id="toast" hidden></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script>
+<script>
+var S=window.VELOS_SUPABASE,db=supabase.createClient(S.url,S.key),$=function(i){return document.getElementById(i)},V=function(h){$('v').innerHTML=h};
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})},ugx=function(n){return 'UGX '+Number(n||0).toLocaleString('en-US')};
+var dt=function(s){return s?new Date(s).toLocaleDateString('en-GB',{dateStyle:'medium'}):'—'};
+function toast(m,b){var t=$('toast');t.textContent=m;t.style.background=b?'#b3261e':'';t.style.color=b?'#fff':'';t.hidden=false;setTimeout(function(){t.hidden=true},2500)}
+async function out(){await db.auth.signOut();boot()}
+async function boot(){
+  var r=await db.auth.getSession(),s=r.data.session;if(!s)return authView();
+  var x=await Promise.all([db.rpc('my_company'),db.rpc('my_tech')]);
+  if(x[0].data)return company(x[0].data);if(x[1].data)return tech(x[1].data);
+  V('<div class="box"><div class="c"><h1>Partner portal</h1><p>You are signed in as <b>'+esc(s.user.email)+'</b>, but this login is not linked to a verified partner yet.</p><p class="m">Apply first: <a href="technicians.html" style="color:#e8c766">technicians</a> or <a href="security-partners.html" style="color:#e8c766">security companies</a>. When Velos verifies you, we link this login. Tell us this email address.</p><button class="g" onclick="out()">Sign out</button></div></div>');
+}
+function authView(){
+  V('<div class="box"><h1>Velos Partner Portal</h1><p class="m">For verified technicians and security companies.</p><div class="c"><input id="em" type="email" placeholder="Email" autocomplete="username"><input id="pw" type="password" placeholder="Password (8+ characters)" autocomplete="current-password">'
+   +'<button class="full" onclick="signIn()">Sign in</button><button class="g full" onclick="signUp()">Create a login</button><p id="er" class="m bad"></p></div><p class="m">Create your login with the same email you used on your application. After verification, Velos links it so your dashboard appears here.</p></div>');
+}
+async function signIn(){var r=await db.auth.signInWithPassword({email:$('em').value.trim(),password:$('pw').value});if(r.error)$('er').textContent=r.error.message;else boot()}
+async function signUp(){var pw=$('pw').value;if(pw.length<8){$('er').textContent='Use a password of at least 8 characters.';return}
+  var r=await db.auth.signUp({email:$('em').value.trim(),password:pw});if(r.error){$('er').textContent=r.error.message;return}
+  if(r.data.session)boot();else{$('er').style.color='#7fd99a';$('er').textContent='Check your email to confirm, then sign in.'}}
+async function company(c){
+  var x=await Promise.all([db.rpc('my_contracts'),db.rpc('my_payments')]),K=x[0].data||[],P=x[1].data||[],due=0,paid=0;
+  P.forEach(function(p){if(p.status==='paid')paid+=Number(p.amount);else due+=Number(p.amount)});
+  var head='<div class="row"><div><h1>'+esc(c.company_name)+'</h1><span class="pill">Ref P'+c.ref_no+'</span> <span class="pill">'+esc(c.status)+'</span></div><button class="g" onclick="out()">Sign out</button></div>';
+  if(c.status!=='verified'){V(head+'<div class="c"><p>Your application is <b>'+esc(c.status)+'</b>. You will see contracts and payments here once Velos verifies your company and signs the Partner Agreement with you.</p></div>');return}
+  V(head+'<div class="stats" style="margin-top:12px"><div class="c stat"><b>'+K.filter(function(k){return k.status==='active'}).length+'</b><span class="m">Active contracts</span></div><div class="c stat"><b>'+ugx(due)+'</b><span class="m">Payments due from Velos</span></div><div class="c stat"><b>'+ugx(paid)+'</b><span class="m">Paid to you</span></div></div>'
+   +'<h2>Your contracts</h2>'+(K.length?K.map(function(k){return '<div class="c"><div class="row"><b>Contract #'+k.contract_no+'</b><span class="pill">'+esc(k.status)+'</span></div><div>'+esc(k.site_address)+'</div><div class="m">'+k.guards+' guard(s) · '+esc(k.shift||'')+' · '+dt(k.start_date)+' → '+dt(k.end_date)+'</div><div class="m">Client: '+esc(k.client_name)+' · '+esc(k.client_phone)+'</div><div class="m">'+esc(k.site_description||'')+'</div><div><b style="color:#e8c766">Monthly payout: '+ugx(k.monthly_payout)+'</b></div></div>'}).join(''):'<div class="c m">No contracts yet. Velos will assign you when a matching client booking is confirmed.</div>')
+   +'<h2>Payments from Velos</h2><div class="c">'+(P.length?'<table><tr><th>Month</th><th>Contract</th><th>Amount</th><th>Status</th><th>Paid</th></tr>'+P.map(function(p){return '<tr><td>'+esc(p.period)+'</td><td>#'+p.contract_no+'</td><td>'+ugx(p.amount)+'</td><td><span class="pill">'+esc(p.status)+'</span></td><td>'+dt(p.paid_at)+(p.reference?'<br><span class="m">'+esc(p.reference)+'</span>':'')+'</td></tr>'}).join('')+'</table>':'<span class="m">No payments yet.</span>')+'</div>'
+   +'<div class="c m">Standards reminder: every guard vetted, trained, uniformed and ID-carded; keep your licence and insurance valid; deal with clients only through Velos. Breaches can lead to suspension.</div>');
+}
+async function tech(t){
+  var r=await db.rpc('my_jobs'),J=r.data||[],owed=0,paid=0;
+  J.forEach(function(j){if(j.pay){if(j.paid_at)paid+=Number(j.pay);else if(j.status==='completed')owed+=Number(j.pay)}});
+  var head='<div class="row"><div><h1>Welcome, '+esc((t.full_name||'').split(' ')[0])+'</h1><span class="pill">'+esc(t.trade)+'</span> <span class="pill">'+esc(t.status)+'</span></div><button class="g" onclick="out()">Sign out</button></div>';
+  if(t.status!=='verified'){V(head+'<div class="c"><p>Your application is <b>'+esc(t.status)+'</b>. Jobs appear here once Velos verifies you.</p></div>');return}
+  var NEXT={assigned:['on_the_way','I am on my way'],on_the_way:['in_progress','Start work'],in_progress:['completed','Mark completed']};
+  var active=J.filter(function(j){return j.status!=='completed'&&j.status!=='cancelled'}),done=J.filter(function(j){return j.status==='completed'});
+  function card(j){var map=j.lat?'https://www.google.com/maps?q='+j.lat+','+j.lng:'https://www.google.com/maps/search/'+encodeURIComponent([j.address,j.town,j.region,j.country].filter(Boolean).join(', '));var n=NEXT[j.status];
+    return '<div class="c"><div class="row"><b>S'+j.req_no+' · '+esc(j.service)+'</b><span class="pill">'+esc(j.status.replace('_',' '))+'</span></div>'+(j.urgency!=='standard'?'<span class="pill" style="color:#ff8a80">'+esc(j.urgency).toUpperCase()+'</span>':'')
+     +'<div>'+esc(j.description)+'</div><div class="m">📍 '+esc([j.address,j.town,j.region,j.country].filter(Boolean).join(', '))+' · <a href="'+map+'" target="_blank" rel="noopener" style="color:#e8c766">Open map</a></div>'
+     +'<div class="m">🕒 '+esc(j.preferred_date||'Any day')+' · '+esc(j.preferred_window||'')+'</div><div>Client: '+esc(j.customer_name)+' · <a href="tel:'+esc(j.customer_phone)+'" style="color:#e8c766">'+esc(j.customer_phone)+'</a></div>'
+     +(j.pay?'<div class="m">Your pay: '+ugx(j.pay)+(j.paid_at?' (paid '+dt(j.paid_at)+')':'')+'</div>':'')+(n?'<button onclick="act('+j.req_no+',\''+n[0]+'\')">'+n[1]+'</button>':'')+'</div>'}
+  V(head+'<div class="stats" style="margin-top:12px"><div class="c stat"><b>'+active.length+'</b><span class="m">Active jobs</span></div><div class="c stat"><b>'+done.length+'</b><span class="m">Completed</span></div><div class="c stat"><b>'+ugx(owed)+'</b><span class="m">Owed to you</span></div><div class="c stat"><b>'+ugx(paid)+'</b><span class="m">Paid to you</span></div></div>'
+   +'<h2>Active jobs</h2>'+(active.length?active.map(card).join(''):'<div class="c m">No active jobs. New assignments appear here.</div>')+'<h2>Completed</h2>'+(done.length?done.map(card).join(''):'<div class="c m">Nothing completed yet.</div>')
+   +'<div class="c m">Update each job as you go: the customer sees your progress. Pay is set by Velos per job and paid by Velos after completion.</div>');
+}
+async function act(no,st){var r=await db.rpc('tech_update_job',{p_req_no:no,p_status:st});if(r.error)toast(r.error.message,true);else{toast('Updated');boot()}}
+boot();
+</script></body></html>
