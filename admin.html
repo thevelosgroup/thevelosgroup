@@ -78,7 +78,7 @@ async function boot(){
   go('home');
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['inq','Inquiries'],['team','Team'],['export','Export'],['settings','Settings'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['settings','Settings'],['import','Import']];
 async function go(k){
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.id === 'n-'+k));
   $('#view').innerHTML = '<p class="mut">Loading…</p>';
@@ -103,6 +103,10 @@ async function exportT(t){
   const cols = Object.keys(data[0]), q = v => '"' + String(v == null ? '' : (typeof v === 'object' ? JSON.stringify(v) : v)).replace(/"/g,'""') + '"';
   const csv = [cols.join(',')].concat(data.map(r => cols.map(c => q(r[c])).join(','))).join('\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'velos-' + t + '-' + new Date().toISOString().slice(0,10) + '.csv'; a.click();
+}
+async function resendMsg(id){
+  const n = NF.find(x => x.id === id), {error} = await db.from('notifications').insert({kind:n.kind, ref:n.ref, phone:n.phone, email:n.email, message:n.message});
+  toast(error ? error.message : 'Queued again', !!error); if(!error) go('messages');
 }
 async function saveAmt(id){
   const v = $('#am-'+id).value, p = $('#tp-'+id).value, {error} = await db.from('service_requests').update({amount_ugx: v===''?null:Number(v), tech_pay_ugx: p===''?null:Number(p)}).eq('id', id);
@@ -406,6 +410,15 @@ const VIEWS = {
       <label class="mut">Deposit for single-item orders (%)</label><input id="rs" type="number" value="${esc(v('rule_deposit_single_pct')||30)}">
       <label class="mut">Deposit for bulk orders (%)</label><input id="rb" type="number" value="${esc(v('rule_deposit_bulk_pct')||70)}">
       <label class="mut">Bulk means this many units of one item or more</label><input id="rm" type="number" value="${esc(v('rule_bulk_min_units')||5)}"><button onclick="saveRules()">Save rules</button></div>`;
+  },
+
+  async messages(){
+    const {data,error} = await db.from('notifications').select('*').order('created_at',{ascending:false}).limit(100); if(error) throw error; window.NF = data;
+    const c = {sent:0, pending:0, failed:0, skipped:0}; data.forEach(n => c[n.status] = (c[n.status]||0) + 1);
+    $('#view').innerHTML = `<h2>Customer messages</h2><div class="card mut">Sent ${c.sent||0} · Waiting ${c.pending||0} · Failed ${c.failed||0} · No channel ${c.skipped||0}. Messages go out by email (and SMS when enabled). A customer with neither an email nor SMS can be reached with the WhatsApp buttons on each order or request.</div>`
+      + (data.length ? data.map(n => `<div class="card"><div class="row"><b class="gold">${esc(n.ref||'')}</b><span class="pill" ${n.status==='failed'?'style="color:var(--bad)"':''}>${esc(n.status)}${n.channels?' · '+esc(n.channels):''}</span></div>
+      <div>${esc(n.message)}</div><div class="mut">${esc(n.email||'no email')} · ${esc(n.phone||'')} · ${dt(n.created_at)}</div>${n.error?`<div class="mut" style="color:var(--bad)">${esc(n.error)}</div>`:''}
+      ${n.status==='failed'||n.status==='skipped'?`<button class="ghost" onclick="resendMsg('${n.id}')">Resend</button>`:''}</div>`).join('') : '<p class="mut">No messages yet.</p>');
   },
 
   async import(){
