@@ -72,13 +72,13 @@ async function boot(){
   if(!p){ await db.auth.signOut(); show(false); $('#err').textContent = pe ? 'Database error: ' + pe.message : 'This account is not authorised as staff. (login id ' + session.user.id + ')'; return; }
   me = p; $('#who').textContent = p.full_name || p.role; show(true);
   const {data} = await db.from('categories').select('*').order('sort_order'); cats = data || [];
-  const hide = ({manager:['team','settings','frules'], staff:['report','products','agents','leads','team','import','export','security','settings','fmenu','fvendors','friders','frules']})[p.role] || [];
+  const hide = ({manager:['team','settings','frules'], staff:['report','products','agents','leads','team','import','export','security','settings','fmenu','supplies','fvendors','friders','frules']})[p.role] || [];
   window.TB = TABS.filter(t => !hide.includes(t[0]));
   $('#nav').innerHTML = TB.map(t => `<button id="n-${t[0]}" onclick="go('${t[0]}')">${t[1]}</button>`).join('');
   go('home');
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['settings','Settings'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['settings','Settings'],['import','Import']];
 async function go(k){
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.id === 'n-'+k));
   $('#view').innerHTML = '<p class="mut">Loading…</p>';
@@ -181,6 +181,11 @@ async function recReceipt(cid){
 async function payPartner(id){
   const {error} = await db.from('partner_payments').update({status:'paid', paid_at:new Date().toISOString(), reference:$('#pp-'+id).value.trim()||null}).eq('id', id);
   toast(error ? error.message : 'Marked paid', !!error); if(!error) go('security');
+}
+async function saveSite(){
+  const R = {site_wa:$('#sw').value.replace(/\D/g,''), site_phone:$('#sp').value.trim(), site_email:$('#se').value.trim(), site_banner_on:$('#sbo').value, site_banner_text:$('#sbt').value.trim(), site_banner_link:$('#sbl').value.trim(), site_show_foods:$('#sf').value};
+  for(const k in R){ const {error} = await db.from('settings').upsert({key:k, value:R[k]}); if(error) return toast(error.message, true); }
+  toast('Website settings saved');
 }
 async function saveRules(){
   const R = {rule_deposit_threshold_ugx:'rt', rule_deposit_single_pct:'rs', rule_deposit_bulk_pct:'rb', rule_bulk_min_units:'rm'};
@@ -444,12 +449,19 @@ const VIEWS = {
   },
 
   async settings(){
-    const {data} = await db.from('settings').select('*').like('key','rule_%'), v = k => (data||[]).find(x => x.key === k)?.value ?? '';
+    const {data} = await db.from('settings').select('*').or('key.like.rule_*,key.like.site_*'), v = k => (data||[]).find(x => x.key === k)?.value ?? '';
     $('#view').innerHTML = `<h2>Pricing and deposit rules</h2><div class="card"><p class="mut">Orders above the threshold need a deposit to confirm. Bulk means any item ordered in the minimum quantity or more. The balance is paid on delivery.</p>
       <label class="mut">Deposit applies to orders above (UGX)</label><input id="rt" type="number" value="${esc(v('rule_deposit_threshold_ugx')||1000000)}">
       <label class="mut">Deposit for single-item orders (%)</label><input id="rs" type="number" value="${esc(v('rule_deposit_single_pct')||30)}">
       <label class="mut">Deposit for bulk orders (%)</label><input id="rb" type="number" value="${esc(v('rule_deposit_bulk_pct')||70)}">
-      <label class="mut">Bulk means this many units of one item or more</label><input id="rm" type="number" value="${esc(v('rule_bulk_min_units')||5)}"><button onclick="saveRules()">Save rules</button></div>`;
+      <label class="mut">Bulk means this many units of one item or more</label><input id="rm" type="number" value="${esc(v('rule_bulk_min_units')||5)}"><button onclick="saveRules()">Save rules</button></div>
+      <h2>Website settings</h2><div class="card"><p class="mut">Changes show on the live website straight away.</p>
+      <label class="mut">WhatsApp number (digits only, with country code, e.g. 256755215751)</label><input id="sw" value="${esc(v('site_wa'))}">
+      <label class="mut">Public phone number</label><input id="sp" value="${esc(v('site_phone'))}"><label class="mut">Public email</label><input id="se" value="${esc(v('site_email'))}">
+      <label class="mut">Announcement banner</label><select id="sbo"><option value="0" ${v('site_banner_on')!=='1'?'selected':''}>Hidden</option><option value="1" ${v('site_banner_on')==='1'?'selected':''}>Shown at the top of every page</option></select>
+      <input id="sbt" placeholder="Banner text, e.g. Free delivery this weekend in Kampala" value="${esc(v('site_banner_text'))}"><input id="sbl" placeholder="Banner link (optional), e.g. foods.html" value="${esc(v('site_banner_link'))}">
+      <label class="mut">Velos Foods on the website</label><select id="sf"><option value="1" ${v('site_show_foods')!=='0'?'selected':''}>Visible (menu link, home section, search)</option><option value="0" ${v('site_show_foods')==='0'?'selected':''}>Hidden</option></select>
+      <button onclick="saveSite()">Save website settings</button></div>`;
   },
 
   async messages(){
@@ -516,6 +528,13 @@ const VIEWS = {
     const {data} = await db.from('settings').select('*').like('key','rule_food_%'), v = k => (data||[]).find(x => x.key === k)?.value ?? '';
     const F = [['rule_delivery_per_km','Shop and other deliveries: customer rate per km (UGX)'],['rule_delivery_min_ugx','Minimum delivery fee (UGX)'],['rule_shop_origin_lat','Shop dispatch point: latitude'],['rule_shop_origin_lng','Shop dispatch point: longitude'],['rule_food_free_km','Free delivery radius (km) — included in the 15% markup'],['rule_food_mid_km','Percentage-fee zone ends at (km)'],['rule_food_mid_pct','Extra % of the order between those distances'],['rule_food_customer_per_km','Customer rate per km beyond that (UGX)'],['rule_food_rider_per_km','Rider pay per km (UGX)'],['rule_food_grace_min','Late grace added automatically (minutes)'],['rule_food_penalty_pct_per_min','Restaurant penalty per late minute (% of order value)'],['rule_food_cancel_after_min','Auto-cancel after this many penalty minutes'],['rule_food_stockout_penalty_pct','Penalty for out-of-stock cancellation (%)'],['rule_food_road_factor','Straight-line to road distance factor']];
     $('#view').innerHTML = '<h2>Food delivery rules</h2><div class="card">' + F.map(f => `<label class="mut">${f[1]}</label><input id="fr_${f[0]}" type="number" step="any" value="${esc(v(f[0]))}">`).join('') + '<button onclick="saveFRules()">Save rules</button><p class="mut">Restaurant customer markup (15%) and commission (15%) are set per restaurant in Restaurants.</p></div>';
+  },
+
+  async supplies(){
+    const {data} = await db.from('food_vendors').select('id').eq('slug','velos-store').maybeSingle();
+    if(!data) throw new Error('Velos Foods Store not found. Run velos-foods-seed.sql first.');
+    window.FVSEL = data.id; await VIEWS.fmenu();
+    $('#view').insertAdjacentHTML('afterbegin', '<h2>Velos Foods Store: supplies</h2><p class="mut">Add groceries, fish, meat and other supplies here with a price per kg or per item and a photo. Customers see them in Velos Foods straight away.</p>');
   },
 
   async import(){

@@ -59,7 +59,7 @@ function modal(title, html, buttons){
   document.getElementById('vx_c').onclick = function(){ d.remove(); };
   return d;
 }
-function waLink(text){ return 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(text); }
+function waLink(text){ return 'https://wa.me/' + (SITE.wa || WHATSAPP_NUMBER) + '?text=' + encodeURIComponent(text); }
 function lineText(items){
   var lines = [], total = 0;
   items.forEach(function(it){
@@ -219,6 +219,7 @@ window.v_sendTechRegistration = window.sendTechRegistration = function(){
 };
 
 /* ---------- 5. STOREFRONT UPGRADE ---------- */
+var SITE = {};
 var RULES = {thr:1000000, single:30, bulk:70, bulkMin:5, perKm:900, minFee:0, oLat:0.40206, oLng:32.58973};
 api('settings?select=key,value&key=like.rule_*').then(function(r){ (r || []).forEach(function(x){ var v = Number(x.value); if(x.key === 'rule_deposit_threshold_ugx') RULES.thr = v; else if(x.key === 'rule_deposit_single_pct') RULES.single = v; else if(x.key === 'rule_deposit_bulk_pct') RULES.bulk = v; else if(x.key === 'rule_bulk_min_units') RULES.bulkMin = v; else if(x.key === 'rule_delivery_per_km') RULES.perKm = v; else if(x.key === 'rule_delivery_min_ugx') RULES.minFee = v; else if(x.key === 'rule_shop_origin_lat') RULES.oLat = v; else if(x.key === 'rule_shop_origin_lng') RULES.oLng = v; }); }).catch(function(){});
 var PROMO = {}, PINFO = {};
@@ -444,6 +445,64 @@ window.toggleChat = function(open){
     document.getElementById('chatQuick').innerHTML = ['Track my order', 'Find a phone', 'Book a service', 'Gift ideas', 'Payment terms'].map(function(q){ return '<button onclick="sendChat(\'' + q + '\')">' + q + '</button>'; }).join('');
   }
 };
+
+
+/* ---------- 6. WEBSITE SETTINGS, FOODS WING, SEARCH ---------- */
+var siteP = api('settings?select=key,value&key=like.site_*').then(function(r){ (r || []).forEach(function(x){ SITE[x.key.slice(5)] = x.value; }); }).catch(function(){});
+function ready(f){ if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', f); else f(); }
+function foodsOn(){ return SITE.show_foods !== '0'; }
+function siteUI(){
+  if(SITE.wa && SITE.wa !== '256755215751'){ document.querySelectorAll('a[href*="wa.me/"]').forEach(function(a){ a.href = a.href.replace(/wa\.me\/\d+/, 'wa.me/' + SITE.wa.replace(/\D/g, '')); }); }
+  if(SITE.banner_on === '1' && SITE.banner_text && !document.getElementById('vbanner')){
+    var b = document.createElement(SITE.banner_link ? 'a' : 'div'); b.id = 'vbanner'; if(SITE.banner_link) b.href = SITE.banner_link; b.textContent = SITE.banner_text;
+    b.style.cssText = 'display:block;position:relative;z-index:150;background:#e8c766;color:#080d1f;text-align:center;padding:9px 14px;font:600 13px/1.4 system-ui,sans-serif;text-decoration:none';
+    document.body.insertBefore(b, document.body.firstChild);
+  }
+  if(!foodsOn()) return;
+  document.querySelectorAll('a[href$="shop.html"]').forEach(function(a){
+    if(a.closest('section, main, .product-card') || a.getAttribute('data-velos-foods')) return;
+    var nx = a.nextElementSibling; if(nx && /foods\.html/.test(nx.getAttribute('href') || '')) return;
+    var c = a.cloneNode(true); c.setAttribute('href', 'foods.html'); c.removeAttribute('target'); c.classList.remove('active'); c.setAttribute('data-velos-foods', '1');
+    var tw = document.createTreeWalker(c, NodeFilter.SHOW_TEXT, null), last = null, n; while((n = tw.nextNode())){ if(n.nodeValue.trim()) last = n; }
+    if(last) last.nodeValue = last.nodeValue.replace(/\S[\s\S]*\S|\S/, 'Velos Foods'); else c.textContent = 'Velos Foods';
+    a.parentNode.insertBefore(c, a.nextSibling);
+  });
+  var home = /(^\/$|index\.html$|\/thevelosgroup\/?$)/.test(location.pathname), hero = document.querySelector('.hero');
+  if(home && hero && !document.getElementById('vfoods')){
+    var sec = document.createElement('section'); sec.id = 'vfoods'; sec.className = 'alt-bg'; sec.setAttribute('data-velos-foods', '1');
+    sec.innerHTML = '<div class="wrap"><div class="feature"><div class="feature-media"><img src="food-img/p14-1.jpg" alt="Fresh meals from Clover Restaurant" onerror="this.src=\'food-img/ph-pizza.svg\'"></div><div class="feature-text"><span class="status live">● Live division</span><h2>Velos Foods &amp; Supplies</h2>'
+      + '<p>Restaurant meals, fresh fish, meat and groceries delivered to your door. Pin your location, see the delivery fee instantly, and follow your order live until it arrives.</p>'
+      + '<ul class="feature-list"><li>Clover Restaurant &amp; Cafe: full menu delivered</li><li>Velos Foods Store: tilapia, beef, goat, chicken and groceries by the kilo</li><li>Mobile money or cash on delivery</li><li>Live tracking, ratings and reviews</li></ul>'
+      + '<a class="btn-primary" href="foods.html">Order food &amp; supplies</a> <a class="btn-secondary" href="food-track.html" style="margin-left:8px">Track an order</a></div></div></div>';
+    var anchor = hero.closest('section') || hero; anchor.parentNode.insertBefore(sec, anchor.nextSibling);
+  }
+  hookSearch();
+}
+function hookSearch(){
+  var inp = document.querySelector('.search-input-row input'); if(!inp || inp.getAttribute('data-vf')) return; inp.setAttribute('data-vf', '1');
+  var FM = null;
+  function load(){
+    if(FM) return Promise.resolve(FM);
+    return api('rpc/food_menu', {method:'POST', body:{}}).then(function(m){ FM = []; (m.vendors || []).forEach(function(v){ v.categories.forEach(function(c){ c.items.forEach(function(i){ if(i.available) FM.push({n:i.name, p:i.price, u:i.unit, slug:v.slug, vn:v.name, d:i.description || ''}); }); }); }); return FM; }).catch(function(){ FM = []; return FM; });
+  }
+  function row(label, sub, href){
+    var b = document.createElement('button'); b.className = 'search-result'; b.setAttribute('data-vf', '1');
+    b.innerHTML = '<span class="sr-type">Foods</span><span class="sr-label">' + esc(label) + '</span><span class="sr-sub">' + esc(sub) + '</span>'; b.onclick = function(){ location.href = href; }; return b;
+  }
+  function add(){
+    var q = inp.value.trim().toLowerCase(), box = document.querySelector('.search-results'); if(!box) return;
+    box.querySelectorAll('[data-vf]').forEach(function(e){ e.remove(); }); if(q.length < 2) return;
+    load().then(function(list){
+      var hits = list.filter(function(f){ return (f.n + ' ' + f.d + ' ' + f.vn).toLowerCase().indexOf(q) > -1; }).slice(0, 8), page = /food|restaurant|grocer|fish|meat|suppl|clover|menu|lunch|dinner|eat/.test(q);
+      if(!hits.length && !page) return; var em = box.querySelector('.search-empty'); if(em) em.remove();
+      box.querySelectorAll('[data-vf]').forEach(function(e){ e.remove(); });
+      if(page) box.appendChild(row('Velos Foods & Supplies', 'Open', 'foods.html'));
+      hits.forEach(function(f){ box.appendChild(row(f.n, (f.p ? 'UGX ' + Math.round(f.p).toLocaleString('en-US') : 'Quote') + (f.u === 'kg' ? '/kg' : ''), 'foods.html?v=' + encodeURIComponent(f.slug) + '&q=' + encodeURIComponent(f.n))); });
+    });
+  }
+  inp.addEventListener('input', function(){ setTimeout(add, 180); });
+}
+siteP.then(function(){ ready(siteUI); });
 
 /* ---------- 4. PAGE TWEAKS ---------- */
 function dom(){

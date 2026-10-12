@@ -15,7 +15,7 @@ function rpc(n,b){return fetch(S.url+'/rest/v1/rpc/'+n,{method:'POST',headers:{a
 function toast(m){var t=$('toast');t.textContent=m;t.hidden=false;setTimeout(function(){t.hidden=true},2000)}
 rpc('food_menu').then(function(m){M=m;m.vendors.forEach(function(v){v.categories.forEach(function(c){c.items.forEach(function(i){i.vid=v.id;IT[i.id]=i})})});
   $('vend').innerHTML=m.vendors.map(function(v){return '<button class="g" id="v-'+v.id+'" onclick="pick(\''+v.id+'\')">'+(v.kind==='store'?'🛒 ':'🍽️ ')+esc(v.name)+(v.rating_count?' ★'+Number(v.rating_avg).toFixed(1):'')+'</button>'}).join('');
-  var want=new URLSearchParams(location.search).get('v');pick((m.vendors.find(function(v){return v.slug===want})||m.vendors[0]||{}).id)}).catch(function(e){$('list').innerHTML='<p class="bad">Could not load the menu: '+esc(e.message)+'</p>'});
+  var want=new URLSearchParams(location.search).get('v');pick((m.vendors.find(function(v){return v.slug===want})||m.vendors[0]||{}).id);var qq=new URLSearchParams(location.search).get('q');if(qq){$('q').value=qq;draw()}}).catch(function(e){$('list').innerHTML='<p class="bad">Could not load the menu: '+esc(e.message)+'</p>'});
 function pick(id){
   var v=M.vendors.find(function(x){return x.id===id});if(!v)return;
   if(V&&V.id!==id&&Object.keys(cart).length&&!confirm('Switching restaurants will clear your cart. Continue?'))return;
