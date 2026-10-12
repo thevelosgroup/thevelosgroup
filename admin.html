@@ -72,13 +72,13 @@ async function boot(){
   if(!p){ await db.auth.signOut(); show(false); $('#err').textContent = pe ? 'Database error: ' + pe.message : 'This account is not authorised as staff. (login id ' + session.user.id + ')'; return; }
   me = p; $('#who').textContent = p.full_name || p.role; show(true);
   const {data} = await db.from('categories').select('*').order('sort_order'); cats = data || [];
-  const hide = ({manager:['team','settings'], staff:['report','products','agents','leads','team','import','export','security','settings']})[p.role] || [];
+  const hide = ({manager:['team','settings','frules'], staff:['report','products','agents','leads','team','import','export','security','settings','fmenu','fvendors','friders','frules']})[p.role] || [];
   window.TB = TABS.filter(t => !hide.includes(t[0]));
   $('#nav').innerHTML = TB.map(t => `<button id="n-${t[0]}" onclick="go('${t[0]}')">${t[1]}</button>`).join('');
   go('home');
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['settings','Settings'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['settings','Settings'],['import','Import']];
 async function go(k){
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.id === 'n-'+k));
   $('#view').innerHTML = '<p class="mut">Loading…</p>';
@@ -108,6 +108,46 @@ async function resendMsg(id){
   const n = NF.find(x => x.id === id), {error} = await db.from('notifications').insert({kind:n.kind, ref:n.ref, phone:n.phone, email:n.email, message:n.message});
   toast(error ? error.message : 'Queued again', !!error); if(!error) go('messages');
 }
+async function approveQuote(id, sub){ const v = Number($('#fq-'+id).value); const {error} = await db.from('food_orders').update({delivery_fee_ugx:v, total_ugx:sub+v, quote_approved:true}).eq('id', id); toast(error ? error.message : 'Quote approved', !!error); if(!error) go('forders'); }
+async function offerRider(no, id){ const r = $('#rd-'+id).value; if(!r) return toast('Choose a rider', true); const {error} = await db.rpc('food_offer_rider', {p_order_no:no, p_rider:r}); toast(error ? error.message : 'Job offered to rider', !!error); if(!error) go('forders'); }
+async function adminCancel(no, id){ if(!confirm('Cancel this order?')) return; const {error} = await db.rpc('food_admin_cancel', {p_order_no:no, p_reason:$('#cr-'+id).value, p_waive:$('#cw-'+id).checked}); toast(error ? error.message : 'Order cancelled', !!error); if(!error) go('forders'); }
+async function upFood(f){ if(f.size > 5*1024*1024) throw Error('Photo is over 5 MB'); const ext = (f.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,''), p = 'f' + Date.now() + Math.random().toString(36).slice(2,7) + '.' + ext;
+  const {error} = await db.storage.from('food-images').upload(p, f, {contentType:f.type}); if(error) throw error; return db.storage.from('food-images').getPublicUrl(p).data.publicUrl; }
+function drawF(){
+  const q = ($('#fq')?.value||'').toLowerCase(), cn = {}; FC.forEach(c => cn[c.id] = c.name);
+  $('#flist').innerHTML = FI.filter(i => !q || i.name.toLowerCase().includes(q)).slice(0,60).map(i => `<div class="card" id="fi-${i.id}"><div class="row"><span><img src="${esc(i.image_url||'')}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:8px;background:#fff" onerror="this.style.display='none'"><b>${esc(i.name)}</b></span><span class="mut">${esc(cn[i.category_id]||'')} · ${i.unit}</span></div>
+    <div class="grid2"><input class="fp" type="number" placeholder="Base price UGX" value="${i.base_price_ugx??''}"><input class="ft" type="number" placeholder="Prep minutes" value="${i.prep_minutes}"></div>
+    <div class="grid2"><input class="fd" type="number" placeholder="Flash discount % (0 = end)"><input class="fh" type="number" placeholder="Hours (default 24)"></div><label class="mut">Change photo</label><input class="ff" type="file" accept="image/*">
+    <div class="row"><label><input class="sm fa" type="checkbox" ${i.is_available?'checked':''}> Available</label><label><input class="sm fv" type="checkbox" ${i.is_active?'checked':''}> Shown on menu</label><button onclick="saveFood('${i.id}')">Save</button></div></div>`).join('') + (FI.length > 60 && !q ? '<p class="mut">Showing 60 — use search for others.</p>' : '');
+}
+async function saveFood(id){
+  const r = $('#fi-'+id), p = r.querySelector('.fp').value, upd = {base_price_ugx: p===''?null:Number(p), prep_minutes:Number(r.querySelector('.ft').value)||20, is_available:r.querySelector('.fa').checked, is_active:r.querySelector('.fv').checked};
+  const f = r.querySelector('.ff').files[0]; try { if(f) upd.image_url = await upFood(f); } catch(e){ return toast('Photo upload failed: ' + e.message, true); }
+  const {error} = await db.from('food_items').update(upd).eq('id', id); if(error) return toast(error.message, true);
+  const d = r.querySelector('.fd').value; if(d !== ''){ await db.from('food_promos').update({is_active:false}).eq('item_id', id); if(Number(d) > 0) await db.from('food_promos').insert({item_id:id, discount_percent:Number(d), ends_at:new Date(Date.now() + (Number(r.querySelector('.fh').value)||24)*36e5).toISOString()}); }
+  toast('Saved');
+}
+async function addFood(){
+  const g = i => $('#'+i).value.trim(); let cid = g('ni_c') || null;
+  if(!g('ni_n') || g('ni_p') === '') return toast('Name and price are required', true);
+  try {
+    if(!cid && g('ni_nc')){ const {data,error} = await db.from('food_categories').insert({vendor_id:FVSEL, name:g('ni_nc'), sort_order:99}).select().single(); if(error) throw error; cid = data.id; }
+    const f = $('#ni_f').files[0], img = f ? await upFood(f) : null;
+    const {error} = await db.from('food_items').insert({vendor_id:FVSEL, category_id:cid, name:g('ni_n'), description:g('ni_d')||null, base_price_ugx:Number(g('ni_p')), unit:g('ni_u'), step:Number(g('ni_s'))||1, min_qty:Number(g('ni_m'))||1, prep_minutes:Number(g('ni_t'))||20, image_url:img}); if(error) throw error;
+    toast('Item added'); go('fmenu');
+  } catch(e){ toast(e.message, true); }
+}
+async function vStatus(id, s){ const v = FVN?.[id]; const {data} = await db.from('food_vendors').select('name,slug').eq('id', id).single(); const upd = {status:s, is_active:s==='active'}; if(data && data.slug.startsWith('pending-')) upd.slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') + '-' + Math.random().toString(36).slice(2,6);
+  const {error} = await db.from('food_vendors').update(upd).eq('id', id); toast(error ? error.message : 'Saved', !!error); }
+const FVN = {};
+async function saveVendor(id){ const {error} = await db.from('food_vendors').update({commission_pct:Number($('#vc-'+id).value), markup_pct:Number($('#vm-'+id).value)}).eq('id', id); toast(error ? error.message : 'Saved', !!error); }
+async function saveLoc(id){ const {error} = await db.from('food_vendors').update({lat:Number($('#vlat-'+id).value), lng:Number($('#vlng-'+id).value)}).eq('id', id); toast(error ? error.message : 'Location saved', !!error); }
+async function linkFood(kind, id, inp){ const e = $('#'+inp).value.trim(); if(!e) return toast('Enter their login email', true); const {error} = await db.rpc('food_link', {p_kind:kind, p_id:id, p_email:e}); toast(error ? error.message : 'Login linked', !!error); }
+async function makePayout(id){ const {error} = await db.rpc('food_make_vendor_payout', {p_vendor:id, p_from:$('#pf-'+id).value, p_to:$('#pt-'+id).value}); toast(error ? error.message : 'Payout created', !!error); if(!error) go('fvendors'); }
+async function paidVendor(id){ const {error} = await db.from('food_vendor_payouts').update({status:'paid', paid_at:new Date().toISOString(), reference:$('#pr-'+id).value.trim()||null}).eq('id', id); toast(error ? error.message : 'Marked paid', !!error); if(!error) go('fvendors'); }
+async function payRider(id){ const {error} = await db.rpc('food_pay_rider', {p_rider:id, p_ref:$('#rr-'+id).value.trim()||null}); toast(error ? error.message : 'Rider paid', !!error); if(!error) go('friders'); }
+async function saveFRules(){ const ks = ['rule_delivery_per_km','rule_delivery_min_ugx','rule_shop_origin_lat','rule_shop_origin_lng','rule_food_free_km','rule_food_mid_km','rule_food_mid_pct','rule_food_customer_per_km','rule_food_rider_per_km','rule_food_grace_min','rule_food_penalty_pct_per_min','rule_food_cancel_after_min','rule_food_stockout_penalty_pct','rule_food_road_factor'];
+  for(const k of ks){ const {error} = await db.from('settings').upsert({key:k, value:String(Number($('#fr_'+k).value))}); if(error) return toast(error.message, true); } toast('Rules saved'); }
 async function saveAmt(id){
   const v = $('#am-'+id).value, p = $('#tp-'+id).value, {error} = await db.from('service_requests').update({amount_ugx: v===''?null:Number(v), tech_pay_ugx: p===''?null:Number(p)}).eq('id', id);
   toast(error ? error.message : 'Saved', !!error);
@@ -216,7 +256,7 @@ const VIEWS = {
     $('#view').innerHTML = '<h2>Orders</h2>' + (data.length ? data.map(o => `<div class="card">
       <div class="row"><b class="gold">#${o.order_no}</b>${sel('orders',o.id,o.status,['new','confirmed','dispatched','delivered','cancelled'])}</div>
       <div>${esc(o.customer_name)} · <a href="${wa(o.customer_phone)}" target="_blank">${esc(o.customer_phone)}</a></div>
-      <div class="mut">${esc(o.delivery_address||'')}${o.customer_email?' · '+esc(o.customer_email):''}</div>
+      <div class="mut">${esc(o.delivery_address||'')}${o.customer_email?' · '+esc(o.customer_email):''}${o.delivery_lat?` · <a href="https://www.google.com/maps?q=${o.delivery_lat},${o.delivery_lng}" target="_blank">Map</a> · ${o.distance_km} km · delivery ${ugx(o.delivery_fee_ugx)}`:''}</div>
       <div class="mut">Payment: ${esc(o.payment_method||'—')} · Total ${ugx(o.total_ugx)}${o.deposit_required_ugx?' · 30% deposit '+ugx(o.deposit_required_ugx):''} · Paid ${ugx(o.amount_paid_ugx||0)} · <b class="gold">Balance ${ugx(Math.max(0,(o.total_ugx||0)-(o.amount_paid_ugx||0)))}</b></div>
       <div class="row"><span>${['unpaid','part_paid','deposit_paid','paid','refunded'].map(x=>x===(o.payment_status||'unpaid')?`<span class="pill gold">${x}</span>`:'').join('')}</span><span><input class="sm" id="pay-${o.id}" type="number" placeholder="Total received UGX" style="width:150px"> <button onclick="recPay('${o.id}',${o.total_ugx||0},${o.deposit_required_ugx||0})">Record</button></span></div>
       <div class="mut">${o.order_items.map(i=>`${esc(i.product_name)} ×${i.qty}`).join('<br>')}</div>
@@ -419,6 +459,63 @@ const VIEWS = {
       + (data.length ? data.map(n => `<div class="card"><div class="row"><b class="gold">${esc(n.ref||'')}</b><span class="pill" ${n.status==='failed'?'style="color:var(--bad)"':''}>${esc(n.status)}${n.channels?' · '+esc(n.channels):''}</span></div>
       <div>${esc(n.message)}</div><div class="mut">${esc(n.email||'no email')} · ${esc(n.phone||'')} · ${dt(n.created_at)}</div>${n.error?`<div class="mut" style="color:var(--bad)">${esc(n.error)}</div>`:''}
       ${n.status==='failed'||n.status==='skipped'?`<button class="ghost" onclick="resendMsg('${n.id}')">Resend</button>`:''}</div>`).join('') : '<p class="mut">No messages yet.</p>');
+  },
+
+  async forders(){
+    const [o,r] = await Promise.all([db.from('food_orders').select('*, food_vendors(name), food_riders(full_name)').order('created_at',{ascending:false}).limit(80), db.from('food_riders').select('id,full_name').eq('status','active')]);
+    if(o.error) throw o.error; const ropts = (r.data||[]).map(x => `<option value="${x.id}">${esc(x.full_name)}</option>`).join('');
+    $('#view').innerHTML = '<h2>Food orders</h2>' + (o.data.length ? o.data.map(x => `<div class="card">
+      <div class="row"><b class="gold">F${x.order_no}</b>${sel('food_orders',x.id,x.status,['placed','confirmed','preparing','ready','out_for_delivery','in_transit','delivered','cancelled'])}</div>
+      <div><b>${esc(x.food_vendors?.name||'')}</b> · ${dt(x.created_at)}</div>
+      <div>${esc(x.customer_name)} · <a href="${wa(x.customer_phone)}" target="_blank">${esc(x.customer_phone)}</a></div>
+      <div class="mut">📍 ${esc(x.address_text)} · <a href="https://www.google.com/maps?q=${x.lat},${x.lng}" target="_blank">Map</a> · ${x.distance_km} km</div>
+      <div class="mut">Subtotal ${ugx(x.subtotal_ugx)} + delivery ${ugx(x.delivery_fee_ugx)} = <b class="gold">${ugx(x.total_ugx)}</b> · restaurant value ${ugx(x.vendor_base_ugx)} · rider pay ${ugx(x.rider_pay_ugx)}</div>
+      <div class="mut">${esc(x.payment_method)} · ${x.ready_by?'ready by '+dt(x.ready_by)+(x.delay_extension_min?' (+'+x.delay_extension_min+' min)':''):'not confirmed yet'}${x.penalty_ugx?` · <b style="color:var(--bad)">penalty ${ugx(x.penalty_ugx)}</b>`:''}${x.cancel_reason?' · cancelled: '+esc(x.cancel_reason):''}</div>
+      ${x.needs_quote && !x.quote_approved ? `<div class="row"><span class="gold">Delivery quote needed (${x.distance_km} km)</span><input class="sm" id="fq-${x.id}" type="number" value="${x.delivery_fee_ugx}" style="width:120px"><button onclick="approveQuote('${x.id}',${x.subtotal_ugx})">Approve quote</button></div>` : ''}
+      <div class="row"><select class="sm" onchange="stf('food_orders','${x.id}','payment_status',this.value)">${['unpaid','paid','refund_due','refunded'].map(p => `<option ${p===x.payment_status?'selected':''}>${p}</option>`).join('')}</select><span class="mut">Rider: ${esc(x.food_riders?.full_name||'none')} (${esc(x.rider_status)})</span></div>
+      ${['delivered','cancelled'].includes(x.status) ? '' : `<div class="row"><select class="sm" id="rd-${x.id}" style="flex:1"><option value="">— Assign rider —</option>${ropts}</select><button onclick="offerRider(${x.order_no},'${x.id}')">Offer job</button></div>
+      <div class="row"><select class="sm" id="cr-${x.id}"><option value="customer">Customer cancelled</option><option value="out_of_stock">Out of stock</option><option value="delay">Delay</option><option value="other">Other</option></select><label class="mut"><input type="checkbox" class="sm" id="cw-${x.id}"> waive penalty</label><button class="ghost" onclick="adminCancel(${x.order_no},'${x.id}')">Cancel order</button></div>`}</div>`).join('') : '<p class="mut">No food orders yet.</p>');
+  },
+
+  async fmenu(){
+    const v = await db.from('food_vendors').select('id,name').order('kind').order('name'); if(v.error) throw v.error; window.FV = v.data; if(!window.FVSEL) window.FVSEL = v.data[0]?.id;
+    const [c,i] = await Promise.all([db.from('food_categories').select('*').eq('vendor_id', FVSEL).order('sort_order'), db.from('food_items').select('*').eq('vendor_id', FVSEL).order('sort_order').order('name')]);
+    window.FC = c.data||[]; window.FI = i.data||[];
+    $('#view').innerHTML = `<h2>Food menu & stock</h2><select id="fvs" onchange="FVSEL=this.value;go('fmenu')">${v.data.map(x => `<option value="${x.id}" ${x.id===FVSEL?'selected':''}>${esc(x.name)}</option>`).join('')}</select>
+      <details class="card"><summary class="gold">+ Add item</summary><input id="ni_n" placeholder="Item name *"><textarea id="ni_d" placeholder="Description"></textarea><div class="grid2"><input id="ni_p" type="number" placeholder="Price UGX (restaurant base price) *"><select id="ni_u"><option value="item">Per item</option><option value="kg">Per kg (decimals allowed)</option></select></div>
+      <div class="grid2"><input id="ni_s" type="number" step="0.1" placeholder="Step (1 or 0.1)" value="1"><input id="ni_m" type="number" step="0.1" placeholder="Minimum qty" value="1"></div><div class="grid2"><select id="ni_c"><option value="">— Category —</option>${FC.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select><input id="ni_nc" placeholder="…or a new category"></div>
+      <input id="ni_t" type="number" placeholder="Preparation minutes" value="20"><label class="mut">Photo</label><input id="ni_f" type="file" accept="image/*"><button onclick="addFood()">Add item</button></details>
+      <input id="fq" placeholder="Search items…" oninput="drawF()"><div id="flist"></div>`; drawF();
+  },
+
+  async fvendors(){
+    const [v,p] = await Promise.all([db.from('food_vendors').select('*').order('created_at',{ascending:false}), db.from('food_vendor_payouts').select('*, food_vendors(name)').order('created_at',{ascending:false}).limit(40)]);
+    if(v.error) throw v.error; const d1 = new Date().toISOString().slice(0,10), d0 = new Date(Date.now()-6*864e5).toISOString().slice(0,10), adm = me.role === 'admin';
+    $('#view').innerHTML = '<h2>Restaurants and stores</h2>' + v.data.map(x => `<div class="card"><div class="row"><b>${esc(x.name)}</b><select class="sm" onchange="vStatus('${x.id}',this.value)">${['pending','active','suspended','rejected'].map(s => `<option ${s===x.status?'selected':''}>${s}</option>`).join('')}</select></div>
+      <div class="mut">${esc(x.kind)} · ${esc(x.phone||'')} · ${esc(x.address||'')} · ★ ${x.rating_avg} (${x.rating_count})</div><div class="mut">Payout: ${esc(x.payout_method||'—')} ${esc(x.payout_account||'')}</div>
+      <div class="row"><span class="mut">Commission %</span><input class="sm" id="vc-${x.id}" type="number" step="0.5" value="${x.commission_pct}" style="width:80px"><span class="mut">Customer markup %</span><input class="sm" id="vm-${x.id}" type="number" step="0.5" value="${x.markup_pct}" style="width:80px"><button onclick="saveVendor('${x.id}')">Save</button></div>
+      <div class="row"><input class="sm" id="vl-${x.id}" type="email" placeholder="Their login email" style="flex:1"><button onclick="linkFood('vendor','${x.id}','vl-${x.id}')">${x.user_id?'Re-link login':'Link login'}</button></div>
+      <div class="row"><input class="sm" id="vlat-${x.id}" type="number" step="0.00001" placeholder="Latitude" value="${x.lat??''}" style="width:130px"><input class="sm" id="vlng-${x.id}" type="number" step="0.00001" placeholder="Longitude" value="${x.lng??''}" style="width:130px"><button class="ghost" onclick="saveLoc('${x.id}')">Save location</button></div>
+      ${adm && x.kind==='restaurant' ? `<div class="row"><input class="sm" id="pf-${x.id}" type="date" value="${d0}"><input class="sm" id="pt-${x.id}" type="date" value="${d1}"><button onclick="makePayout('${x.id}')">Create weekly payout</button></div>` : ''}</div>`).join('')
+      + '<h2>Restaurant payouts</h2>' + (p.data.length ? p.data.map(x => `<div class="card"><div class="row"><b>${esc(x.food_vendors?.name||'')}</b><span class="pill ${x.status==='paid'?'gold':''}">${x.status}</span></div><div class="mut">${x.period_start} → ${x.period_end} · ${x.orders_count} orders · gross ${ugx(x.gross_base_ugx)} − commission ${ugx(x.commission_ugx)} − penalties ${ugx(x.penalties_ugx)}</div><div><b class="gold">Pay ${ugx(x.net_ugx)}</b></div>
+      ${adm && x.status==='due' ? `<div class="row"><input class="sm" id="pr-${x.id}" placeholder="Payment reference" style="flex:1"><button onclick="paidVendor('${x.id}')">Mark paid</button></div>` : (x.reference?`<div class="mut">${esc(x.reference)}</div>`:'')}</div>`).join('') : '<p class="mut">No payouts yet.</p>');
+  },
+
+  async friders(){
+    const [r,o,p] = await Promise.all([db.from('food_riders').select('*').order('created_at',{ascending:false}), db.from('food_orders').select('rider_id,rider_pay_ugx,distance_km').eq('status','delivered').eq('rider_paid',false), db.from('food_rider_payouts').select('*, food_riders(full_name)').order('paid_at',{ascending:false}).limit(30)]);
+    if(r.error) throw r.error; const due = {}, kms = {}; (o.data||[]).forEach(x => { due[x.rider_id] = (due[x.rider_id]||0) + Number(x.rider_pay_ugx); kms[x.rider_id] = (kms[x.rider_id]||0) + Number(x.distance_km); }); const adm = me.role === 'admin';
+    $('#view').innerHTML = '<h2>Riders</h2>' + (r.data.length ? r.data.map(x => `<div class="card"><div class="row"><b>${esc(x.full_name)}</b>${sel('food_riders',x.id,x.status,['pending','active','suspended','rejected'])}</div>
+      <div class="mut">${esc(x.phone)} · ${esc(x.vehicle||'')} ${esc(x.plate||'')} · ID ${esc(x.id_number||'—')} · ${esc(x.payout_method||'')} ${esc(x.payout_number||'')}</div>
+      <div><b class="gold">Owed: ${ugx(due[x.id]||0)}</b> <span class="mut">(${(kms[x.id]||0).toFixed(1)} km of unpaid deliveries)</span></div>
+      <div class="row"><input class="sm" id="rl-${x.id}" type="email" placeholder="Their login email" style="flex:1"><button onclick="linkFood('rider','${x.id}','rl-${x.id}')">${x.user_id?'Re-link login':'Link login'}</button></div>
+      ${adm && (due[x.id]||0) > 0 ? `<div class="row"><input class="sm" id="rr-${x.id}" placeholder="Payment reference" style="flex:1"><button onclick="payRider('${x.id}')">Pay ${ugx(due[x.id])}</button></div>` : ''}</div>`).join('') : '<p class="mut">No riders yet.</p>')
+      + '<h2>Rider payouts</h2>' + ((p.data||[]).map(x => `<div class="card row"><span>${esc(x.food_riders?.full_name||'')} · ${dt(x.paid_at)}</span><b>${ugx(x.amount_ugx)}</b></div>`).join('') || '<p class="mut">None yet.</p>');
+  },
+
+  async frules(){
+    const {data} = await db.from('settings').select('*').like('key','rule_food_%'), v = k => (data||[]).find(x => x.key === k)?.value ?? '';
+    const F = [['rule_delivery_per_km','Shop and other deliveries: customer rate per km (UGX)'],['rule_delivery_min_ugx','Minimum delivery fee (UGX)'],['rule_shop_origin_lat','Shop dispatch point: latitude'],['rule_shop_origin_lng','Shop dispatch point: longitude'],['rule_food_free_km','Free delivery radius (km) — included in the 15% markup'],['rule_food_mid_km','Percentage-fee zone ends at (km)'],['rule_food_mid_pct','Extra % of the order between those distances'],['rule_food_customer_per_km','Customer rate per km beyond that (UGX)'],['rule_food_rider_per_km','Rider pay per km (UGX)'],['rule_food_grace_min','Late grace added automatically (minutes)'],['rule_food_penalty_pct_per_min','Restaurant penalty per late minute (% of order value)'],['rule_food_cancel_after_min','Auto-cancel after this many penalty minutes'],['rule_food_stockout_penalty_pct','Penalty for out-of-stock cancellation (%)'],['rule_food_road_factor','Straight-line to road distance factor']];
+    $('#view').innerHTML = '<h2>Food delivery rules</h2><div class="card">' + F.map(f => `<label class="mut">${f[1]}</label><input id="fr_${f[0]}" type="number" step="any" value="${esc(v(f[0]))}">`).join('') + '<button onclick="saveFRules()">Save rules</button><p class="mut">Restaurant customer markup (15%) and commission (15%) are set per restaurant in Restaurants.</p></div>';
   },
 
   async import(){
