@@ -59,7 +59,7 @@ function modal(title, html, buttons){
   document.getElementById('vx_c').onclick = function(){ d.remove(); };
   return d;
 }
-function waLink(text){ return 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(text); }
+function waLink(text){ return 'https://wa.me/' + (SITE.wa || WHATSAPP_NUMBER) + '?text=' + encodeURIComponent(text); }
 function lineText(items){
   var lines = [], total = 0;
   items.forEach(function(it){
@@ -78,27 +78,64 @@ function checkout(items, onDone){
     '<div class="sum">' + t.lines.map(esc).join('<br>') + '<br><b>Estimated total: ' + formatUGX(t.total) + '</b>'
     + (dep ? '<br><b style="color:#e8c766">' + pct + '% deposit to confirm' + (bulk ? ' (bulk order)' : '') + ': ' + formatUGX(dep) + ' · Balance on delivery: ' + formatUGX(t.total - dep) + '</b>' : '') + '</div>'
     + '<input id="vx_n" placeholder="Full name *" value="' + esc(c.n) + '"><input id="vx_p" type="tel" placeholder="WhatsApp / phone number *" value="' + esc(c.p) + '">'
-    + '<input id="vx_e" type="email" placeholder="Email (optional)" value="' + esc(c.e) + '"><input id="vx_a" placeholder="Delivery location / address *" value="' + esc(c.a) + '">'
+    + '<input id="vx_e" type="email" placeholder="Email (for order updates)" value="' + esc(c.e) + '"><div class="sum"><b>Delivery location *</b><br>Search your area, use GPS, or drag the pin to your exact spot. We calculate the delivery fee from the distance.</div>'
+    + '<div style="display:flex;gap:6px"><input id="vx_sq" placeholder="e.g. Ntinda, Kampala" style="margin:0"><button class="cx" id="vx_se" style="width:auto;margin:0">Search</button><button class="cx" id="vx_gp" style="width:auto;margin:0">📍</button></div><div id="vx_map" style="height:220px;border-radius:10px;margin:8px 0;border:1px solid #2a3560"></div><div id="vx_fee" class="sum"></div>'
+    + '<input id="vx_a" placeholder="Building / landmark / directions *" value="' + esc(c.a) + '">'
     + '<div class="sum">Payment method</div>'
     + ['Cash on delivery', 'MTN Mobile Money', 'Airtel Money', 'Bank transfer'].map(function(m, i){ return '<label class="pm"><input type="radio" name="vxpm" value="' + m + '"' + (i === 0 ? ' checked' : '') + '> ' + m + '</label>'; }).join('')
     + '<div class="sum">Our team confirms payment details with you after you order. Online card payment is coming soon.<br>By ordering you agree to our <a href="terms.html" target="_blank" style="color:#e8c766">Terms</a> and <a href="privacy.html" target="_blank" style="color:#e8c766">Privacy Policy</a>.</div>'
     + '<textarea id="vx_o" rows="2" placeholder="Notes (optional)"></textarea>',
     '<button class="go" id="vx_go">Place order</button>');
+  var km = 0, fee = 0, pinned = false, map = null, pin = null, goBtn = document.getElementById('vx_go');
+  goBtn.disabled = true;
+  function feeUI(){
+    var el = document.getElementById('vx_fee'); if(!el) return;
+    if(!pinned){ el.innerHTML = 'Pin your delivery location on the map to see the delivery fee.'; return; }
+    el.innerHTML = '<b>Distance:</b> ' + km + ' km · <b>Delivery:</b> ' + formatUGX(fee) + ' (UGX ' + RULES.perKm + ' per km)<br><b style="color:#e8c766">Grand total: ' + formatUGX(t.total + fee) + '</b>'
+      + (dep ? '<br>Deposit ' + formatUGX(dep) + ' to confirm; balance ' + formatUGX(t.total - dep + fee) + ' (goods plus delivery) on delivery.' : '');
+    goBtn.disabled = false;
+  }
+  function hav(a, b, c2, d2){ var p = Math.PI / 180, x = Math.sin((c2 - a) * p / 2), y = Math.sin((d2 - b) * p / 2), h = x * x + Math.cos(a * p) * Math.cos(c2 * p) * y * y; return 12742 * Math.asin(Math.sqrt(h)); }
+  function setPin(a, o){
+    pin.setLatLng([a, o]); map.panTo([a, o]); var st = hav(RULES.oLat, RULES.oLng, a, o);
+    function money(){ fee = Math.max(Math.round(km * RULES.perKm / 100) * 100, RULES.minFee || 0); pinned = true; feeUI(); }
+    km = Math.round(st * 1.3 * 10) / 10; money();
+    fetch('https://router.project-osrm.org/route/v1/driving/' + RULES.oLng + ',' + RULES.oLat + ';' + o + ',' + a + '?overview=false').then(function(r){ return r.json(); })
+      .then(function(j){ if(j.routes && j.routes[0]){ km = Math.max(Math.round(j.routes[0].distance / 100) / 10, Math.round(st * 10) / 10); money(); } }).catch(function(){});
+  }
+  feeUI();
+  (function(cb){
+    if(window.L) return cb();
+    var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css'; document.head.appendChild(l);
+    var sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js'; sc.onload = cb; document.head.appendChild(sc);
+  })(function(){
+    map = L.map('vx_map').setView([RULES.oLat, RULES.oLng], 11); L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
+    pin = L.marker([RULES.oLat, RULES.oLng], {draggable:true}).addTo(map); pin.on('dragend', function(){ var q = pin.getLatLng(); setPin(q.lat, q.lng); }); map.on('click', function(e){ setPin(e.latlng.lat, e.latlng.lng); });
+    setTimeout(function(){ map.invalidateSize(); }, 300);
+    document.getElementById('vx_gp').onclick = function(){ if(!navigator.geolocation){ alert('GPS is not available. Search or tap the map.'); return; } navigator.geolocation.getCurrentPosition(function(p){ map.setView([p.coords.latitude, p.coords.longitude], 16); setPin(p.coords.latitude, p.coords.longitude); }, function(){ alert('Could not get your location. Search or tap the map.'); }, {enableHighAccuracy:true, timeout:15000}); };
+    document.getElementById('vx_se').onclick = function(){ var q = document.getElementById('vx_sq').value.trim(); if(!q) return;
+      fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ug,ke,tz,rw,bi,ss&q=' + encodeURIComponent(q)).then(function(r){ return r.json(); })
+        .then(function(j){ if(j[0]){ map.setView([+j[0].lat, +j[0].lon], 16); setPin(+j[0].lat, +j[0].lon); } else alert('Place not found. Try another name or tap the map.'); }).catch(function(){ alert('Search is unavailable. Tap the map instead.'); }); };
+  });
   document.getElementById('vx_go').onclick = function(){
     var g = function(i){ return document.getElementById(i).value.trim(); };
     var n = g('vx_n'), p = g('vx_p'), e = g('vx_e'), a = g('vx_a'), o = g('vx_o');
     var pm = document.querySelector('input[name=vxpm]:checked').value;
-    if(n.length < 2 || p.length < 7 || a.length < 3){ alert('Please enter your name, phone number and delivery location.'); return; }
+    if(n.length < 2 || p.length < 7 || a.length < 3){ alert('Please enter your name, phone number and a landmark or building.'); return; }
+    if(!pinned){ alert('Please pin your delivery location on the map so we can calculate delivery.'); return; }
+    var ll = pin.getLatLng();
     try { localStorage.setItem('velosContact', JSON.stringify({n:n, p:p, e:e, a:a})); } catch(x){}
     this.disabled = true; this.textContent = 'Placing order…';
-    api('rpc/place_order_v2', {method:'POST', body:{p_name:n, p_phone:p, p_email:e || null, p_address:a, p_payment:pm, p_notes:o, p_items:items}})
-      .then(function(no){
+    var body = {p_name:n, p_phone:p, p_email:e || null, p_address:a + (g('vx_sq') ? ' · ' + g('vx_sq') : ''), p_payment:pm, p_notes:o, p_items:items};
+    api('rpc/place_order_v3', {method:'POST', body:Object.assign({p_lat:ll.lat, p_lng:ll.lng, p_km:km}, body)})
+      .catch(function(err){ if(/place_order_v3|PGRST202|schema cache/.test(String(err.message))) return api('rpc/place_order_v2', {method:'POST', body:body}).then(function(no){ return {order_no:no, delivery_fee:0, distance_km:km}; }); throw err; })
+      .then(function(res){ var no = res.order_no, dfee = res.delivery_fee || 0;
         d.remove(); try { window.velosAttachRef('order', no); } catch(x){}
-        var msg = 'Hello Velos Global Shop, I placed Order #' + no + ' on the website.\n\n' + t.lines.join('\n') + '\n\nEstimated Total: ' + formatUGX(t.total)
+        var msg = 'Hello Velos Global Shop, I placed Order #' + no + ' on the website.\n\n' + t.lines.join('\n') + '\n\nGoods: ' + formatUGX(t.total) + '\nDelivery (' + km + ' km): ' + formatUGX(dfee) + '\nGrand total: ' + formatUGX(t.total + dfee)
           + (dep ? '\n' + pct + '% deposit: ' + formatUGX(dep) : '') + '\nName: ' + n + '\nPhone: ' + p + '\nDelivery: ' + a + '\nPayment: ' + pm;
         modal('Order #' + no + ' received ✓',
-          '<div class="sum" style="font-size:15px;color:#f4f1ea">Thank you, ' + esc(n) + '. Your order is in and our team will contact you on ' + esc(p) + ' to confirm.'
-          + (dep ? '<br><br><b style="color:#e8c766">Deposit to confirm: ' + formatUGX(dep) + '</b> (' + pct + '%). The balance of ' + formatUGX(t.total - dep) + ' is paid on delivery.' : '')
+          '<div class="sum" style="font-size:15px;color:#f4f1ea">Thank you, ' + esc(n) + '. Your order is in and our team will contact you on ' + esc(p) + ' to confirm. Delivery fee: ' + formatUGX(dfee) + ' (' + km + ' km).'
+          + (dep ? '<br><br><b style="color:#e8c766">Deposit to confirm: ' + formatUGX(dep) + '</b> (' + pct + '%). The balance of ' + formatUGX(t.total - dep + dfee) + ' (goods plus delivery) is paid on delivery.' : '')
           + '<br><br>Keep your order number <b>#' + no + '</b> to track progress.</div>',
           '<a class="vb go" href="track.html?o=' + no + '">Track my order</a><a class="vb cx" target="_blank" rel="noopener" href="' + waLink(msg) + '">Also message us on WhatsApp (optional)</a>');
         try { localStorage.setItem('velosLast', 'O' + no); } catch(x){}
@@ -182,8 +219,9 @@ window.v_sendTechRegistration = window.sendTechRegistration = function(){
 };
 
 /* ---------- 5. STOREFRONT UPGRADE ---------- */
-var RULES = {thr:1000000, single:30, bulk:70, bulkMin:5};
-api('settings?select=key,value&key=like.rule_*').then(function(r){ (r || []).forEach(function(x){ var v = Number(x.value); if(x.key === 'rule_deposit_threshold_ugx') RULES.thr = v; else if(x.key === 'rule_deposit_single_pct') RULES.single = v; else if(x.key === 'rule_deposit_bulk_pct') RULES.bulk = v; else if(x.key === 'rule_bulk_min_units') RULES.bulkMin = v; }); }).catch(function(){});
+var SITE = {};
+var RULES = {thr:1000000, single:30, bulk:70, bulkMin:5, perKm:900, minFee:0, oLat:0.40206, oLng:32.58973};
+api('settings?select=key,value&key=like.rule_*').then(function(r){ (r || []).forEach(function(x){ var v = Number(x.value); if(x.key === 'rule_deposit_threshold_ugx') RULES.thr = v; else if(x.key === 'rule_deposit_single_pct') RULES.single = v; else if(x.key === 'rule_deposit_bulk_pct') RULES.bulk = v; else if(x.key === 'rule_bulk_min_units') RULES.bulkMin = v; else if(x.key === 'rule_delivery_per_km') RULES.perKm = v; else if(x.key === 'rule_delivery_min_ugx') RULES.minFee = v; else if(x.key === 'rule_shop_origin_lat') RULES.oLat = v; else if(x.key === 'rule_shop_origin_lng') RULES.oLng = v; }); }).catch(function(){});
 var PROMO = {}, PINFO = {};
 function effPrice(p){ var d = PROMO[p.id]; return (p.price && d) ? Math.round(p.price * (100 - d) / 100) : p.price; }
 var promoP = api('promotions?select=product_id,discount_percent,starts_at,ends_at&is_active=eq.true');
@@ -375,6 +413,7 @@ window.chatRespond = function(text){
   var t = text.toLowerCase();
   if(/track|where is my|order status|my order|progress/.test(t)) return {text:'You can follow any order, service request, gift request or design project with its reference number and your phone number.', links:[['track.html', 'Track my order or request']]};
   if(/pay|deposit|momo|mobile money|airtel|mtn|cash|install/.test(t)) return {text:'Orders above UGX 1,000,000 need a deposit to confirm: 30% for single-item orders and 70% for bulk orders (5 or more units of the same item), with the balance on delivery. Smaller orders can be cash on delivery or mobile money. Our team confirms payment details with you after you order, so never pay a number you did not get from us.', links:[]};
+  if(/food|restaurant|lunch|dinner|hungry|groceries|tilapia|fish|beef|goat meat|chicken meat|pizza|burger|coffee|menu/.test(t)) return {text:'Order from Clover Restaurant and the Velos Foods Store: fresh groceries, fish and meat by the kilo, with live order tracking and mobile money or cash on delivery.', links:[['foods.html', 'Open Velos Foods'], ['food-track.html', 'Track a food order']]};
   if(/security|guard|patrol|watchman|bodyguard/.test(t)) return {text:'We provide security cover, casual or on contract. Tell us what you need to safeguard, how many guards and which shifts, and we send a clear proposal after assessing the site.', links:[['book-service.html?s=10', 'Request security services']]};
   if(/agent|commission|earn money|sell for/.test(t)) return {text:'Become a Velos sales agent: refer customers, earn commission on every completed sale, and track your performance on your own dashboard.', links:[['agent.html', 'Agent sign in or apply']]};
   if(/technician|apply|join|register|vacanc/.test(t)) return {text:'You can apply to join our verified technician network online and upload your documents securely.', links:[['technicians.html', 'Apply as a technician']]};
@@ -407,12 +446,93 @@ window.toggleChat = function(open){
   }
 };
 
+
+/* ---------- 6. WEBSITE SETTINGS, FOODS WING, SEARCH ---------- */
+var siteP = api('settings?select=key,value&key=like.site_*').then(function(r){ (r || []).forEach(function(x){ SITE[x.key.slice(5)] = x.value; }); }).catch(function(){});
+function ready(f){ if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', f); else f(); }
+function foodsOn(){ return SITE.show_foods !== '0'; }
+function setLabel(el, txt){
+  var tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null), n;
+  while((n = tw.nextNode())){ if(n.nodeValue.trim()){ n.nodeValue = n.nodeValue.replace(/\S[\s\S]*\S|\S/, txt); return; } }
+  el.textContent = txt;
+}
+function findCard(){
+  var out = null;
+  document.querySelectorAll('a[href$="shop.html"]').forEach(function(a){
+    if(out || a.closest('header, footer, .search-overlay, .cart-drawer, .mobile-menu, .chat-window')) return;
+    var c = a.querySelector('h2, h3, h4') ? a : a.closest('div[class*="card"], article, li, div[class*="division"], div[class*="wing"]');
+    if(c && c.querySelector('h2, h3, h4') && /enter/i.test(c.textContent)) out = c;
+  });
+  return out;
+}
+function siteUI(){
+  if(SITE.wa && SITE.wa !== '256755215751'){ document.querySelectorAll('a[href*="wa.me/"]').forEach(function(a){ a.href = a.href.replace(/wa\.me\/\d+/, 'wa.me/' + SITE.wa.replace(/\D/g, '')); }); }
+  if(SITE.banner_on === '1' && SITE.banner_text && !document.getElementById('vbanner')){
+    var b = document.createElement(SITE.banner_link ? 'a' : 'div'); b.id = 'vbanner'; if(SITE.banner_link) b.href = SITE.banner_link; b.textContent = SITE.banner_text;
+    b.style.cssText = 'display:block;position:relative;z-index:150;background:#e8c766;color:#080d1f;text-align:center;padding:9px 14px;font:600 13px/1.4 system-ui,sans-serif;text-decoration:none';
+    document.body.insertBefore(b, document.body.firstChild);
+  }
+  if(!foodsOn()) return;
+  var label = 'Velos Foods & Supplies', dd = document.getElementById('wingsMenu'), mm = document.getElementById('mobileMenu');
+  [dd, mm].forEach(function(menu){
+    if(!menu || menu.querySelector('a[href="foods.html"]')) return;
+    var shop = menu.querySelector('a[href="shop.html"]'); if(!shop) return;
+    var a = document.createElement('a'); a.href = 'foods.html'; a.setAttribute('data-page', 'foods'); a.setAttribute('data-velos-foods', '1');
+    if(menu === dd) a.innerHTML = '<span class="wm-label">Velos Foods &amp; Supplies</span><span class="wm-sub">Meals, fresh fish &amp; groceries</span>'; else a.textContent = label;
+    shop.parentNode.insertBefore(a, shop.nextSibling);
+  });
+  var home = /(^\/$|index\.html$|\/thevelosgroup\/?$)/.test(location.pathname), added = false;
+  if(home){
+    var hb = Array.prototype.filter.call(document.querySelectorAll('a[href$="shop.html"]'), function(x){ return !x.closest('header, footer, .mobile-menu') && /btn/.test(x.className); })[0];
+    if(hb && !document.querySelector('[data-velos-hero]')){ var hc = hb.cloneNode(true); hc.href = 'foods.html'; hc.setAttribute('data-velos-hero', '1'); hc.setAttribute('data-velos-foods', '1'); setLabel(hc, 'Explore Velos Foods'); hb.parentNode.insertBefore(hc, hb.nextSibling); added = true; }
+    var card = findCard();
+    if(card && !document.querySelector('[data-velos-card]')){
+      var cc = card.cloneNode(true); cc.setAttribute('data-velos-card', '1'); cc.setAttribute('data-velos-foods', '1');
+      if(cc.tagName === 'A') cc.href = 'foods.html'; cc.querySelectorAll('a[href$="shop.html"]').forEach(function(x){ x.href = 'foods.html'; });
+      var ch = cc.querySelector('h2, h3, h4'); if(ch) ch.textContent = label;
+      var cp = cc.querySelector('p'); if(cp) cp.textContent = 'Restaurant meals, fresh fish, meat and groceries delivered to your door. Live order tracking, mobile money or cash.';
+      card.parentNode.insertBefore(cc, card.nextSibling); added = true;
+    } else if(!card && !document.getElementById('vfoods') && document.querySelector('.hero')){
+      var hero = document.querySelector('.hero'), sec = document.createElement('section'); sec.id = 'vfoods'; sec.className = 'alt-bg'; sec.setAttribute('data-velos-foods', '1');
+      sec.innerHTML = '<div class="wrap"><div class="section-head"><div class="eyebrow">Live division</div><h2>Velos Foods &amp; Supplies</h2><p>Restaurant meals, fresh fish, meat and groceries delivered to your door. Pin your location, see the delivery fee instantly, and follow your order live until it arrives.</p></div><p><a class="btn-primary" href="foods.html">Order food &amp; supplies</a> <a class="btn-secondary" href="food-track.html">Track an order</a></p></div>';
+      var anc = hero.closest('section') || hero; anc.parentNode.insertBefore(sec, anc.nextSibling); added = true;
+    }
+    if(added){ var tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null), n; while((n = tw.nextNode())){ if(/04\s*of\s*04/.test(n.nodeValue)){ n.nodeValue = n.nodeValue.replace(/04(\s*of\s*)04/, '05$105'); break; } } }
+  }
+  hookSearch();
+}
+function hookSearch(){
+  var inp = document.querySelector('.search-input-row input'); if(!inp || inp.getAttribute('data-vf')) return; inp.setAttribute('data-vf', '1');
+  var FM = null;
+  function load(){
+    if(FM) return Promise.resolve(FM);
+    return api('rpc/food_menu', {method:'POST', body:{}}).then(function(m){ FM = []; (m.vendors || []).forEach(function(v){ v.categories.forEach(function(c){ c.items.forEach(function(i){ if(i.available) FM.push({n:i.name, p:i.price, u:i.unit, slug:v.slug, vn:v.name, d:i.description || ''}); }); }); }); return FM; }).catch(function(){ FM = []; return FM; });
+  }
+  function row(label, sub, href){
+    var b = document.createElement('button'); b.className = 'search-result'; b.setAttribute('data-vf', '1');
+    b.innerHTML = '<span class="sr-type">Foods</span><span class="sr-label">' + esc(label) + '</span><span class="sr-sub">' + esc(sub) + '</span>'; b.onclick = function(){ location.href = href; }; return b;
+  }
+  function add(){
+    var q = inp.value.trim().toLowerCase(), box = document.querySelector('.search-results'); if(!box) return;
+    box.querySelectorAll('[data-vf]').forEach(function(e){ e.remove(); }); if(q.length < 2) return;
+    load().then(function(list){
+      var hits = list.filter(function(f){ return (f.n + ' ' + f.d + ' ' + f.vn).toLowerCase().indexOf(q) > -1; }).slice(0, 8), page = /food|restaurant|grocer|fish|meat|suppl|clover|menu|lunch|dinner|eat/.test(q);
+      if(!hits.length && !page) return; var em = box.querySelector('.search-empty'); if(em) em.remove();
+      box.querySelectorAll('[data-vf]').forEach(function(e){ e.remove(); });
+      if(page) box.appendChild(row('Velos Foods & Supplies', 'Open', 'foods.html'));
+      hits.forEach(function(f){ box.appendChild(row(f.n, (f.p ? 'UGX ' + Math.round(f.p).toLocaleString('en-US') : 'Quote') + (f.u === 'kg' ? '/kg' : ''), 'foods.html?v=' + encodeURIComponent(f.slug) + '&q=' + encodeURIComponent(f.n))); });
+    });
+  }
+  inp.addEventListener('input', function(){ setTimeout(add, 180); });
+}
+siteP.then(function(){ ready(siteUI); });
+
 /* ---------- 4. PAGE TWEAKS ---------- */
 function dom(){
   if(!document.getElementById('vx-desk')){
     var cs = document.createElement('style'); cs.id = 'vx-desk';
-    cs.textContent = ':root{--slate:#b9c2da;--slate-dim:#98a3c1}body{-webkit-font-smoothing:antialiased}.brand img,.logo img{filter:drop-shadow(0 0 1px rgba(255,255,255,.75)) drop-shadow(0 0 10px rgba(232,199,102,.55))}'
-      + '@media(min-width:1024px){body{font-size:16.5px}.brand img,.logo img{height:48px;width:auto}.wrap,.container{max-width:1280px}.product-grid{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}}';
+    cs.textContent = ':root{--slate:#b9c2da;--slate-dim:#98a3c1}body{-webkit-font-smoothing:antialiased}header img,.brand img,.logo img{filter:drop-shadow(0 0 1px rgba(255,255,255,.75)) drop-shadow(0 0 10px rgba(232,199,102,.55))}'
+      + '@media(min-width:900px){header img,.brand img,.logo img{height:60px!important;width:auto!important;max-height:none!important}*:has(>.product-card){display:grid!important;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))!important;gap:22px!important}body{font-size:16.5px}}';
     document.head.appendChild(cs);
   }
   [['sendInquiry','Send inquiry'],['sendTechRegistration','Submit application']].forEach(function(p){
@@ -436,6 +556,7 @@ function dom(){
     }
   }
   document.querySelectorAll('a[href*="drive.google.com"]').forEach(function(a){ a.remove(); });
+  document.querySelectorAll('a[href*="wa.me"]').forEach(function(a){ if(/whatsapp\s*dispatch/i.test(a.textContent)){ a.href = 'book-service.html'; a.removeAttribute('target'); a.textContent = 'Book a Service'; } });
   var sn = document.querySelector('.shop-note a.btn-secondary'); if(sn){ sn.href = 'sourcing-request.html'; sn.removeAttribute('target'); sn.textContent = 'Request a sourcing quote'; }
   if(document.body.getAttribute('data-page') === 'designs'){
     document.querySelectorAll('.design-card a.btn-whatsapp').forEach(function(a, i){ a.href = 'design-request.html?d=' + i; a.removeAttribute('target'); var v = a.querySelector('svg'); if(v) v.remove(); });
@@ -466,7 +587,7 @@ function dom(){
     host.insertBefore(g, host.firstChild);
   }
   var ft = document.querySelector('footer');
-  if(ft){ var lk = document.createElement('div'); lk.style.cssText = 'text-align:center;padding:10px;font-size:13px'; lk.innerHTML = '<a href="terms.html" style="color:#e8c766">Terms &amp; Conditions</a> · <a href="privacy.html" style="color:#e8c766">Privacy Policy</a> · <a href="agent.html" style="color:#e8c766">Sales agents</a> · <a href="security-partners.html" style="color:#e8c766">Security partners</a> · <a href="partner.html" style="color:#e8c766">Partner login</a>'; ft.appendChild(lk); }
+  if(ft){ var lk = document.createElement('div'); lk.style.cssText = 'text-align:center;padding:10px;font-size:13px'; lk.innerHTML = '<a href="terms.html" style="color:#e8c766">Terms &amp; Conditions</a> · <a href="privacy.html" style="color:#e8c766">Privacy Policy</a> · <a href="foods.html" style="color:#e8c766">Velos Foods</a> · <a href="agent.html" style="color:#e8c766">Sales agents</a> · <a href="security-partners.html" style="color:#e8c766">Security partners</a> · <a href="partner.html" style="color:#e8c766">Partner login</a>'; ft.appendChild(lk); }
   var last = null; try { last = localStorage.getItem('velosLast'); } catch(x){}
   if(last && !/track\.html|book-service/.test(location.pathname)){
     var a = document.createElement('a'); a.href = 'track.html?o=' + last; a.textContent = 'Track ' + (last[0] === 'S' ? 'request ' : 'order #') + last.slice(1) + ' →';
