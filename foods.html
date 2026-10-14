@@ -9,6 +9,7 @@
 <button class="cartbtn" id="cb" onclick="openCart()" hidden></button><div id="toast" hidden></div>
 <script src="supabase-config.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script>
+var PH='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a3a7a"/><stop offset="1" stop-color="#0f1730"/></linearGradient></defs><rect width="400" height="300" fill="url(#g)"/><text x="200" y="190" font-size="110" text-anchor="middle">🍽️</text></svg>');function ie(i){i.onerror=null;i.src=PH}
 var S=window.VELOS_SUPABASE,$=function(i){return document.getElementById(i)},M=null,V=null,CAT='',cart={},IT={},mapObj=null,pin=null,km=0,quote=false;
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})},ugx=function(n){return 'UGX '+Math.round(n).toLocaleString('en-US')};
 function rpc(n,b){return fetch(S.url+'/rest/v1/rpc/'+n,{method:'POST',headers:{apikey:S.key,'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.message||'Request failed');return j})})}
@@ -25,7 +26,7 @@ function pick(id){
 function setCat(id,b){CAT=id;document.querySelectorAll('#cats button').forEach(function(x){x.className=x===b?'on':''});draw()}
 function card(i){
   var un=i.unit==='kg',av=i.available;
-  return '<div class="it"><img src="'+esc(i.image)+'" alt="'+esc(i.name)+'" loading="lazy" onerror="this.style.display=\'none\'"><div class="b2"><h4>'+esc(i.name)+(i.promo?' <span class="off">-'+i.promo+'%</span>':'')+'</h4>'
+  return '<div class="it"><img src="'+esc(i.image)+'" alt="'+esc(i.name)+'" loading="lazy" onerror="ie(this)"><div class="b2"><h4>'+esc(i.name)+(i.promo?' <span class="off">-'+i.promo+'%</span>':'')+'</h4>'
    +(i.description?'<div class="m">'+esc(i.description)+'</div>':'')
    +'<div class="pr">'+(i.price?ugx(i.price)+(un?' / kg':''):'Price to be confirmed')+(i.promo?' <s>'+ugx(i.orig)+'</s>':'')+'</div><div class="m">⏱ about '+i.prep+' min'+(un?' · any weight, e.g. 1.2':'')+'</div>'
    +(av?'<div class="row"><input id="q-'+i.id+'" type="number" min="'+i.min_qty+'" step="'+i.step+'" value="'+i.min_qty+'" style="width:90px;margin:0"><button onclick="add(\''+i.id+'\')">Add</button></div>':'<button disabled>Unavailable</button>')+'</div></div>'}
@@ -37,7 +38,7 @@ function car(){
   var all=[];V.categories.forEach(function(c){c.items.forEach(function(i){if(i.available&&i.price)all.push(i)})});
   var seed=Math.floor(Date.now()/3600000),r=function(){seed=(seed*9301+49297)%233280;return seed/233280};
   var pr=all.filter(function(i){return i.promo}),rest=all.filter(function(i){return !i.promo&&i.image&&i.image.indexOf('ph-')<0}).sort(function(){return r()-.5}),pick=pr.concat(rest).slice(0,8);
-  $('carbox').hidden=!pick.length;$('car').innerHTML=pick.map(function(i){return '<div class="s"><img src="'+esc(i.image)+'" alt=""><div><b>'+esc(i.name)+'</b>'+(i.promo?'<span class="off" style="align-self:flex-start">-'+i.promo+'% flash deal</span>':'')+'<div class="pr">'+ugx(i.price)+(i.promo?' <s>'+ugx(i.orig)+'</s>':'')+'</div><button onclick="add(\''+i.id+'\',1)">Add to cart</button></div></div>'}).join('');
+  $('carbox').hidden=!pick.length;$('car').innerHTML=pick.map(function(i){return '<div class="s"><img src="'+esc(i.image)+'" alt="" onerror="ie(this)"><div><b>'+esc(i.name)+'</b>'+(i.promo?'<span class="off" style="align-self:flex-start">-'+i.promo+'% flash deal</span>':'')+'<div class="pr">'+ugx(i.price)+(i.promo?' <s>'+ugx(i.orig)+'</s>':'')+'</div><button onclick="add(\''+i.id+'\',1)">Add to cart</button></div></div>'}).join('');
   var el=$('car'),n=0;clearInterval(window.ct);window.ct=setInterval(function(){if(!el.children.length)return;n=(n+1)%el.children.length;el.scrollTo({left:el.children[n].offsetLeft-el.offsetLeft,behavior:'smooth'})},4500)}
 function add(id,fromCar){var i=IT[id],f=$('q-'+id),q=fromCar||!f?i.min_qty:parseFloat(f.value);if(!(q>=i.min_qty)){toast('Minimum '+i.min_qty);return}cart[id]=Math.round(((cart[id]||0)+q)*100)/100;cartUI();toast('Added '+i.name)}
 function sub(){var t=0;Object.keys(cart).forEach(function(id){t+=Math.round(IT[id].price*cart[id])});return t}

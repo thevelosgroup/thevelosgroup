@@ -127,6 +127,20 @@ async function saveFood(id){
   const d = r.querySelector('.fd').value; if(d !== ''){ await db.from('food_promos').update({is_active:false}).eq('item_id', id); if(Number(d) > 0) await db.from('food_promos').insert({item_id:id, discount_percent:Number(d), ends_at:new Date(Date.now() + (Number(r.querySelector('.fh').value)||24)*36e5).toISOString()}); }
   toast('Saved');
 }
+async function bulkPhotos(){
+  const fs = Array.from($('#bp_f').files || []), log = $('#bp_log'); if(!fs.length) return toast('Choose the pictures first', true);
+  let ok = 0, miss = 0; log.textContent = '';
+  for(const f of fs){
+    const name = f.name.toLowerCase().replace(/[^a-z0-9._-]/g,'-'), path = 'menu/' + name;
+    const up = await db.storage.from('food-images').upload(path, f, {contentType:f.type});
+    if(up.error && !/exist|duplicate/i.test(up.error.message)){ log.textContent += '✗ ' + f.name + ': ' + up.error.message + '\n'; continue; }
+    const url = db.storage.from('food-images').getPublicUrl(path).data.publicUrl;
+    const r = await db.from('food_items').update({image_url:url}).or('image_url.eq.' + name + ',image_url.eq.food-img/' + name.replace(/^food-/, '')).select('id');
+    if(r.error) log.textContent += '✗ ' + f.name + ': ' + r.error.message + '\n';
+    else if(r.data.length){ ok += r.data.length; log.textContent += '✓ ' + f.name + ' → ' + r.data.length + ' item(s)\n'; } else { miss++; log.textContent += '– ' + f.name + ': no menu item uses this file name\n'; }
+  }
+  toast(ok + ' menu items updated'); log.textContent += '\nDone: ' + ok + ' items matched, ' + miss + ' files had no match.';
+}
 async function addFood(){
   const g = i => $('#'+i).value.trim(); let cid = g('ni_c') || null;
   if(!g('ni_n') || g('ni_p') === '') return toast('Name and price are required', true);
@@ -497,6 +511,8 @@ const VIEWS = {
       <details class="card"><summary class="gold">+ Add item</summary><input id="ni_n" placeholder="Item name *"><textarea id="ni_d" placeholder="Description"></textarea><div class="grid2"><input id="ni_p" type="number" placeholder="Price UGX (restaurant base price) *"><select id="ni_u"><option value="item">Per item</option><option value="kg">Per kg (decimals allowed)</option></select></div>
       <div class="grid2"><input id="ni_s" type="number" step="0.1" placeholder="Step (1 or 0.1)" value="1"><input id="ni_m" type="number" step="0.1" placeholder="Minimum qty" value="1"></div><div class="grid2"><select id="ni_c"><option value="">— Category —</option>${FC.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select><input id="ni_nc" placeholder="…or a new category"></div>
       <input id="ni_t" type="number" placeholder="Preparation minutes" value="20"><label class="mut">Photo</label><input id="ni_f" type="file" accept="image/*"><button onclick="addFood()">Add item</button></details>
+      <details class="card"><summary class="gold">📷 Bulk photo import (menu pictures)</summary><p class="mut">Unzip the menu photo files on your phone, then select many pictures at once. Each one is uploaded and matched to its menu item automatically. You can repeat with the remaining pictures.</p>
+      <input id="bp_f" type="file" accept="image/*" multiple><button onclick="bulkPhotos()">Upload and match</button><pre id="bp_log" class="mut" style="white-space:pre-wrap"></pre></details>
       <input id="fq" placeholder="Search items…" oninput="drawF()"><div id="flist"></div>`; drawF();
   },
 
