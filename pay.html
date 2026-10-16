@@ -1,0 +1,54 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Secure payment | The Velos Group</title><meta name="robots" content="noindex"><link rel="stylesheet" href="foods.css">
+<script src="supabase-config.js"></script><script src="velos-money.js"></script></head><body><div class="w" style="max-width:640px">
+<div class="top"><h1>Payment</h1><a href="index.html">Home</a></div><div id="v"><p class="m">Loading…</p></div></div><div id="toast" hidden></div>
+<script>
+var S=window.VELOS_SUPABASE,$=function(i){return document.getElementById(i)},Q=new URLSearchParams(location.search),K=Q.get('k')==='f'?'food':'order',NO=parseInt(Q.get('o'),10),PH=Q.get('p')||'',O=null,ST={},T=null,CHOICE='';
+try{var c=JSON.parse(localStorage.getItem('velosContact')||'{}');if(!PH&&c.p)PH=c.p}catch(e){}
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})},U=function(n){return (window.velosBoth?velosBoth(n):'UGX '+Math.round(n||0).toLocaleString('en-US'))};
+function rpc(n,b){return fetch(S.url+'/rest/v1/rpc/'+n,{method:'POST',headers:{apikey:S.key,'Content-Type':'application/json'},body:JSON.stringify(b)}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.message||'Request failed');return j})})}
+function toast(m,b){var t=$('toast');t.textContent=m;t.style.background=b?'#b3261e':'';t.style.color=b?'#fff':'';t.hidden=false;setTimeout(function(){t.hidden=true},3000)}
+fetch(S.url+'/rest/v1/settings?select=key,value&key=like.site_*',{headers:{apikey:S.key}}).then(function(r){return r.json()}).then(function(r){(r||[]).forEach(function(x){ST[x.key.slice(5)]=x.value})}).catch(function(){}).then(start);
+function start(){if(!NO){ask();return}if(PH.length<7){ask();return}load();T=setInterval(load,20000)}
+function ask(){$('v').innerHTML='<div class="c"><input id="no" inputmode="numeric" placeholder="Order number" value="'+(NO||'')+'"><input id="ph" type="tel" placeholder="Phone number used on the order" value="'+esc(PH)+'"><button class="full" onclick="NO=parseInt($(\'no\').value,10);PH=$(\'ph\').value.trim();start()">Continue</button></div>'}
+function load(){rpc(K==='food'?'food_track':'track_order',K==='food'?{p_order_no:NO,p_phone:PH}:{p_order_no:NO,p_phone:PH}).then(function(o){if(!o){$('v').innerHTML='<div class="c bad">Order not found. Check the order number and phone number.</div>';ask();return}O=o;draw()}).catch(function(){$('v').innerHTML='<p class="bad">Could not load. Please try again.</p>'})}
+function numOf(){return K==='food'?NO:NO}
+function draw(){
+  var o=O,grand=K==='food'?o.total:(o.total+(o.delivery_fee||0)),paid=o.paid||0,bal=Math.max(0,grand-paid),dep=K==='food'?0:(o.deposit||0),waiting=o.status==='awaiting_payment',pend=(o.payments||[]).filter(function(p){return p.status==='pending'}),h='';
+  var due=waiting?(K==='food'?grand:Math.max(0,dep-paid)):bal;
+  h+='<div class="c"><div class="row"><b>Order #'+o.order_no+'</b><span class="pill">'+esc((o.status||'').replace(/_/g,' '))+'</span></div>'
+   +'<div class="row m"><span>Order total</span><span>'+U(grand)+'</span></div><div class="row m"><span>Paid so far</span><span>'+U(paid)+'</span></div><div class="row"><b>Balance</b><b>'+U(bal)+'</b></div>'
+   +(waiting?'<p class="gold">Your order is held until we receive and approve your '+(K==='food'?'payment':'deposit')+'.</p>':'')
+   +(bal<=0?'<p class="ok">✓ This order is fully paid. Thank you.</p>':'')+'</div>';
+  if(bal>0){
+    var opts=[];
+    if(waiting&&K==='order'&&dep>0){opts.push(['deposit',Math.max(0,dep-paid),'Pay the required deposit']);opts.push(['full',bal,'Pay the full amount now'])}
+    else if(waiting){opts.push(['full',bal,'Pay the full amount'])}
+    else{opts.push(['balance',bal,'Pay the balance now']);}
+    if(!CHOICE||!opts.some(function(x){return x[0]===CHOICE}))CHOICE=opts[0][0];
+    var cur=opts.filter(function(x){return x[0]===CHOICE})[0];
+    h+='<div class="c"><b>1. Choose what to pay</b>'+opts.map(function(x){return '<label class="row c" style="cursor:pointer"><span><input type="radio" name="ch" value="'+x[0]+'" '+(x[0]===CHOICE?'checked':'')+' style="width:auto" onchange="CHOICE=this.value;draw()"> '+x[2]+'</span><b>'+U(x[1])+'</b></label>'}).join('')
+     +(!waiting?'<div class="m">You can also pay on '+(o.fulfilment==='pickup'?'collection':'delivery')+'. This is optional.</div>':'')+'</div>'
+     +'<div class="c"><b>2. Send the money</b><p class="m">Send exactly <b class="gold">UGX '+Math.round(cur[1]).toLocaleString('en-US')+'</b> by mobile money to one of our official lines and use <b>Order #'+o.order_no+'</b> as the reference. Payments are made in Uganda Shillings.</p>'
+     +'<div class="c"><b>MTN Mobile Money</b><br><span class="gold" style="font-size:20px">'+esc(ST.pay_mtn_number||'—')+'</span><br><span class="m">Name: '+esc(ST.pay_mtn_name||'')+'</span></div>'
+     +'<div class="c"><b>Airtel Money</b><br><span class="gold" style="font-size:20px">'+esc(ST.pay_airtel_number||'—')+'</span><br><span class="m">Name: '+esc(ST.pay_airtel_name||'')+'</span></div>'
+     +'<div class="m">Check that the name matches before you send. We never ask for your PIN.</div></div>'
+     +'<div class="c"><b>3. Tell us you have paid</b><select id="pm"><option value="mtn">I paid by MTN Mobile Money</option><option value="airtel">I paid by Airtel Money</option></select>'
+     +'<input id="tx" placeholder="Transaction ID from the payment message *"><input id="pp" type="tel" placeholder="Phone number you paid from"><input id="am" type="number" value="'+Math.round(cur[1])+'" min="1000" max="'+Math.round(bal)+'"><div class="m">Amount in UGX</div>'
+     +'<button class="full" id="sb" onclick="submitPay()">I have paid: submit for verification</button><div id="er" class="m bad"></div></div>';
+  }
+  if(pend.length)h+='<div class="c gold"><b>⏳ Payment received for verification</b><br>Our team is confirming your payment and will update you shortly. This page refreshes automatically.</div>';
+  var ap=(o.payments||[]).filter(function(p){return p.status==='approved'});
+  if(ap.length)h+='<div class="c"><b>Receipts</b>'+ap.map(function(p){return '<div class="row m"><span>R'+p.receipt_no+' · '+U(p.amount)+'</span><a href="receipt.html?'+(K==='food'?'k=f&':'')+'o='+o.order_no+'&r='+p.receipt_no+'">View receipt</a></div>'}).join('')+'</div>';
+  var rj=(o.payments||[]).filter(function(p){return p.status==='rejected'});
+  if(rj.length)h+='<div class="c bad">A payment could not be verified. Please check the transaction ID and submit again.'+(rj[rj.length-1].note?'<br><span class="m">'+esc(rj[rj.length-1].note)+'</span>':'')+'</div>';
+  h+='<p class="m"><a href="'+(K==='food'?'food-track.html':'track.html')+'?o='+o.order_no+'" style="color:#e8c766">Track this order</a> · Need help? Call or WhatsApp '+esc(ST.phone||ST.pay_airtel_number||'')+'</p>';
+  var keep={tx:$('tx')&&$('tx').value,pp:$('pp')&&$('pp').value};$('v').innerHTML=h;if(keep.tx&&$('tx'))$('tx').value=keep.tx;if(keep.pp&&$('pp'))$('pp').value=keep.pp;
+}
+function submitPay(){
+  var tx=$('tx').value.trim(),am=parseInt($('am').value,10);$('er').textContent='';
+  if(tx.length<6){$('er').textContent='Please enter the transaction ID from your payment message.';return}
+  var b=$('sb');b.disabled=true;b.textContent='Submitting…';
+  rpc('submit_payment',{p_kind:K,p_ref_no:NO,p_phone:PH,p_amount:am,p_method:$('pm').value,p_txn:tx,p_payer:$('pp').value.trim(),p_purpose:CHOICE}).then(function(){toast('Submitted. We are verifying your payment.');load()}).catch(function(e){b.disabled=false;b.textContent='I have paid: submit for verification';$('er').textContent=String(e.message).slice(0,200)});
+}
+window.addEventListener('velos-currency',function(){if(O)draw()});
+</script></body></html>

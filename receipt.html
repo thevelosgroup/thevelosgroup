@@ -1,0 +1,26 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment receipt | The Velos Group</title><meta name="robots" content="noindex">
+<style>body{margin:0;background:#eef0f6;color:#14192d;font:15px/1.5 Inter,system-ui,sans-serif}.w{max-width:640px;margin:0 auto;padding:18px}.r{background:#fff;border-radius:12px;padding:24px;box-shadow:0 4px 24px rgba(0,0,0,.08)}h1{font-family:Georgia,serif;margin:0;color:#14192d}.g{color:#b8912f}.row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid #e6e8f0}.m{color:#5b6378;font-size:13px}.big{font-size:22px;font-weight:700}
+button{padding:11px 16px;border:0;border-radius:8px;background:#14192d;color:#fff;font-weight:700;cursor:pointer;margin:12px 6px 0 0}input{width:100%;padding:12px;margin:6px 0;border:1px solid #c9cedd;border-radius:8px;font:inherit}@media print{button,.np{display:none!important}body{background:#fff}.r{box-shadow:none}}</style>
+<script src="supabase-config.js"></script></head><body><div class="w"><div id="v"></div></div>
+<script>
+var S=window.VELOS_SUPABASE,$=function(i){return document.getElementById(i)},Q=new URLSearchParams(location.search),K=Q.get('k')==='f'?'food':'order',NO=parseInt(Q.get('o'),10),R=parseInt(Q.get('r'),10),PH='';
+try{PH=JSON.parse(localStorage.getItem('velosContact')||'{}').p||''}catch(e){}
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})},U=function(n){return 'UGX '+Math.round(n||0).toLocaleString('en-US')};
+function rpc(n,b){return fetch(S.url+'/rest/v1/rpc/'+n,{method:'POST',headers:{apikey:S.key,'Content-Type':'application/json'},body:JSON.stringify(b)}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.message||'Request failed');return j})})}
+function ask(){$('v').innerHTML='<div class="r"><h1>Receipt</h1><p class="m">Enter the phone number used on the order to view this receipt.</p><input id="ph" type="tel" placeholder="Phone number" value="'+esc(PH)+'"><button onclick="PH=$(\'ph\').value.trim();go()">View receipt</button></div>'}
+function go(){if(PH.length<7)return ask();rpc(K==='food'?'food_track':'track_order',{p_order_no:NO,p_phone:PH}).then(function(o){if(!o){ask();return}draw(o)}).catch(function(){ask()})}
+function draw(o){
+  var p=(o.payments||[]).filter(function(x){return x.receipt_no===R&&x.status==='approved'})[0];if(!p){$('v').innerHTML='<div class="r">Receipt not found.</div>';return}
+  var grand=K==='food'?o.total:(o.total+(o.delivery_fee||0)),paid=o.paid||0,bal=Math.max(0,grand-paid),late=(o.payments||[]).filter(function(x){return x.status==='approved'&&x.receipt_no>R});
+  $('v').innerHTML='<div class="r"><div class="row" style="border:0"><div><h1>THE VELOS GROUP</h1><div class="m">Payment receipt</div></div><div style="text-align:right"><div class="big g">R'+R+'</div><div class="m">'+new Date(p.at).toLocaleDateString('en-GB',{dateStyle:'long'})+'</div></div></div><br>'
+   +'<div class="row"><span>Customer</span><b>'+esc(o.name||'')+'</b></div><div class="row"><span>Order</span><b>#'+o.order_no+(K==='food'?' (Velos Foods)':'')+'</b></div>'
+   +(o.items||[]).map(function(i){return '<div class="row m"><span>'+esc(i.name)+' × '+i.qty+(i.unit==='kg'?' kg':'')+'</span><span>'+(i.total!=null?U(i.total):U((i.price||0)*i.qty))+'</span></div>'}).join('')
+   +(o.delivery_fee?'<div class="row m"><span>Delivery fee</span><span>'+U(o.delivery_fee)+'</span></div>':'')+'<div class="row"><span>Order total</span><b>'+U(grand)+'</b></div><br>'
+   +'<div class="row"><span>This payment ('+(p.method==='mtn'?'MTN Mobile Money':'Airtel Money')+')</span><b class="big">'+U(p.amount)+'</b></div><div class="row m"><span>Transaction ID</span><span>'+esc(p.txn)+'</span></div>'
+   +'<div class="row"><span>Total paid to date</span><b>'+U(paid)+'</b></div><div class="row"><span>Balance remaining</span><b>'+(bal>0?U(bal):'Nil (fully paid)')+'</b></div>'
+   +(bal>0?'<p class="m">The balance is payable on '+(o.fulfilment==='pickup'?'collection':'delivery')+'.</p>':'')
+   +(o.fulfilment==='pickup'?'<p class="m"><b>Collection:</b> please bring your National ID or another valid identification document. The name must match the person who placed the order.</p>':'')
+   +'<p class="m">Thank you for shopping with Velos. Questions? Contact us via WhatsApp or our contact page. Keep this receipt for your records.</p><button onclick="window.print()">Print or save as PDF</button><a class="np" href="'+(K==='food'?'food-track.html':'track.html')+'?o='+o.order_no+'">Track order</a></div>';
+}
+if(!NO||!R)$('v').innerHTML='<div class="r">Invalid receipt link.</div>';else go();
+</script></body></html>

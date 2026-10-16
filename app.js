@@ -1,7 +1,7 @@
 /* Loader: keeps every page working with its existing <script src="app.js"> tag.
    Order matters: config -> original site code (app-core.js) -> database layer. */
 (function(){
-  var files = ['supabase-config.js?v=13', 'app-core.js', 'velos-api.js?v=13'];
+  var files = ['supabase-config.js?v=14', 'velos-money.js?v=14', 'app-core.js', 'velos-api.js?v=14'];
   var s = document.currentScript;
   if(s && !s.async && !s.defer && document.readyState === 'loading'){
     files.forEach(function(f){ document.write('<script src="' + f + '"><\/script>'); });

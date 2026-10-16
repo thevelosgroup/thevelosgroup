@@ -60,11 +60,13 @@ function modal(title, html, buttons){
   return d;
 }
 function waLink(text){ return 'https://wa.me/' + (SITE.wa || WHATSAPP_NUMBER) + '?text=' + encodeURIComponent(text); }
+function ugxs(n){ return 'UGX ' + Math.round(n || 0).toLocaleString('en-US'); }
+function fmt(n){ return window.velosMoney ? window.velosMoney(n) : ugxs(n); }
 function lineText(items){
   var lines = [], total = 0;
   items.forEach(function(it){
     var p = PRODUCTS.find(function(x){ return x.id === it.product_id; }); if(!p) return;
-    lines.push('• ' + p.name + ' (x' + it.qty + ') — ' + (effPrice(p) ? formatUGX(effPrice(p) * it.qty) : 'Quote requested'));
+    lines.push('• ' + p.name + ' (x' + it.qty + ') — ' + (effPrice(p) ? ugxs(effPrice(p) * it.qty) : 'Quote requested'));
     if(effPrice(p)) total += effPrice(p) * it.qty;
   });
   return {lines: lines, total: total};
@@ -74,36 +76,41 @@ function checkout(items, onDone){
   if(oos.length){ alert('Sorry, an item in your order is currently out of stock. Please remove it or contact us.'); return; }
   var c = {}; try { c = JSON.parse(localStorage.getItem('velosContact') || '{}'); } catch(e){}
   var t = lineText(items), bulk = items.some(function(it){ return it.qty >= RULES.bulkMin; }), pct = bulk ? RULES.bulk : RULES.single, dep = t.total > RULES.thr ? Math.round(t.total * pct / 100) : 0;
+  var pk = {n:SITE.pickup_name || 'Velos Pick-up Station', a:SITE.pickup_address || 'Kampala, Uganda', note:SITE.pickup_note || 'Please bring your National ID or another valid identification document. The name must match the person who placed the order.'};
+  var both = function(n){ return window.velosBoth ? window.velosBoth(n) : ugxs(n); };
+  var mode = 'delivery', km = 0, fee = 0, pinned = false, map = null, pin = null;
   var d = modal('Complete your order',
-    '<div class="sum">' + t.lines.map(esc).join('<br>') + '<br><b>Estimated total: ' + formatUGX(t.total) + '</b>'
-    + (dep ? '<br><b style="color:#e8c766">' + pct + '% deposit to confirm' + (bulk ? ' (bulk order)' : '') + ': ' + formatUGX(dep) + ' · Balance on delivery: ' + formatUGX(t.total - dep) + '</b>' : '') + '</div>'
-    + '<input id="vx_n" placeholder="Full name *" value="' + esc(c.n) + '"><input id="vx_p" type="tel" placeholder="WhatsApp / phone number *" value="' + esc(c.p) + '">'
-    + '<input id="vx_e" type="email" placeholder="Email (for order updates)" value="' + esc(c.e) + '"><div class="sum"><b>Delivery location *</b><br>Search your area, use GPS, or drag the pin to your exact spot. We calculate the delivery fee from the distance.</div>'
-    + '<div style="display:flex;gap:6px"><input id="vx_sq" placeholder="e.g. Ntinda, Kampala" style="margin:0"><button class="cx" id="vx_se" style="width:auto;margin:0">Search</button><button class="cx" id="vx_gp" style="width:auto;margin:0">📍</button></div><div id="vx_map" style="height:220px;border-radius:10px;margin:8px 0;border:1px solid #2a3560"></div><div id="vx_fee" class="sum"></div>'
-    + '<input id="vx_a" placeholder="Building / landmark / directions *" value="' + esc(c.a) + '">'
-    + '<div class="sum">Payment method</div>'
-    + ['Cash on delivery', 'MTN Mobile Money', 'Airtel Money', 'Bank transfer'].map(function(m, i){ return '<label class="pm"><input type="radio" name="vxpm" value="' + m + '"' + (i === 0 ? ' checked' : '') + '> ' + m + '</label>'; }).join('')
-    + '<div class="sum">Our team confirms payment details with you after you order. Online card payment is coming soon.<br>By ordering you agree to our <a href="terms.html" target="_blank" style="color:#e8c766">Terms</a> and <a href="privacy.html" target="_blank" style="color:#e8c766">Privacy Policy</a>.</div>'
+    '<div class="sum">' + t.lines.map(esc).join('<br>') + '<br><b>Goods total: ' + both(t.total) + '</b>' + (dep ? '<br><b style="color:#e8c766">' + pct + '% deposit required' + (bulk ? ' (bulk order)' : '') + ': ' + both(dep) + '</b>' : '') + '</div>'
+    + '<div class="sum"><b>How would you like to receive your order?</b></div>'
+    + '<label class="pm"><input type="radio" name="vxfu" value="delivery" checked> Delivery to my location</label><label class="pm"><input type="radio" name="vxfu" value="pickup"> Pick up at ' + esc(pk.n) + ' (no delivery fee)</label>'
+    + '<input id="vx_n" placeholder="Full name *" value="' + esc(c.n) + '"><input id="vx_p" type="tel" placeholder="WhatsApp / phone number *" value="' + esc(c.p) + '"><input id="vx_e" type="email" placeholder="Email (for order updates and receipts)" value="' + esc(c.e) + '">'
+    + '<div id="vx_dl"><div class="sum"><b>Delivery location *</b><br>Search your area, use GPS, or drag the pin to your exact spot. The delivery fee is calculated from the distance and paid on delivery.</div>'
+    + '<div style="display:flex;gap:6px"><input id="vx_sq" placeholder="e.g. Ntinda, Kampala" style="margin:0"><button class="cx" id="vx_se" style="width:auto;margin:0">Search</button><button class="cx" id="vx_gp" style="width:auto;margin:0">📍</button></div>'
+    + '<div id="vx_map" style="height:220px;border-radius:10px;margin:8px 0;border:1px solid #2a3560"></div><input id="vx_a" placeholder="Building / landmark / directions *" value="' + esc(c.a) + '"></div>'
+    + '<div id="vx_pk" class="sum" style="display:none"><b>Pick-up station</b><br>' + esc(pk.n) + '<br>' + esc(pk.a) + '<br><br>' + esc(pk.note) + '</div>'
+    + '<div class="sum" id="vx_tot"></div>'
+    + '<div class="sum">Payment</div>' + [['cash', 'Pay on delivery or collection'], ['mtn', 'MTN Mobile Money'], ['airtel', 'Airtel Money']].map(function(m, i){ return '<label class="pm"><input type="radio" name="vxpm" value="' + m[0] + '"' + (i === 0 ? ' checked' : '') + '> ' + m[1] + '</label>'; }).join('')
+    + '<div class="sum">' + (dep ? 'A deposit is required for this order. After you tap Place order you will be taken to our secure payment page. Your order is confirmed once your deposit is verified.' : 'Your order is confirmed as soon as you place it. You can pay on delivery or collection, or pay online from your order page.') + ' Payments are made in Uganda Shillings.<br>By ordering you agree to our <a href="terms.html" target="_blank" style="color:#e8c766">Terms</a> and <a href="privacy.html" target="_blank" style="color:#e8c766">Privacy Policy</a>.</div>'
     + '<textarea id="vx_o" rows="2" placeholder="Notes (optional)"></textarea>',
     '<button class="go" id="vx_go">Place order</button>');
-  var km = 0, fee = 0, pinned = false, map = null, pin = null, goBtn = document.getElementById('vx_go');
-  goBtn.disabled = true;
-  function feeUI(){
-    var el = document.getElementById('vx_fee'); if(!el) return;
-    if(!pinned){ el.innerHTML = 'Pin your delivery location on the map to see the delivery fee.'; return; }
-    el.innerHTML = '<b>Distance:</b> ' + km + ' km · <b>Delivery:</b> ' + formatUGX(fee) + ' (UGX ' + RULES.perKm + ' per km)<br><b style="color:#e8c766">Grand total: ' + formatUGX(t.total + fee) + '</b>'
-      + (dep ? '<br>Deposit ' + formatUGX(dep) + ' to confirm; balance ' + formatUGX(t.total - dep + fee) + ' (goods plus delivery) on delivery.' : '');
-    goBtn.disabled = false;
+  var goBtn = document.getElementById('vx_go'), el = function(i){ return document.getElementById(i); };
+  function totUI(){
+    var f = mode === 'pickup' ? 0 : fee;
+    el('vx_tot').innerHTML = '<div style="display:flex;justify-content:space-between"><span>Goods</span><span>' + both(t.total) + '</span></div><div style="display:flex;justify-content:space-between"><span>Delivery</span><span>' + (mode === 'pickup' ? 'None (pick-up)' : (pinned ? both(f) + ' · ' + km + ' km' : 'Pin your location')) + '</span></div>'
+      + '<div style="display:flex;justify-content:space-between"><b>Grand total</b><b style="color:#e8c766">' + both(t.total + f) + '</b></div>'
+      + (dep ? '<div>Deposit now: ' + both(dep) + '. Balance ' + both(t.total - dep + f) + ' on ' + (mode === 'pickup' ? 'collection' : 'delivery') + '.</div>' : '<div>Payable on ' + (mode === 'pickup' ? 'collection' : 'delivery') + ' or online.</div>');
+    goBtn.disabled = mode === 'delivery' && !pinned;
   }
-  function hav(a, b, c2, d2){ var p = Math.PI / 180, x = Math.sin((c2 - a) * p / 2), y = Math.sin((d2 - b) * p / 2), h = x * x + Math.cos(a * p) * Math.cos(c2 * p) * y * y; return 12742 * Math.asin(Math.sqrt(h)); }
-  function setPin(a, o){
-    pin.setLatLng([a, o]); map.panTo([a, o]); var st = hav(RULES.oLat, RULES.oLng, a, o);
-    function money(){ fee = Math.max(Math.round(km * RULES.perKm / 100) * 100, RULES.minFee || 0); pinned = true; feeUI(); }
+  function hav(a1, b1, c2, d2){ var p = Math.PI / 180, x = Math.sin((c2 - a1) * p / 2), y = Math.sin((d2 - b1) * p / 2), h = x * x + Math.cos(a1 * p) * Math.cos(c2 * p) * y * y; return 12742 * Math.asin(Math.sqrt(h)); }
+  function setPin(a1, o1){
+    pin.setLatLng([a1, o1]); map.panTo([a1, o1]); var st = hav(RULES.oLat, RULES.oLng, a1, o1);
+    function money(){ fee = Math.max(Math.round(km * RULES.perKm / 100) * 100, RULES.minFee || 0); pinned = true; totUI(); }
     km = Math.round(st * 1.3 * 10) / 10; money();
-    fetch('https://router.project-osrm.org/route/v1/driving/' + RULES.oLng + ',' + RULES.oLat + ';' + o + ',' + a + '?overview=false').then(function(r){ return r.json(); })
+    fetch('https://router.project-osrm.org/route/v1/driving/' + RULES.oLng + ',' + RULES.oLat + ';' + o1 + ',' + a1 + '?overview=false').then(function(r){ return r.json(); })
       .then(function(j){ if(j.routes && j.routes[0]){ km = Math.max(Math.round(j.routes[0].distance / 100) / 10, Math.round(st * 10) / 10); money(); } }).catch(function(){});
   }
-  feeUI();
+  totUI();
+  document.querySelectorAll('input[name=vxfu]').forEach(function(r){ r.onchange = function(){ mode = r.value; el('vx_dl').style.display = mode === 'delivery' ? '' : 'none'; el('vx_pk').style.display = mode === 'pickup' ? '' : 'none'; if(map) setTimeout(function(){ map.invalidateSize(); }, 200); totUI(); }; });
   (function(cb){
     if(window.L) return cb();
     var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css'; document.head.appendChild(l);
@@ -112,41 +119,40 @@ function checkout(items, onDone){
     map = L.map('vx_map').setView([RULES.oLat, RULES.oLng], 11); L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
     pin = L.marker([RULES.oLat, RULES.oLng], {draggable:true}).addTo(map); pin.on('dragend', function(){ var q = pin.getLatLng(); setPin(q.lat, q.lng); }); map.on('click', function(e){ setPin(e.latlng.lat, e.latlng.lng); });
     setTimeout(function(){ map.invalidateSize(); }, 300);
-    document.getElementById('vx_gp').onclick = function(){ if(!navigator.geolocation){ alert('GPS is not available. Search or tap the map.'); return; } navigator.geolocation.getCurrentPosition(function(p){ map.setView([p.coords.latitude, p.coords.longitude], 16); setPin(p.coords.latitude, p.coords.longitude); }, function(){ alert('Could not get your location. Search or tap the map.'); }, {enableHighAccuracy:true, timeout:15000}); };
-    document.getElementById('vx_se').onclick = function(){ var q = document.getElementById('vx_sq').value.trim(); if(!q) return;
+    el('vx_gp').onclick = function(){ if(!navigator.geolocation){ alert('GPS is not available. Search or tap the map.'); return; } navigator.geolocation.getCurrentPosition(function(p){ map.setView([p.coords.latitude, p.coords.longitude], 16); setPin(p.coords.latitude, p.coords.longitude); }, function(){ alert('Could not get your location. Search or tap the map.'); }, {enableHighAccuracy:true, timeout:15000}); };
+    el('vx_se').onclick = function(){ var q = el('vx_sq').value.trim(); if(!q) return;
       fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ug,ke,tz,rw,bi,ss&q=' + encodeURIComponent(q)).then(function(r){ return r.json(); })
         .then(function(j){ if(j[0]){ map.setView([+j[0].lat, +j[0].lon], 16); setPin(+j[0].lat, +j[0].lon); } else alert('Place not found. Try another name or tap the map.'); }).catch(function(){ alert('Search is unavailable. Tap the map instead.'); }); };
   });
-  document.getElementById('vx_go').onclick = function(){
-    var g = function(i){ return document.getElementById(i).value.trim(); };
-    var n = g('vx_n'), p = g('vx_p'), e = g('vx_e'), a = g('vx_a'), o = g('vx_o');
-    var pm = document.querySelector('input[name=vxpm]:checked').value;
-    if(n.length < 2 || p.length < 7 || a.length < 3){ alert('Please enter your name, phone number and a landmark or building.'); return; }
-    if(!pinned){ alert('Please pin your delivery location on the map so we can calculate delivery.'); return; }
-    var ll = pin.getLatLng();
+  goBtn.onclick = function(){
+    var g = function(i){ return el(i).value.trim(); }, n = g('vx_n'), p = g('vx_p'), e = g('vx_e'), a = g('vx_a'), o = g('vx_o'), pm = document.querySelector('input[name=vxpm]:checked').value;
+    if(n.length < 2 || p.length < 7){ alert('Please enter your name and phone number.'); return; }
+    if(mode === 'delivery' && (a.length < 3 || !pinned)){ alert('Please pin your delivery location on the map and add a landmark or building.'); return; }
     try { localStorage.setItem('velosContact', JSON.stringify({n:n, p:p, e:e, a:a})); } catch(x){}
-    this.disabled = true; this.textContent = 'Placing order…';
-    var body = {p_name:n, p_phone:p, p_email:e || null, p_address:a + (g('vx_sq') ? ' · ' + g('vx_sq') : ''), p_payment:pm, p_notes:o, p_items:items};
-    api('rpc/place_order_v3', {method:'POST', body:Object.assign({p_lat:ll.lat, p_lng:ll.lng, p_km:km}, body)})
-      .catch(function(err){ if(/place_order_v3|PGRST202|schema cache/.test(String(err.message))) return api('rpc/place_order_v2', {method:'POST', body:body}).then(function(no){ return {order_no:no, delivery_fee:0, distance_km:km}; }); throw err; })
-      .then(function(res){ var no = res.order_no, dfee = res.delivery_fee || 0;
-        d.remove(); try { window.velosAttachRef('order', no); } catch(x){}
-        var msg = 'Hello Velos Global Shop, I placed Order #' + no + ' on the website.\n\n' + t.lines.join('\n') + '\n\nGoods: ' + formatUGX(t.total) + '\nDelivery (' + km + ' km): ' + formatUGX(dfee) + '\nGrand total: ' + formatUGX(t.total + dfee)
-          + (dep ? '\n' + pct + '% deposit: ' + formatUGX(dep) : '') + '\nName: ' + n + '\nPhone: ' + p + '\nDelivery: ' + a + '\nPayment: ' + pm;
-        modal('Order #' + no + ' received ✓',
-          '<div class="sum" style="font-size:15px;color:#f4f1ea">Thank you, ' + esc(n) + '. Your order is in and our team will contact you on ' + esc(p) + ' to confirm. Delivery fee: ' + formatUGX(dfee) + ' (' + km + ' km).'
-          + (dep ? '<br><br><b style="color:#e8c766">Deposit to confirm: ' + formatUGX(dep) + '</b> (' + pct + '%). The balance of ' + formatUGX(t.total - dep + dfee) + ' (goods plus delivery) is paid on delivery.' : '')
-          + '<br><br>Keep your order number <b>#' + no + '</b> to track progress.</div>',
-          '<a class="vb go" href="track.html?o=' + no + '">Track my order</a><a class="vb cx" target="_blank" rel="noopener" href="' + waLink(msg) + '">Also message us on WhatsApp (optional)</a>');
-        try { localStorage.setItem('velosLast', 'O' + no); } catch(x){}
+    goBtn.disabled = true; goBtn.textContent = 'Placing order…';
+    var ll = mode === 'delivery' ? pin.getLatLng() : null, label = {cash:'Cash on delivery or collection', mtn:'MTN Mobile Money', airtel:'Airtel Money'}[pm];
+    var body = {p_name:n, p_phone:p, p_email:e || null, p_address:mode === 'pickup' ? 'Pick-up at ' + pk.n : a + (g('vx_sq') ? ' · ' + g('vx_sq') : ''), p_payment:label, p_notes:o, p_items:items};
+    api('rpc/place_order_v4', {method:'POST', body:Object.assign({p_lat:ll ? ll.lat : null, p_lng:ll ? ll.lng : null, p_km:mode === 'delivery' ? km : null, p_fulfilment:mode}, body)})
+      .catch(function(err){
+        if(!/place_order_v4|PGRST202|schema cache/.test(String(err.message))) throw err;
+        if(mode === 'pickup') throw new Error('Pick-up needs the latest system update. Please contact us.');
+        return api('rpc/place_order_v3', {method:'POST', body:Object.assign({p_lat:ll.lat, p_lng:ll.lng, p_km:km}, body)}).catch(function(e2){ if(/place_order_v3|PGRST202|schema cache/.test(String(e2.message))) return api('rpc/place_order_v2', {method:'POST', body:body}).then(function(no){ return {order_no:no, delivery_fee:0}; }); throw e2; });
+      })
+      .then(function(res){
+        var no = res.order_no, f = res.delivery_fee || 0; d.remove(); try { window.velosAttachRef('order', no); localStorage.setItem('velosLast', 'O' + no); } catch(x){}
         onDone && onDone();
+        if(res.needs_payment){ location.href = 'pay.html?o=' + no + '&p=' + encodeURIComponent(p); return; }
+        var wa = 'Hello Velos Global Shop, I placed Order #' + no + ' on the website. ' + t.lines.join('; ') + '. Goods ' + ugxs(t.total) + ', delivery ' + ugxs(f) + '. Name: ' + n + ', phone: ' + p + '.';
+        modal('Thank you for shopping with Velos ✓',
+          '<div class="sum" style="font-size:15px;color:#f4f1ea">Dear ' + esc(n) + ', your Order <b>#' + no + '</b> is confirmed. Grand total: <b>' + both(t.total + f) + '</b>' + (f ? ' (delivery ' + both(f) + ', paid on delivery)' : '') + '.'
+          + (mode === 'pickup' ? '<br><br><b style="color:#e8c766">Collection:</b> ' + esc(pk.n) + ', ' + esc(pk.a) + '. ' + esc(pk.note) : '<br><br>We will keep you updated at every step.') + '<br><br>Keep your order number to track progress.</div>',
+          '<a class="vb go" href="track.html?o=' + no + '">Track my order</a><a class="vb cx" href="pay.html?o=' + no + '&p=' + encodeURIComponent(p) + '">Pay online now (optional)</a><a class="vb cx" target="_blank" rel="noopener" href="' + waLink(wa) + '">Message us on WhatsApp (optional)</a>');
       })
       .catch(function(err){
-        d.remove(); console.warn(err);
-        var msg = 'Hello Velos Global Shop, I would like to order:\n\n' + t.lines.join('\n') + '\n\nEstimated Total: ' + formatUGX(t.total) + '\nName: ' + n + '\nPhone: ' + p + '\nDelivery: ' + a + '\nPayment: ' + pm;
-        modal('We could not save your order online',
-          '<div class="sum" style="font-size:15px;color:#f4f1ea">Please send it to us on WhatsApp instead so nothing is lost.<br><span style="font-size:12px;color:#8a93ab">' + esc(String(err.message).slice(0, 140)) + '</span></div>',
-          '<a class="vb go" target="_blank" rel="noopener" href="' + waLink(msg) + '">Send order on WhatsApp</a>');
+        goBtn.disabled = false; goBtn.textContent = 'Place order';
+        if(/Failed to fetch|NetworkError|PGRST/.test(String(err.message))){
+          d.remove(); modal('We could not save your order online', '<div class="sum" style="font-size:15px;color:#f4f1ea">Please send it to us on WhatsApp so nothing is lost.</div>', '<a class="vb go" target="_blank" rel="noopener" href="' + waLink('Hello Velos Global Shop, I would like to order: ' + t.lines.join('; ') + '. Name: ' + n + ', phone: ' + p) + '">Send order on WhatsApp</a>');
+        } else alert(String(err.message).slice(0, 220));
       });
   };
 }
@@ -220,6 +226,7 @@ window.v_sendTechRegistration = window.sendTechRegistration = function(){
 
 /* ---------- 5. STOREFRONT UPGRADE ---------- */
 var SITE = {};
+window.formatUGX = function(n){ return window.velosMoney ? window.velosMoney(n) : 'UGX ' + Math.round(n || 0).toLocaleString('en-US'); };
 var RULES = {thr:1000000, single:30, bulk:70, bulkMin:5, perKm:900, minFee:0, oLat:0.40206, oLng:32.58973};
 api('settings?select=key,value&key=like.rule_*').then(function(r){ (r || []).forEach(function(x){ var v = Number(x.value); if(x.key === 'rule_deposit_threshold_ugx') RULES.thr = v; else if(x.key === 'rule_deposit_single_pct') RULES.single = v; else if(x.key === 'rule_deposit_bulk_pct') RULES.bulk = v; else if(x.key === 'rule_bulk_min_units') RULES.bulkMin = v; else if(x.key === 'rule_delivery_per_km') RULES.perKm = v; else if(x.key === 'rule_delivery_min_ugx') RULES.minFee = v; else if(x.key === 'rule_shop_origin_lat') RULES.oLat = v; else if(x.key === 'rule_shop_origin_lng') RULES.oLng = v; }); }).catch(function(){});
 var PROMO = {}, PINFO = {};
@@ -238,7 +245,7 @@ window.productCard = function(p){
   if(p.real) b.push('<span class="product-badge verified">Verified Photo</span>');
   if(CATEGORY_NOTES[p.cat]) b.push('<span class="product-badge wholesale">Wholesale Available</span>');
   var cat = CATEGORIES.find(function(c){ return c.key === p.cat; });
-  var price = disc ? '<span class="price">' + formatUGX(eff) + ' <s style="opacity:.55;font-size:.78em">' + formatUGX(p.price) + '</s></span>' : '<span class="price">' + formatUGX(p.price) + '</span>';
+  var price = disc ? '<span class="price">' + fmt(eff) + ' <s style="opacity:.55;font-size:.78em">' + fmt(p.price) + '</s></span>' : '<span class="price">' + fmt(p.price) + '</span>';
   return '<div class="product-card"' + (oos ? ' style="opacity:.8"' : '') + '><div class="img-wrap' + (p.real ? ' real-tile' : '') + '">' + (p['new'] ? '<span class="new-ribbon">New</span>' : '')
     + '<button class="card-share-btn" onclick="shareProduct(\'' + p.id + '\')" aria-label="Share ' + esc(p.name) + '">' + SHARE_ICON + '</button>'
     + '<img src="' + esc(p.img) + '" alt="' + esc(p.name) + '" loading="lazy" onerror="this.closest(\'.img-wrap\').classList.add(\'img-fallback\');this.outerHTML=\'<div class=img-fallback-inner><span>Photo coming soon</span></div>\'"></div>'
@@ -274,8 +281,8 @@ window.shareContent = async function(title, bodyText, waLink, pageLink, imgSrc, 
 window.shareProduct = function(id){
   var p = PRODUCTS.find(function(x){ return x.id === id; }); if(!p) return;
   var eff = effPrice(p), d = PROMO[id];
-  window.shareContent(p.name, p.name + '\n' + (eff ? formatUGX(eff) : 'Request a quote') + (d ? '  (-' + d + '% offer)' : ''), '', siteUrl('shop.html') + '?p=' + encodeURIComponent(id), p.img, 'velos-product.jpg',
-    {imgSrc:p.img, title:p.name, priceText:eff ? formatUGX(eff) : 'Request a quote', oldPriceText:d ? formatUGX(p.price) : null, badgeText:d ? '-' + d + '% OFF' : null});
+  window.shareContent(p.name, p.name + '\n' + (eff ? fmt(eff) : 'Request a quote') + (d ? '  (-' + d + '% offer)' : ''), '', siteUrl('shop.html') + '?p=' + encodeURIComponent(id), p.img, 'velos-product.jpg',
+    {imgSrc:p.img, title:p.name, priceText:eff ? fmt(eff) : 'Request a quote', oldPriceText:d ? fmt(p.price) : null, badgeText:d ? '-' + d + '% OFF' : null});
 };
 
 /* Open a shared product link (?p=ID) with real ordering */
@@ -284,7 +291,7 @@ window.openProductSheet = function(id){
   var eff = effPrice(p), d = PROMO[id], oos = p.inStock === false, close = "document.getElementById('vx').remove();";
   modal(esc(p.name),
     '<img src="' + esc(p.img) + '" alt="" style="width:100%;max-height:260px;object-fit:contain;background:#fff;border-radius:10px;margin:6px 0" onerror="this.style.display=\'none\'">'
-    + '<div style="font-size:22px;font-weight:700;color:#7fd99a">' + (eff ? formatUGX(eff) : 'Request a quote') + (d ? ' <s style="font-size:14px;color:#8a93ab">' + formatUGX(p.price) + '</s> <span style="color:#e6493f;font-size:14px">-' + d + '%</span>' : '') + '</div>'
+    + '<div style="font-size:22px;font-weight:700;color:#7fd99a">' + (eff ? fmt(eff) : 'Request a quote') + (d ? ' <s style="font-size:14px;color:#8a93ab">' + fmt(p.price) + '</s> <span style="color:#e6493f;font-size:14px">-' + d + '%</span>' : '') + '</div>'
     + '<div class="sum">' + (oos ? '<b style="color:#ff8a80">Currently out of stock</b>' : '<b style="color:#7fd99a">In stock</b> · Order online, pay as agreed, track every step.') + '</div>',
     (oos ? '' : '<button class="go" onclick="' + close + 'orderNow(\'' + id + '\')">Order now</button><button class="cx" onclick="' + close + 'addToCart(\'' + id + '\')">Add to cart</button>')
     + '<a class="vb cx" href="shop.html">Browse the shop</a>');
@@ -303,7 +310,7 @@ function vFlash(f, d){
   f.style.display = '';
   var p = d.p;
   f.innerHTML = '<div class="fd-media"><img src="' + esc(p.img) + '" alt="' + esc(p.name) + '"></div><div class="fd-text"><span class="fd-badge">⚡ FLASH DEAL · -' + d.d + '%</span><h3>' + esc(p.name) + '</h3>'
-    + '<div class="spotlight-price"><span class="was">' + formatUGX(p.price) + '</span><span class="now">' + formatUGX(effPrice(p)) + '</span></div><div class="spotlight-countdown" id="vCd"></div>'
+    + '<div class="spotlight-price"><span class="was">' + fmt(p.price) + '</span><span class="now">' + fmt(effPrice(p)) + '</span></div><div class="spotlight-countdown" id="vCd"></div>'
     + '<a class="btn-primary" href="shop.html?p=' + p.id + '" onclick="return vProd(\'' + p.id + '\')">Order now</a></div>';
   function tick(){
     var s = Math.max(0, Math.floor((d.end - Date.now()) / 1000)), el = document.getElementById('vCd'); if(!el) return;
@@ -326,7 +333,7 @@ function vCarousel(sp, promos){
     var p = x.p, cat = CATEGORIES.find(function(c){ return c.key === p.cat; });
     return '<div class="spotlight-slide"><div class="spotlight-media light">' + (x.d ? '<span class="flash-badge">-' + x.d + '%</span>' : '') + '<img src="' + esc(p.img) + '" alt="' + esc(p.name) + '" loading="lazy"></div>'
       + '<div class="spotlight-text"><span class="sl-tag">' + (x.d ? 'Limited offer' : 'Featured') + ' · ' + esc(cat ? cat.label : '') + '</span><h3>' + esc(p.name) + '</h3><p>' + (CATEGORY_NOTES[p.cat] ? 'Wholesale pricing available. Order online and track every step.' : 'In stock. Order online and track every step.') + '</p>'
-      + '<div class="spotlight-price">' + (x.d ? '<span class="was">' + formatUGX(p.price) + '</span>' : '') + '<span class="now">' + formatUGX(effPrice(p)) + '</span></div>'
+      + '<div class="spotlight-price">' + (x.d ? '<span class="was">' + fmt(p.price) + '</span>' : '') + '<span class="now">' + fmt(effPrice(p)) + '</span></div>'
       + '<a class="btn-primary" href="shop.html?p=' + p.id + '" onclick="return vProd(\'' + p.id + '\')">Order now</a></div></div>';
   }
   function st(img, tag, title, text, href, cta){
@@ -374,7 +381,7 @@ window.getGiftSuggestion = function(){
   pool.forEach(function(p){ if(pick.length < 3 && pick.indexOf(p) < 0) pick.push(p); });
   var box = document.getElementById('giftResult'), more = 'gift-request.html?occasion=' + occ + '&bk=' + bk;
   box.innerHTML = '<div style="padding:4px 0"><b style="font-family:Georgia,serif;font-size:19px">' + (pick.length ? 'Our picks for you' : 'Let us find the perfect gift') + '</b>'
-    + (pick.length ? pick.map(function(p){ return '<div style="display:flex;gap:12px;align-items:center;margin:12px 0;padding:10px;border:1px solid rgba(232,199,102,.35);border-radius:12px"><img src="' + esc(p.img) + '" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:8px;background:#fff" onerror="this.style.display=\'none\'"><div style="flex:1"><div style="font-weight:600">' + esc(p.name) + '</div><div style="color:#7fd99a">' + formatUGX(effPrice(p)) + '</div></div><button class="btn-mini order" onclick="orderNow(\'' + p.id + '\')">Order</button></div>'; }).join('')
+    + (pick.length ? pick.map(function(p){ return '<div style="display:flex;gap:12px;align-items:center;margin:12px 0;padding:10px;border:1px solid rgba(232,199,102,.35);border-radius:12px"><img src="' + esc(p.img) + '" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:8px;background:#fff" onerror="this.style.display=\'none\'"><div style="flex:1"><div style="font-weight:600">' + esc(p.name) + '</div><div style="color:#7fd99a">' + fmt(effPrice(p)) + '</div></div><button class="btn-mini order" onclick="orderNow(\'' + p.id + '\')">Order</button></div>'; }).join('')
       : '<p style="opacity:.85">Nothing in our shop fits that exact mix, but we can source it for you.</p>')
     + '<a href="' + more + '" style="display:block;text-align:center;margin-top:10px;padding:13px;border-radius:8px;background:#e8c766;color:#080d1f;font-weight:700;text-decoration:none">Not quite right? We\'ll source any gift for you →</a></div>';
   box.classList.add('show');
@@ -432,7 +439,7 @@ window.sendChat = function(prompt){
   chatAppend(text, 'user'); inp.value = '';
   setTimeout(function(){
     var r = window.chatRespond(text); chatAppend(r.text, 'bot');
-    (r.products || []).forEach(function(p){ var e = effPrice(p); chatLink('shop.html?p=' + p.id, p.name + ' · ' + (e ? formatUGX(e) : 'Quote') + (PROMO[p.id] ? ' (-' + PROMO[p.id] + '%)' : '')); });
+    (r.products || []).forEach(function(p){ var e = effPrice(p); chatLink('shop.html?p=' + p.id, p.name + ' · ' + (e ? fmt(e) : 'Quote') + (PROMO[p.id] ? ' (-' + PROMO[p.id] + '%)' : '')); });
     (r.links || []).forEach(function(l){ chatLink(l[0], l[1]); });
     chatLink('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent('Hello Velos, I need help: ' + text), 'Talk to a person on WhatsApp', true);
   }, 350);
@@ -499,6 +506,7 @@ function siteUI(){
     }
     if(added){ var tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null), n; while((n = tw.nextNode())){ if(/04\s*of\s*04/.test(n.nodeValue)){ n.nodeValue = n.nodeValue.replace(/04(\s*of\s*)04/, '05$105'); break; } } }
   }
+  try { var ft = document.querySelector('footer'); if(ft && window.velosCurrencyPicker && !document.getElementById('vcur')){ var w = document.createElement('div'); w.id = 'vcur'; w.style.cssText = 'text-align:center;padding:8px;font:600 12px system-ui;color:#a3adc6'; w.appendChild(document.createTextNode('Prices shown in: ')); w.appendChild(window.velosCurrencyPicker()); w.appendChild(document.createTextNode(' · payments are made in UGX')); ft.appendChild(w); } } catch(e){}
   hookSearch();
 }
 function hookSearch(){

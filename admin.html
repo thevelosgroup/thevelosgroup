@@ -78,7 +78,7 @@ async function boot(){
   go('home');
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['settings','Settings'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['settings','Settings'],['import','Import']];
 async function go(k){
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.id === 'n-'+k));
   $('#view').innerHTML = '<p class="mut">Loading…</p>';
@@ -166,6 +166,26 @@ async function paidVendor(id){ const {error} = await db.from('food_vendor_payout
 async function payRider(id){ const {error} = await db.rpc('food_pay_rider', {p_rider:id, p_ref:$('#rr-'+id).value.trim()||null}); toast(error ? error.message : 'Rider paid', !!error); if(!error) go('friders'); }
 async function saveFRules(){ const ks = ['rule_delivery_per_km','rule_delivery_min_ugx','rule_shop_origin_lat','rule_shop_origin_lng','rule_food_free_km','rule_food_mid_km','rule_food_mid_pct','rule_food_customer_per_km','rule_food_rider_per_km','rule_food_grace_min','rule_food_penalty_pct_per_min','rule_food_cancel_after_min','rule_food_stockout_penalty_pct','rule_food_road_factor'];
   for(const k of ks){ const {error} = await db.from('settings').upsert({key:k, value:String(Number($('#fr_'+k).value))}); if(error) return toast(error.message, true); } toast('Rules saved'); }
+const SITEURL = () => location.href.replace(/admin\.html.*$/, '');
+function openMail(to, subject, body){ if(!to) return toast('This customer left no email address', true); location.href = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body); }
+function sendMsg(id, ch){
+  const o = OD.find(x => x.id === id), tpl = $('#mt-'+id).value, no = o.order_no, nm = o.customer_name, grand = (o.total_ugx||0) + (o.delivery_fee_ugx||0), bal = Math.max(0, grand - (o.amount_paid_ugx||0)), track = SITEURL() + 'track.html?o=' + no;
+  const T = {
+    received: `Dear ${nm}, thank you for shopping with Velos. We have received your Order #${no}. You can follow every step here: ${track}`,
+    payment: `Dear ${nm}, we confirm receipt of your payment for Order #${no}. Total paid: ${ugx(o.amount_paid_ugx||0)}. Balance: ${ugx(bal)}${bal>0?(o.fulfilment==='pickup'?' (payable at collection)':' (payable on delivery)'):' (fully paid)'}. Thank you. ${track}`,
+    pickup: `Dear ${nm}, good news! Your Order #${no} has reached our pick-up station and is ready for collection. Please bring your National ID or another valid identification document. The name must match the person who placed the order. ${track}`,
+    dispatch: `Dear ${nm}, your Order #${no} is out for delivery. Our rider will contact you on arrival. ${track}`,
+    delivered: `Dear ${nm}, your Order #${no} has been completed. Thank you for shopping with Velos. We would love to serve you again.`
+  };
+  if(ch === 'wa') window.open(ntf(o.customer_phone, T[tpl]), '_blank'); else openMail(o.customer_email, 'Your Velos Order #' + no, T[tpl]);
+}
+function rcptText(p){ const x = POM[p.order_id] || {}, link = SITEURL() + 'receipt.html?' + (p.kind==='food' ? 'k=f&' : '') + 'o=' + x.order_no + '&r=' + p.receipt_no; return {x, text:`Dear ${x.customer_name||'customer'}, thank you for your payment of ${ugx(p.amount_ugx)} for order #${x.order_no}. Your receipt R${p.receipt_no} is here: ${link}`}; }
+function sendRcpt(id, ch){ const p = PYL.find(q => q.id === id), r = rcptText(p); if(ch === 'wa') window.open(ntf(r.x.customer_phone, r.text), '_blank'); else openMail(r.x.customer_email, 'Your Velos payment receipt R' + p.receipt_no, r.text); }
+async function approvePay(id){
+  const {data,error} = await db.rpc('approve_payment', {p_id:id}); if(error) return toast(error.message, true);
+  toast('Approved. Receipt R' + data.receipt_no + ' issued' + (data.confirmed ? ' and order confirmed' : '')); go('payments');
+}
+async function rejectPay(id){ const {error} = await db.rpc('reject_payment', {p_id:id, p_note:($('#rn-'+id).value||'').trim()}); toast(error ? error.message : 'Payment rejected and customer notified', !!error); if(!error) go('payments'); }
 async function saveAmt(id){
   const v = $('#am-'+id).value, p = $('#tp-'+id).value, {error} = await db.from('service_requests').update({amount_ugx: v===''?null:Number(v), tech_pay_ugx: p===''?null:Number(p)}).eq('id', id);
   toast(error ? error.message : 'Saved', !!error);
@@ -201,7 +221,7 @@ async function payPartner(id){
   toast(error ? error.message : 'Marked paid', !!error); if(!error) go('security');
 }
 async function saveSite(){
-  const R = {site_wa:$('#sw').value.replace(/\D/g,''), site_phone:$('#sp').value.trim(), site_email:$('#se').value.trim(), site_banner_on:$('#sbo').value, site_banner_text:$('#sbt').value.trim(), site_banner_link:$('#sbl').value.trim(), site_show_foods:$('#sf').value};
+  const R = {site_wa:$('#sw').value.replace(/\D/g,''), site_phone:$('#sp').value.trim(), site_email:$('#se').value.trim(), site_banner_on:$('#sbo').value, site_banner_text:$('#sbt').value.trim(), site_banner_link:$('#sbl').value.trim(), site_show_foods:$('#sf').value, site_pay_mtn_number:$('#spm').value.trim(), site_pay_mtn_name:$('#spmn').value.trim(), site_pay_airtel_number:$('#spa').value.trim(), site_pay_airtel_name:$('#span').value.trim(), site_pickup_name:$('#spk').value.trim(), site_pickup_address:$('#spka').value.trim(), site_pickup_note:$('#spkn').value.trim()};
   for(const k in R){ const {error} = await db.from('settings').upsert({key:k, value:R[k]}); if(error) return toast(error.message, true); }
   toast('Website settings saved');
 }
@@ -257,7 +277,7 @@ const VIEWS = {
     await VIEWS.home0();
     if(me.role === 'staff') return;
     const now = new Date(), sod = new Date(now.getFullYear(), now.getMonth(), now.getDate()), sow = new Date(sod); sow.setDate(sod.getDate() - ((now.getDay()+6)%7)); const som = new Date(now.getFullYear(), now.getMonth(), 1);
-    const [r,l,x] = await Promise.all([db.from('orders').select('created_at,total_ugx').in('status',['confirmed','dispatched','delivered']).gte('created_at', som.toISOString()),
+    const [r,l,x] = await Promise.all([db.from('orders').select('created_at,total_ugx').in('status',['confirmed','ready_for_pickup','dispatched','delivered','collected']).gte('created_at', som.toISOString()),
       db.from('products').select('name,stock_qty').not('stock_qty','is',null).lte('stock_qty',3).order('stock_qty').limit(10), db.from('products').select('*',{count:'exact',head:true}).eq('in_stock',false)]);
     let d = 0, w = 0, m = 0; (r.data||[]).forEach(o => { const t = new Date(o.created_at), v = Number(o.total_ugx||0); m += v; if(t >= sow) w += v; if(t >= sod) d += v; });
     const K = (v,t) => `<div class="card stat"><b>${ugx(v)}</b><span class="mut">${t}</span></div>`;
@@ -275,16 +295,16 @@ const VIEWS = {
 
   async orders(){
     const {data,error} = await db.from('orders').select('*, order_items(product_name,qty,unit_price_ugx)').order('created_at',{ascending:false}).limit(100);
-    if(error) throw error;
+    if(error) throw error; window.OD = data;
     $('#view').innerHTML = '<h2>Orders</h2>' + (data.length ? data.map(o => `<div class="card">
-      <div class="row"><b class="gold">#${o.order_no}</b>${sel('orders',o.id,o.status,['new','confirmed','dispatched','delivered','cancelled'])}</div>
-      <div>${esc(o.customer_name)} · <a href="${wa(o.customer_phone)}" target="_blank">${esc(o.customer_phone)}</a></div>
+      <div class="row"><b class="gold">#${o.order_no}</b>${sel('orders',o.id,o.status,['awaiting_payment','new','confirmed','ready_for_pickup','dispatched','delivered','collected','cancelled'])}</div>
+      <div>${esc(o.customer_name)} · <a href="${wa(o.customer_phone)}" target="_blank">${esc(o.customer_phone)}</a></div>${o.fulfilment==='pickup'?'<div><span class="pill gold">PICK-UP: check National ID on collection</span></div>':''}
       <div class="mut">${esc(o.delivery_address||'')}${o.customer_email?' · '+esc(o.customer_email):''}${o.delivery_lat?` · <a href="https://www.google.com/maps?q=${o.delivery_lat},${o.delivery_lng}" target="_blank">Map</a> · ${o.distance_km} km · delivery ${ugx(o.delivery_fee_ugx)}`:''}</div>
       <div class="mut">Payment: ${esc(o.payment_method||'—')} · Total ${ugx(o.total_ugx)}${o.deposit_required_ugx?' · 30% deposit '+ugx(o.deposit_required_ugx):''} · Paid ${ugx(o.amount_paid_ugx||0)} · <b class="gold">Balance ${ugx(Math.max(0,(o.total_ugx||0)-(o.amount_paid_ugx||0)))}</b></div>
       <div class="row"><span>${['unpaid','part_paid','deposit_paid','paid','refunded'].map(x=>x===(o.payment_status||'unpaid')?`<span class="pill gold">${x}</span>`:'').join('')}</span><span><input class="sm" id="pay-${o.id}" type="number" placeholder="Total received UGX" style="width:150px"> <button onclick="recPay('${o.id}',${o.total_ugx||0},${o.deposit_required_ugx||0})">Record</button></span></div>
       <div class="mut">${o.order_items.map(i=>`${esc(i.product_name)} ×${i.qty}`).join('<br>')}</div>
       <div class="row"><b>${ugx(o.total_ugx)}</b><span class="mut">${dt(o.created_at)}</span></div>
-      <a href="${ntf(o.customer_phone, `Hello ${o.customer_name}, your Velos Order #${o.order_no} is now ${(STL[o.status]||o.status)}. Track it anytime: ${tbase()}?o=${o.order_no}`)}" target="_blank">💬 Notify customer on WhatsApp</a></div>`).join('') : '<p class="mut">No orders yet.</p>');
+      <div class="row"><select class="sm" id="mt-${o.id}"><option value="received">Message: order received</option><option value="payment">Message: payment received</option><option value="pickup">Message: ready for pick-up</option><option value="dispatch">Message: out for delivery</option><option value="delivered">Message: delivered or collected</option></select><button class="ghost" onclick="sendMsg('${o.id}','wa')">💬 WhatsApp</button><button class="ghost" onclick="sendMsg('${o.id}','mail')">✉ Email</button></div></div>`).join('') : '<p class="mut">No orders yet.</p>');
   },
 
   async products(){
@@ -354,7 +374,7 @@ const VIEWS = {
   },
 
   async report(){
-    const {data,error} = await db.from('orders').select('created_at,order_items(qty,unit_price_ugx,products(category_key))').in('status',['confirmed','dispatched','delivered']).order('created_at').limit(5000);
+    const {data,error} = await db.from('orders').select('created_at,order_items(qty,unit_price_ugx,products(category_key))').in('status',['confirmed','ready_for_pickup','dispatched','delivered','collected']).order('created_at').limit(5000);
     if(error) throw error; window.RP = data;
     $('#view').innerHTML = `<h2>Sales report</h2><div class="grid2"><select id="rg" onchange="drawR()"><option value="day">By day</option><option value="week">By week</option><option value="month" selected>By month</option><option value="year">By year</option></select>
       <select id="rc" onchange="drawR()"><option value="">All categories</option>${cats.map(c=>`<option value="${c.key}">${esc(c.label)}</option>`).join('')}</select></div>
@@ -421,12 +441,27 @@ const VIEWS = {
       + data.map(p => `<div class="card row"><span>${esc(p.full_name||'')}</span><span class="pill gold">${esc(p.role)}</span></div>`).join('');
   },
 
+  async payments(){
+    const {data,error} = await db.from('payments').select('*').order('created_at',{ascending:false}).limit(100); if(error) throw error;
+    const oi = data.filter(p => p.kind==='order').map(p => p.order_id), fi = data.filter(p => p.kind==='food').map(p => p.order_id);
+    const [o,f] = await Promise.all([oi.length ? db.from('orders').select('id,order_no,customer_name,customer_phone,customer_email,total_ugx,delivery_fee_ugx,amount_paid_ugx,fulfilment').in('id',oi) : {data:[]}, fi.length ? db.from('food_orders').select('id,order_no,customer_name,customer_phone,customer_email,total_ugx,amount_paid_ugx,fulfilment').in('id',fi) : {data:[]}]);
+    const OM = {}; (o.data||[]).forEach(x => OM[x.id] = x); (f.data||[]).forEach(x => OM[x.id] = x); window.POM = OM; window.PYL = data;
+    const card = p => { const x = OM[p.order_id] || {}, grand = (x.total_ugx||0) + (x.delivery_fee_ugx||0);
+      return `<div class="card"><div class="row"><b class="gold">${p.kind==='food'?'F':'#'}${x.order_no||''}</b><span class="pill" ${p.status==='rejected'?'style="color:var(--bad)"':''}>${p.status}</span></div>
+      <div><b>${ugx(p.amount_ugx)}</b> · ${p.method==='mtn'?'MTN':'Airtel'} · ${esc(p.purpose)}</div><div class="mut">Transaction ID: <b>${esc(p.txn_ref)}</b> · paid from ${esc(p.payer_phone||'—')}</div>
+      <div>${esc(x.customer_name||'')} · <a href="${wa(x.customer_phone)}" target="_blank">${esc(x.customer_phone||'')}</a> · order total ${ugx(grand)} · paid so far ${ugx(x.amount_paid_ugx||0)}</div><div class="mut">${dt(p.created_at)}${p.note?' · '+esc(p.note):''}</div>
+      ${p.status==='pending' ? (me.role==='staff' ? '<div class="mut">A manager must approve this payment.</div>' : `<div class="row"><input class="sm" id="rn-${p.id}" placeholder="Reason if rejecting" style="flex:1"><button onclick="approvePay('${p.id}')">✓ Approve</button><button class="ghost" onclick="rejectPay('${p.id}')">Reject</button></div>`) : ''}
+      ${p.status==='approved' ? `<div class="row"><span class="mut">Receipt R${p.receipt_no}</span><span><button class="ghost" onclick="sendRcpt('${p.id}','wa')">💬 WhatsApp receipt</button> <button class="ghost" onclick="sendRcpt('${p.id}','mail')">✉ Email receipt</button></span></div>` : ''}</div>`; };
+    const pend = data.filter(p => p.status==='pending'), rest = data.filter(p => p.status!=='pending');
+    $('#view').innerHTML = '<h2>Payments to approve (' + pend.length + ')</h2><p class="mut">Check the transaction ID against your MTN or Airtel messages before approving. Approving confirms the order, issues the receipt and notifies the customer.</p>' + (pend.map(card).join('') || '<p class="mut">Nothing waiting.</p>') + '<h2>Recent payments</h2>' + (rest.map(card).join('') || '<p class="mut">None yet.</p>');
+  },
+
   async customers(){
     const [o,s] = await Promise.all([db.from('orders').select('customer_name,customer_phone,total_ugx,status,created_at').order('created_at',{ascending:false}).limit(3000),
       db.from('service_requests').select('customer_name,customer_phone,created_at').order('created_at',{ascending:false}).limit(3000)]);
     if(o.error) throw o.error; const M = {};
     const add = (n,p,t,k,v) => { const key = String(p||'').replace(/\D/g,'').slice(-9); if(!key) return; const c = M[key] = M[key] || {n,p,o:0,s:0,spent:0,last:t}; c[k]++; if(v) c.spent += v; if(t > c.last) c.last = t; };
-    (o.data||[]).forEach(x => add(x.customer_name, x.customer_phone, x.created_at, 'o', ['confirmed','dispatched','delivered'].includes(x.status) ? Number(x.total_ugx||0) : 0));
+    (o.data||[]).forEach(x => add(x.customer_name, x.customer_phone, x.created_at, 'o', ['confirmed','ready_for_pickup','dispatched','delivered','collected'].includes(x.status) ? Number(x.total_ugx||0) : 0));
     (s.data||[]).forEach(x => add(x.customer_name, x.customer_phone, x.created_at, 's', 0));
     window.CU = Object.values(M).sort((a,b) => b.spent - a.spent || (a.last < b.last ? 1 : -1));
     $('#view').innerHTML = `<h2>Customers (${CU.length})</h2><input id="cq" placeholder="Search name or phone…" oninput="drawC()"><div id="clist"></div>`; drawC();
@@ -479,6 +514,10 @@ const VIEWS = {
       <label class="mut">Announcement banner</label><select id="sbo"><option value="0" ${v('site_banner_on')!=='1'?'selected':''}>Hidden</option><option value="1" ${v('site_banner_on')==='1'?'selected':''}>Shown at the top of every page</option></select>
       <input id="sbt" placeholder="Banner text, e.g. Free delivery this weekend in Kampala" value="${esc(v('site_banner_text'))}"><input id="sbl" placeholder="Banner link (optional), e.g. foods.html" value="${esc(v('site_banner_link'))}">
       <label class="mut">Velos Foods on the website</label><select id="sf"><option value="1" ${v('site_show_foods')!=='0'?'selected':''}>Visible (menu link, home section, search)</option><option value="0" ${v('site_show_foods')==='0'?'selected':''}>Hidden</option></select>
+      <h2>Payment lines and pick-up station</h2><div class="card"><p class="mut">Shown to customers on the payment page. Check every digit carefully.</p>
+      <label class="mut">MTN Mobile Money number</label><input id="spm" value="${esc(v('site_pay_mtn_number'))}"><label class="mut">MTN account name</label><input id="spmn" value="${esc(v('site_pay_mtn_name'))}">
+      <label class="mut">Airtel Money number</label><input id="spa" value="${esc(v('site_pay_airtel_number'))}"><label class="mut">Airtel account name</label><input id="span" value="${esc(v('site_pay_airtel_name'))}">
+      <label class="mut">Pick-up station name</label><input id="spk" value="${esc(v('site_pickup_name'))}"><label class="mut">Pick-up station address</label><input id="spka" value="${esc(v('site_pickup_address'))}"><label class="mut">Collection note (ID requirement)</label><textarea id="spkn">${esc(v('site_pickup_note'))}</textarea></div>
       <button onclick="saveSite()">Save website settings</button></div>`;
   },
 
@@ -495,7 +534,7 @@ const VIEWS = {
     const [o,r] = await Promise.all([db.from('food_orders').select('*, food_vendors(name), food_riders(full_name)').order('created_at',{ascending:false}).limit(80), db.from('food_riders').select('id,full_name').eq('status','active')]);
     if(o.error) throw o.error; const ropts = (r.data||[]).map(x => `<option value="${x.id}">${esc(x.full_name)}</option>`).join('');
     $('#view').innerHTML = '<h2>Food orders</h2>' + (o.data.length ? o.data.map(x => `<div class="card">
-      <div class="row"><b class="gold">F${x.order_no}</b>${sel('food_orders',x.id,x.status,['placed','confirmed','preparing','ready','out_for_delivery','in_transit','delivered','cancelled'])}</div>
+      <div class="row"><b class="gold">F${x.order_no}</b>${sel('food_orders',x.id,x.status,['awaiting_payment','placed','confirmed','preparing','ready','out_for_delivery','in_transit','delivered','collected','cancelled'])}</div>
       <div><b>${esc(x.food_vendors?.name||'')}</b> · ${dt(x.created_at)}</div>
       <div>${esc(x.customer_name)} · <a href="${wa(x.customer_phone)}" target="_blank">${esc(x.customer_phone)}</a></div>
       <div class="mut">📍 ${esc(x.address_text)} · <a href="https://www.google.com/maps?q=${x.lat},${x.lng}" target="_blank">Map</a> · ${x.distance_km} km</div>
