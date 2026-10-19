@@ -37,7 +37,9 @@ function onboard(){if(L('v_ob'))return;var o=document.createElement('div');o.id=
 function splash(){var show=standalone?!sessionStorage.vs:!L('v_seen');if(!show){return false}try{sessionStorage.vs=1}catch(e){}L('v_seen','1');
  var s=document.createElement('div');s.id='vsp';s.innerHTML='<img src="logo.png" alt="The Velos Group"><b style="animation-delay:.8s">Anything.</b><b style="animation-delay:1.3s">Anywhere.</b><b style="animation-delay:1.8s"><i>Precisely.</i></b>';document.body.appendChild(s);
  setTimeout(function(){s.style.opacity=0;setTimeout(function(){s.remove();onboard()},600)},3000);return true}
-function go(){wa();if(!splash())onboard();
- try{var S=W.VELOS_SUPABASE;if(S)fetch(S.url+'/rest/v1/settings?key=eq.festive_override&select=value',{headers:{apikey:S.key}}).then(function(r){return r.json()}).then(function(j){if(j&&j[0])ov=j[0].value}).catch(function(){}).then(applySeason);else applySeason()}catch(e){applySeason()}}
+function promo(t,u){if(!t||u&&u<new Date().toISOString().slice(0,10))return;var b=document.createElement('div');b.style.cssText='background:#e8c766;color:#111;text-align:center;padding:8px 12px;font:700 14px system-ui';b.textContent='🔥 '+t;document.body.insertBefore(b,document.body.firstChild)}
+function go(){wa();if(!splash())onboard();var P={};
+ function fin(){ov=P.site_festive||'auto';applySeason();promo(P.site_promo_text,P.site_promo_until)}
+ try{var S=W.VELOS_SUPABASE;if(S)fetch(S.url+'/rest/v1/settings?key=in.(site_festive,site_promo_text,site_promo_until)&select=key,value',{headers:{apikey:S.key}}).then(function(r){return r.json()}).then(function(j){(j||[]).forEach(function(x){P[x.key]=x.value})}).catch(function(){}).then(fin);else fin()}catch(e){fin()}}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',go);else go();
 })();

@@ -72,15 +72,19 @@ async function boot(){
   if(!p){ await db.auth.signOut(); show(false); $('#err').textContent = pe ? 'Database error: ' + pe.message : 'This account is not authorised as staff. (login id ' + session.user.id + ')'; return; }
   me = p; $('#who').textContent = p.full_name || p.role; show(true);
   const {data} = await db.from('categories').select('*').order('sort_order'); cats = data || [];
-  const hide = ({manager:['team','settings','frules'], staff:['report','products','agents','leads','team','import','export','security','applinks','settings','fmenu','supplies','fvendors','friders','frules']})[p.role] || [];
+  const hide = ({manager:['team','settings','frules'], staff:['report','products','agents','leads','team','import','export','security','applinks','promos','settings','fmenu','supplies','fvendors','friders','frules']})[p.role] || [];
   window.TB = TABS.filter(t => !hide.includes(t[0]));
   $('#nav').innerHTML = TB.map(t => `<button id="n-${t[0]}" onclick="go('${t[0]}')">${t[1]}</button>`).join('');
   go('home');
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['applinks','App links'],['settings','Settings'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['settings','Settings'],['import','Import']];
 function alCopy(i){ const u = AL[i][1]; (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('Link copied'), () => { prompt('Copy this link', u); }); }
 function alShare(i){ const a = AL[i]; if(navigator.share) navigator.share({title:a[0], text:'Install the Velos '+a[0], url:a[1]}).catch(()=>{}); else alCopy(i); }
+async function savePromos(){
+  for(const [k,i] of [['site_festive','pf'],['site_promo_text','pt'],['site_promo_until','pu']]){ const {error} = await db.from('settings').upsert({key:k, value:$('#'+i).value.trim()}); if(error) return toast(error.message, true); }
+  toast('Promotions saved. Public pages update on next load.');
+}
 async function go(k){
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.id === 'n-'+k));
   $('#view').innerHTML = '<p class="mut">Loading…</p>';
@@ -476,6 +480,14 @@ const VIEWS = {
     (s.data||[]).forEach(x => add(x.customer_name, x.customer_phone, x.created_at, 's', 0));
     window.CU = Object.values(M).sort((a,b) => b.spent - a.spent || (a.last < b.last ? 1 : -1));
     $('#view').innerHTML = `<h2>Customers (${CU.length})</h2><input id="cq" placeholder="Search name or phone…" oninput="drawC()"><div id="clist"></div>`; drawC();
+  },
+
+  async promos(){
+    const {data} = await db.from('settings').select('key,value').in('key',['site_festive','site_promo_text','site_promo_until']); const P = {}; (data||[]).forEach(x => P[x.key] = x.value);
+    const F = [['auto','Automatic (by date and visitor country)'],['off','Off: no festive design'],['christmas','Christmas'],['newyear','New Year'],['valentine','Valentine’s Day'],['easter','Easter'],['eid','Eid'],['labour','Labour Day'],['indep','Independence Day']];
+    $('#view').innerHTML = `<h2>Promotions</h2><div class="card"><b>Festive design</b><p class="mut">Automatic follows the calendar. Pick a season to force it now (for example to start Eid on the exact day the moon is sighted), or choose Off.</p><select id="pf">${F.map(f => `<option value="${f[0]}" ${(P.site_festive||'auto')===f[0]?'selected':''}>${f[1]}</option>`).join('')}</select></div>
+      <div class="card"><b>Site-wide offer banner</b><p class="mut">A gold banner shown at the top of every public page. Leave the text empty to hide it.</p><input id="pt" placeholder="e.g. 10% off all gifts until Sunday. Order on WhatsApp" value="${esc(P.site_promo_text||'')}"><label class="mut">Show until (optional)</label><input id="pu" type="date" value="${esc(P.site_promo_until||'')}"></div>
+      <button onclick="savePromos()">Save promotions</button><p class="mut">Discounts on single products are set in Products. Combos and bundles come in the next upgrade.</p>`;
   },
 
   async applinks(){
