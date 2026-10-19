@@ -239,6 +239,11 @@ async function payAgent(id){
   toast(error ? error.message : 'Payout recorded', !!error); if(!error) go('agents');
 }
 async function saveLeadNote(id){ const {error} = await db.from('leads').update({admin_note:$('#ln-'+id).value.trim()||null}).eq('id', id); toast(error ? error.message : 'Saved', !!error); }
+async function saveMember(){
+  const v = i => $('#'+i).value.trim(); if(!v('tn') || v('tp').length < 7 || !v('te')) return toast('Please fill name, phone and email', true);
+  const {error} = await db.rpc('set_staff_member', {p_email:v('te'), p_name:v('tn'), p_phone:v('tp'), p_title:v('tj'), p_role:JT[v('tj')]});
+  toast(error ? error.message : 'Employee saved', !!error); if(!error) go('team');
+}
 async function setRole(){
   const {error} = await db.rpc('set_staff_role', {p_email:$('#te').value.trim(), p_role:$('#tr').value});
   toast(error ? error.message : 'Team updated', !!error); if(!error) go('team');
@@ -438,10 +443,14 @@ const VIEWS = {
 
   async team(){
     const {data,error} = await db.from('profiles').select('*').order('created_at'); if(error) throw error;
-    $('#view').innerHTML = `<h2>Team</h2><div class="card"><b>Add or change a team member</b><p class="mut">They first create an account on the agent page (agent.html). Then enter their email here.</p>
-      <input id="te" type="email" placeholder="Their email"><select id="tr"><option value="staff">Staff: day-to-day operations</option><option value="manager">Manager: approvals, products, reports</option><option value="admin">Admin: everything</option><option value="none">Remove access</option></select><button onclick="setRole()">Save</button></div>`
-      + data.map(p => `<div class="card row"><span>${esc(p.full_name||'')}</span><span class="pill gold">${esc(p.role)}</span></div>`).join('');
+    const ROLES = window.JT = {'Reception':'staff','Customer relations':'staff','Sales executive / Agent':'staff','Supervisor':'manager','Manager':'manager','Admin':'admin'};
+    $('#view').innerHTML = `<h2>Team (${data.length})</h2><div class="card"><b>Add or update an employee</b><p class="mut">Step 1: the employee creates a login at agent.html with their email. Step 2: fill this form with the same email. You can add as many employees as you need.</p>
+      <input id="tn" placeholder="Full name *"><input id="tp" type="tel" placeholder="Phone number *"><input id="te" type="email" placeholder="Their login email *">
+      <select id="tj" onchange="$('#ta').textContent='Access level: '+JT[this.value]">${Object.keys(ROLES).map(r => `<option>${r}</option>`).join('')}</select>
+      <div class="mut" id="ta">Access level: staff</div><button onclick="saveMember()">Save employee</button></div>`
+      + data.map(p => `<div class="card"><div class="row"><b>${esc(p.full_name||'(no name)')}</b><span class="pill gold">${esc(p.job_title||p.role)}</span></div><div class="mut">${esc(p.phone||'no phone')} · access: ${esc(p.role)}</div></div>`).join('');
   },
+
 
   async payments(){
     const {data,error} = await db.from('payments').select('*').order('created_at',{ascending:false}).limit(100); if(error) throw error;
