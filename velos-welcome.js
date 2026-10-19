@@ -1,0 +1,42 @@
+(function(){var W=typeof window!=='undefined'?window:{},WA='256755215751';
+var CT={UG:['Uganda',10,9,'#fcdc04','#d90000','#111'],KE:['Kenya',12,12,'#006600','#bb0000','#111'],TZ:['Tanzania',12,9,'#1eb53a','#00a3dd','#111'],RW:['Rwanda',7,1,'#00a1de','#fad201','#0a2a4a'],NG:['Nigeria',10,1,'#008751','#fff','#052'],GH:['Ghana',3,6,'#fcd116','#ce1126','#111'],ZA:['South Africa',4,27,'#007a4d','#ffb612','#111'],US:['United States',7,4,'#b22234','#3c3b6e','#111'],GB:['United Kingdom',0,0],IN:['India',8,15,'#ff9933','#138808','#111'],AE:['UAE',12,2,'#00732f','#ff0000','#111']};
+var EASTER={2026:'04-05',2027:'03-28',2028:'04-16'},FITR={2026:'03-20',2027:'03-10',2028:'02-27'},ADHA={2026:'05-27',2027:'05-17',2028:'05-06'};
+function dd(y,md){var p=md.split('-');return new Date(y,p[0]-1,p[1])}
+function near(d,t,b,a){var x=(d-t)/864e5;return x>=-b&&x<=a}
+var T={christmas:['🎄 Merry Christmas from The Velos Group','#1a0a10','#d4af37','#0d3b2a','Season’s greetings'],newyear:['🎆 Happy New Year from The Velos Group','#0a0a14','#f5d76e','#1c1c34','A prosperous year ahead'],valentine:['💝 Happy Valentine’s Day. Gifts made special','#2a0a1c','#ff7aa8','#3a1028','With love, Velos'],easter:['🐣 Happy Easter from The Velos Group','#161233','#f4d35e','#241d4d','Blessed Easter'],eid:['🌙 Eid Mubarak from The Velos Group','#06231c','#e8c766','#0b3328','Eid Mubarak'],labour:['🛠️ Happy Labour Day. Thank you to every worker','#0a1830','#f0b429','#12274a','Happy Labour Day'],indep:['🎉 Happy Independence Day','#101010','#e8c766','#1b1b1b','Happy Independence Day']};
+function pick(d,cc,ov){if(ov==='off')return null;if(ov&&T[ov])return ov;var y=d.getFullYear(),m=d.getMonth()+1,c=CT[cc];
+ if(c&&c[1]&&m===c[1]&&Math.abs(d.getDate()-c[2])<=2)return'indep';
+ if(EASTER[y]&&near(d,dd(y,EASTER[y]),7,1))return'easter';
+ if(FITR[y]&&near(d,dd(y,FITR[y]),5,3)||ADHA[y]&&near(d,dd(y,ADHA[y]),5,3))return'eid';
+ if(m===2&&d.getDate()<=14&&d.getDate()>=7)return'valentine';
+ if(m===5&&d.getDate()<=1)return'labour';
+ if(m===12&&d.getDate()>=27||m===1&&d.getDate()<=3)return'newyear';
+ if(m===12&&d.getDate()>=1&&d.getDate()<=26)return'christmas';return null}
+W.VelosSeason={pick:pick,themes:T};
+if(typeof document==='undefined'){module.exports={pick:pick};return}
+var L=function(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){}},standalone=matchMedia('(display-mode: standalone)').matches;
+var cc=L('v_cc')||'UG';
+function css(t){var s=document.createElement('style');s.textContent=t;document.head.appendChild(s)}
+css('#vsp{position:fixed;inset:0;z-index:99999;background:#02103a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .6s}#vsp img{width:150px;height:150px;border-radius:28px;animation:vz 1s ease both}#vsp b{color:#f4f1ea;font:700 20px Georgia,serif;letter-spacing:.5px;opacity:0;animation:vu .7s ease forwards}#vsp i{font-style:normal;color:#e8c766}@keyframes vz{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}@keyframes vu{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}@media(prefers-reduced-motion:reduce){#vsp *{animation:none!important;opacity:1!important}}'
++'#vob{position:fixed;inset:0;z-index:99998;background:rgba(2,8,28,.88);display:flex;align-items:center;justify-content:center;padding:16px;font:16px system-ui}#vob div{background:#0f1730;border:1px solid #e8c766;border-radius:16px;padding:20px;max-width:420px;width:100%;color:#f4f1ea}#vob h2{margin:0 0 6px;color:#e8c766;font-family:Georgia,serif}#vob select,#vob button{width:100%;padding:12px;border-radius:10px;border:1px solid #2a3560;background:#080d1f;color:#f4f1ea;font:inherit;margin:6px 0}#vob button{background:#e8c766;color:#111;font-weight:700;border:0}#vob button.g{background:none;color:#a3adc6}'
++'#vwa{position:fixed;right:14px;bottom:78px;z-index:9000;width:56px;height:56px;border-radius:50%;background:#25d366;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.4)}#vfb{position:sticky;top:0;z-index:8000;text-align:center;padding:8px 36px 8px 12px;font:600 14px system-ui;color:#111}#vft{text-align:center;padding:14px;font:14px Georgia,serif;color:#111}');
+var ov='auto',sn=null;
+function applySeason(){var k=pick(new Date(),cc,ov),t=T[k];if(!t)return;sn=k;var c=CT[cc],msg=t[0];if(k==='indep'&&c)msg='🎉 Happy Independence Day, '+c[0]+'!';
+ css(':root{--bg:'+t[1]+'!important;--card:'+t[3]+'!important;--gold:'+t[2]+'!important}');
+ var b=document.createElement('div');b.id='vfb';b.style.background=t[2];b.innerHTML=msg+' <span id="vfx" style="position:absolute;right:12px;cursor:pointer">✕</span>';document.body.insertBefore(b,document.body.firstChild);document.getElementById('vfx').onclick=function(){b.remove()};
+ var f=document.createElement('div');f.id='vft';f.style.background=t[2];f.textContent=t[4]+' · The Velos Group · Anything. Anywhere. Precisely.';document.body.appendChild(f)}
+function wa(){var a=document.createElement('a');a.id='vwa';a.href='https://wa.me/'+WA+'?text='+encodeURIComponent('Hello Velos, I need help with…');a.target='_blank';a.rel='noopener';a.setAttribute('aria-label','Chat with us on WhatsApp');
+ a.innerHTML='<svg width="30" height="30" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.2 14.2c-.2.6-1.300 1.200-1.800 1.200-.5.100-1 .2-3.300-.7-2.800-1.100-4.600-4-4.700-4.200-.1-.2-1.100-1.500-1.100-2.800s.7-2 1-2.300c.2-.3.500-.3.700-.3h.5c.2 0 .4 0 .6.500l.9 2.100c.1.200.1.400 0 .5l-.4.600-.4.400c-.1.200-.3.300-.1.600.2.300.8 1.300 1.700 2.100 1.200 1 2.100 1.300 2.400 1.500.3.100.4.100.6-.1l.8-1c.2-.3.400-.2.600-.1l2 1c.3.100.5.200.5.300.1.200.1.800-.1 1.300z"/></svg>';document.body.appendChild(a)}
+function onboard(){if(L('v_ob'))return;var o=document.createElement('div');o.id='vob';
+ o.innerHTML='<div><h2>Welcome to Velos</h2><p style="margin:0 0 8px;color:#a3adc6">Choose your country and language.</p><select id="vc">'+Object.keys(CT).map(function(k){return'<option value="'+k+'"'+(k===cc?' selected':'')+'>'+CT[k][0]+'</option>'}).join('')+'<option value="XX">Other</option></select><select id="vl"><option>English</option><option>Kiswahili</option><option>Luganda</option><option>Français</option><option>العربية</option></select><button id="vn">Continue</button></div>';
+ document.body.appendChild(o);document.getElementById('vn').onclick=function(){cc=document.getElementById('vc').value;L('v_cc',cc);L('v_lang',document.getElementById('vl').value);
+  var d=o.firstChild;if(!W.VelosPWA||VelosPWA.status()!=='default'){L('v_ob','1');o.remove();location.reload();return}
+  d.innerHTML='<h2>Stay updated</h2><p style="color:#a3adc6">Allow notifications for order updates, offers and festive deals.</p><button id="va">Allow notifications</button><button class="g" id="vk">Not now</button>';
+  var fin=function(){L('v_ob','1');o.remove();location.reload()};document.getElementById('va').onclick=function(){VelosPWA.ask().then(fin)};document.getElementById('vk').onclick=fin}}
+function splash(){var show=standalone?!sessionStorage.vs:!L('v_seen');if(!show){return false}try{sessionStorage.vs=1}catch(e){}L('v_seen','1');
+ var s=document.createElement('div');s.id='vsp';s.innerHTML='<img src="logo.png" alt="The Velos Group"><b style="animation-delay:.8s">Anything.</b><b style="animation-delay:1.3s">Anywhere.</b><b style="animation-delay:1.8s"><i>Precisely.</i></b>';document.body.appendChild(s);
+ setTimeout(function(){s.style.opacity=0;setTimeout(function(){s.remove();onboard()},600)},3000);return true}
+function go(){wa();if(!splash())onboard();
+ try{var S=W.VELOS_SUPABASE;if(S)fetch(S.url+'/rest/v1/settings?key=eq.festive_override&select=value',{headers:{apikey:S.key}}).then(function(r){return r.json()}).then(function(j){if(j&&j[0])ov=j[0].value}).catch(function(){}).then(applySeason);else applySeason()}catch(e){applySeason()}}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',go);else go();
+})();
