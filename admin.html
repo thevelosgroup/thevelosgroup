@@ -123,11 +123,11 @@ function drawF(){
   const q = ($('#fq')?.value||'').toLowerCase(), cn = {}; FC.forEach(c => cn[c.id] = c.name);
   $('#flist').innerHTML = FI.filter(i => !q || i.name.toLowerCase().includes(q)).slice(0,60).map(i => `<div class="card" id="fi-${i.id}"><div class="row"><span><img src="${esc(i.image_url||'')}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:8px;background:#fff" onerror="this.style.display='none'"><b>${esc(i.name)}</b></span><span class="mut">${esc(cn[i.category_id]||'')} · ${i.unit}</span></div>
     <div class="grid2"><input class="fp" type="number" placeholder="Base price UGX" value="${i.base_price_ugx??''}"><input class="ft" type="number" placeholder="Prep minutes" value="${i.prep_minutes}"></div>
-    <div class="grid2"><input class="fd" type="number" placeholder="Flash discount % (0 = end)"><input class="fh" type="number" placeholder="Hours (default 24)"></div><label class="mut">Change photo</label><input class="ff" type="file" accept="image/*">
+    <div class="grid2"><input class="fd" type="number" placeholder="Flash discount % (0 = end)"><input class="fh" type="number" placeholder="Hours (default 24)"></div><input class="fo" placeholder="Side options, comma separated (e.g. Chips, Rice, Salad)" value="${esc(i.options||'')}"><label class="mut">Change photo</label><input class="ff" type="file" accept="image/*">
     <div class="row"><label><input class="sm fa" type="checkbox" ${i.is_available?'checked':''}> Available</label><label><input class="sm fv" type="checkbox" ${i.is_active?'checked':''}> Shown on menu</label><button onclick="saveFood('${i.id}')">Save</button></div></div>`).join('') + (FI.length > 60 && !q ? '<p class="mut">Showing 60 — use search for others.</p>' : '');
 }
 async function saveFood(id){
-  const r = $('#fi-'+id), p = r.querySelector('.fp').value, upd = {base_price_ugx: p===''?null:Number(p), prep_minutes:Number(r.querySelector('.ft').value)||20, is_available:r.querySelector('.fa').checked, is_active:r.querySelector('.fv').checked};
+  const r = $('#fi-'+id), p = r.querySelector('.fp').value, upd = {base_price_ugx: p===''?null:Number(p), prep_minutes:Number(r.querySelector('.ft').value)||20, is_available:r.querySelector('.fa').checked, is_active:r.querySelector('.fv').checked, options:r.querySelector('.fo').value.trim()||null};
   const f = r.querySelector('.ff').files[0]; try { if(f) upd.image_url = await upFood(f); } catch(e){ return toast('Photo upload failed: ' + e.message, true); }
   const {error} = await db.from('food_items').update(upd).eq('id', id); if(error) return toast(error.message, true);
   const d = r.querySelector('.fd').value; if(d !== ''){ await db.from('food_promos').update({is_active:false}).eq('item_id', id); if(Number(d) > 0) await db.from('food_promos').insert({item_id:id, discount_percent:Number(d), ends_at:new Date(Date.now() + (Number(r.querySelector('.fh').value)||24)*36e5).toISOString()}); }
@@ -157,7 +157,7 @@ async function addFood(){
   try {
     if(!cid && g('ni_nc')){ const {data,error} = await db.from('food_categories').insert({vendor_id:FVSEL, name:g('ni_nc'), sort_order:99}).select().single(); if(error) throw error; cid = data.id; }
     const f = $('#ni_f').files[0], img = f ? await upFood(f) : null;
-    const {error} = await db.from('food_items').insert({vendor_id:FVSEL, category_id:cid, name:g('ni_n'), description:g('ni_d')||null, base_price_ugx:Number(g('ni_p')), unit:g('ni_u'), step:Number(g('ni_s'))||1, min_qty:Number(g('ni_m'))||1, prep_minutes:Number(g('ni_t'))||20, image_url:img}); if(error) throw error;
+    const {error} = await db.from('food_items').insert({vendor_id:FVSEL, category_id:cid, name:g('ni_n'), description:g('ni_d')||null, base_price_ugx:Number(g('ni_p')), unit:g('ni_u'), step:Number(g('ni_s'))||1, min_qty:Number(g('ni_m'))||1, prep_minutes:Number(g('ni_t'))||20, options:g('ni_o')||null, image_url:img}); if(error) throw error;
     toast('Item added'); go('fmenu');
   } catch(e){ toast(e.message, true); }
 }
@@ -582,7 +582,7 @@ const VIEWS = {
     $('#view').innerHTML = `<h2>Food menu & stock</h2><select id="fvs" onchange="FVSEL=this.value;go('fmenu')">${v.data.map(x => `<option value="${x.id}" ${x.id===FVSEL?'selected':''}>${esc(x.name)}</option>`).join('')}</select>
       <details class="card"><summary class="gold">+ Add item</summary><input id="ni_n" placeholder="Item name *"><textarea id="ni_d" placeholder="Description"></textarea><div class="grid2"><input id="ni_p" type="number" placeholder="Price UGX (restaurant base price) *"><select id="ni_u"><option value="item">Per item</option><option value="kg">Per kg (decimals allowed)</option></select></div>
       <div class="grid2"><input id="ni_s" type="number" step="0.1" placeholder="Step (1 or 0.1)" value="1"><input id="ni_m" type="number" step="0.1" placeholder="Minimum qty" value="1"></div><div class="grid2"><select id="ni_c"><option value="">— Category —</option>${FC.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select><input id="ni_nc" placeholder="…or a new category"></div>
-      <input id="ni_t" type="number" placeholder="Preparation minutes" value="20"><label class="mut">Photo</label><input id="ni_f" type="file" accept="image/*"><button onclick="addFood()">Add item</button></details>
+      <input id="ni_t" type="number" placeholder="Preparation minutes" value="20"><input id="ni_o" placeholder="Side options, comma separated (e.g. Chips, Rice, Salad). Optional"><label class="mut">Photo</label><input id="ni_f" type="file" accept="image/*"><button onclick="addFood()">Add item</button></details>
       <details class="card"><summary class="gold">📷 Bulk photo import (menu pictures)</summary><p class="mut">Unzip the menu photo files on your phone, then select many pictures at once. Each one is uploaded and matched to its menu item automatically. You can repeat with the remaining pictures.</p>
       <input id="bp_f" type="file" accept="image/*" multiple><button onclick="bulkPhotos()">Upload and match</button><pre id="bp_log" class="mut" style="white-space:pre-wrap"></pre></details>
       <input id="fq" placeholder="Search items…" oninput="drawF()"><div id="flist"></div>`; drawF();

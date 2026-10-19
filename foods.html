@@ -15,7 +15,7 @@ var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){r
 window.addEventListener('velos-currency',function(){if(V){car();draw();cartUI()}});
 function rpc(n,b){return fetch(S.url+'/rest/v1/rpc/'+n,{method:'POST',headers:{apikey:S.key,'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.message||'Request failed');return j})})}
 function toast(m){var t=$('toast');t.textContent=m;t.hidden=false;setTimeout(function(){t.hidden=true},2000)}
-rpc('food_menu').then(function(m){M=m;m.vendors.forEach(function(v){v.categories.forEach(function(c){c.items.forEach(function(i){i.vid=v.id;IT[i.id]=i})})});
+rpc('food_menu_v2').catch(function(){return rpc('food_menu')}).then(function(m){M=m;m.vendors.forEach(function(v){v.categories.forEach(function(c){c.items.forEach(function(i){i.vid=v.id;IT[i.id]=i})})});
   $('vend').innerHTML=m.vendors.map(function(v){return '<button class="g" id="v-'+v.id+'" onclick="pick(\''+v.id+'\')">'+(v.kind==='store'?'🛒 ':'🍽️ ')+esc(v.name)+(v.rating_count?' ★'+Number(v.rating_avg).toFixed(1):'')+'</button>'}).join('');
   var want=new URLSearchParams(location.search).get('v');pick((m.vendors.find(function(v){return v.slug===want})||m.vendors[0]||{}).id);var qq=new URLSearchParams(location.search).get('q');if(qq){$('q').value=qq;draw()}}).catch(function(e){$('list').innerHTML='<p class="bad">Could not load the menu: '+esc(e.message)+'</p>'});
 function pick(id){
@@ -30,7 +30,7 @@ function card(i){
   return '<div class="it"><img src="'+esc(i.image)+'" alt="'+esc(i.name)+'" loading="lazy" onerror="ie(this)"><div class="b2"><h4>'+esc(i.name)+(i.promo?' <span class="off">-'+i.promo+'%</span>':'')+'</h4>'
    +(i.description?'<div class="m">'+esc(i.description)+'</div>':'')
    +'<div class="pr">'+(i.price?ugx(i.price)+(un?' / kg':''):'Price to be confirmed')+(i.promo?' <s>'+ugx(i.orig)+'</s>':'')+'</div><div class="m">⏱ about '+i.prep+' min'+(un?' · any weight, e.g. 1.2':'')+'</div>'
-   +(av?'<div class="row"><input id="q-'+i.id+'" type="number" min="'+i.min_qty+'" step="'+i.step+'" value="'+i.min_qty+'" style="width:90px;margin:0"><button onclick="add(\''+i.id+'\')">Add</button></div>':'<button disabled>Unavailable</button>')+'</div></div>'}
+   +(av&&i.options?sidesUI(i):'')+(av?'<div class="row"><input id="q-'+i.id+'" type="number" min="'+i.min_qty+'" step="'+i.step+'" value="'+i.min_qty+'" style="width:90px;margin:0"><button onclick="add(\''+i.id+'\')">Add</button></div>':'<button disabled>Unavailable</button>')+'</div></div>'}
 function draw(){
   var q=$('q').value.toLowerCase(),h='';
   V.categories.forEach(function(c){if(CAT&&CAT!==c.id)return;var it=c.items.filter(function(i){return !q||(i.name+' '+(i.description||'')).toLowerCase().indexOf(q)>-1});if(it.length)h+='<h2>'+esc(c.name)+'</h2><div class="grid">'+it.map(card).join('')+'</div>'});
@@ -41,15 +41,18 @@ function car(){
   var pr=all.filter(function(i){return i.promo}),rest=all.filter(function(i){return !i.promo&&i.image&&i.image.indexOf('ph-')<0}).sort(function(){return r()-.5}),pick=pr.concat(rest).slice(0,8);
   $('carbox').hidden=!pick.length;$('car').innerHTML=pick.map(function(i){return '<div class="s"><img src="'+esc(i.image)+'" alt="" onerror="ie(this)"><div><b>'+esc(i.name)+'</b>'+(i.promo?'<span class="off" style="align-self:flex-start">-'+i.promo+'% flash deal</span>':'')+'<div class="pr">'+ugx(i.price)+(i.promo?' <s>'+ugx(i.orig)+'</s>':'')+'</div><button onclick="add(\''+i.id+'\',1)">Add to cart</button></div></div>'}).join('');
   var el=$('car'),n=0;clearInterval(window.ct);window.ct=setInterval(function(){if(!el.children.length)return;n=(n+1)%el.children.length;el.scrollTo({left:el.children[n].offsetLeft-el.offsetLeft,behavior:'smooth'})},4500)}
-function add(id,fromCar){var i=IT[id],f=$('q-'+id),q=fromCar||!f?i.min_qty:parseFloat(f.value);if(!(q>=i.min_qty)){toast('Minimum '+i.min_qty);return}cart[id]=Math.round(((cart[id]||0)+q)*100)/100;cartUI();toast('Added '+i.name)}
+var SIDES={};
+function sidesUI(i){return '<div class="m" style="margin:6px 0"><b>Choose sides:</b><br>'+String(i.options).split(',').map(function(o){o=o.trim();return o?'<label style="display:inline-block;margin:2px 10px 2px 0"><input type="checkbox" class="sd-'+i.id+'" value="'+esc(o)+'" style="width:auto;margin:0 4px 0 0">'+esc(o)+'</label>':''}).join('')+'</div>'}
+function sidesText(){var t=Object.keys(cart).filter(function(id){return SIDES[id]&&SIDES[id].length}).map(function(id){return IT[id].name+' with '+SIDES[id].join(', ')}).join('; ');return t?'Sides: '+t+($('cno').value.trim()?' | ':''):''}
+function add(id,fromCar){var i=IT[id],f=$('q-'+id),q=fromCar||!f?i.min_qty:parseFloat(f.value);if(!(q>=i.min_qty)){toast('Minimum '+i.min_qty);return}var sd=[].slice.call(document.querySelectorAll('.sd-'+id+':checked')).map(function(x){return x.value});if(sd.length)SIDES[id]=(SIDES[id]||[]).filter(function(x){return sd.indexOf(x)<0}).concat(sd);cart[id]=Math.round(((cart[id]||0)+q)*100)/100;cartUI();toast('Added '+i.name)}
 function sub(){var t=0;Object.keys(cart).forEach(function(id){t+=Math.round(IT[id].price*cart[id])});return t}
 function cartUI(){var n=Object.keys(cart).length,b=$('cb');b.hidden=!n;b.textContent='🛒 Cart · '+n+' · '+ugx(sub())}
 function sheet(h){var d=document.createElement('div');d.className='sheet';d.id='sh';d.innerHTML='<div class="bx">'+h+'</div>';d.onclick=function(e){if(e.target===d)d.remove()};document.body.appendChild(d);return d}
 function openCart(){
   if(!Object.keys(cart).length)return;
-  sheet('<div class="row"><h2>Your cart</h2><button class="g" onclick="$(\'sh\').remove()">Close</button></div>'+Object.keys(cart).map(function(id){var i=IT[id];return '<div class="row c"><span><b>'+esc(i.name)+'</b><br><span class="m">'+cart[id]+(i.unit==='kg'?' kg':' ×')+' · '+ugx(i.price)+'</span></span><span>'+ugx(i.price*cart[id])+' <button class="g" onclick="rm(\''+id+'\')">✕</button></span></div>'}).join('')
+  sheet('<div class="row"><h2>Your cart</h2><button class="g" onclick="$(\'sh\').remove()">Close</button></div>'+Object.keys(cart).map(function(id){var i=IT[id];return '<div class="row c"><span><b>'+esc(i.name)+'</b>'+(SIDES[id]&&SIDES[id].length?'<br><span class="m">With: '+esc(SIDES[id].join(', '))+'</span>':'')+'<br><span class="m">'+cart[id]+(i.unit==='kg'?' kg':' ×')+' · '+ugx(i.price)+'</span></span><span>'+ugx(i.price*cart[id])+' <button class="g" onclick="rm(\''+id+'\')">✕</button></span></div>'}).join('')
    +'<div class="row"><b>Subtotal</b><b>'+ugx(sub())+'</b></div><p class="m">Delivery is calculated from the map pin on the next step.</p><button class="full" onclick="checkout()">Checkout</button>')}
-function rm(id){delete cart[id];cartUI();$('sh').remove();openCart()}
+function rm(id){delete cart[id];delete SIDES[id];cartUI();$('sh').remove();openCart()}
 function haversine(a,b,c,d){var R=6371,p=Math.PI/180,x=Math.sin((c-a)*p/2),y=Math.sin((d-b)*p/2),h=x*x+Math.cos(a*p)*Math.cos(c*p)*y*y;return 2*R*Math.asin(Math.sqrt(h))}
 function feeOf(s,k){var R=M.rules,free=+R.rule_food_free_km,mid=+R.rule_food_mid_km,pc=+R.rule_food_mid_pct,per=+R.rule_food_customer_per_km;
   if(k>mid)return{fee:Math.round(k*per/100)*100,q:true};if(V.kind==='store')return{fee:Math.round(k*per/100)*100,q:false};if(k>free)return{fee:Math.round(s*pc/100/100)*100,q:false};return{fee:0,q:false}}
@@ -85,7 +88,7 @@ function place(){
   if(FU==='delivery'&&g('ca').length<3){$('er').textContent='Please add a landmark or building for the delivery.';return}
   var ll=FU==='delivery'?pin.getLatLng():null,b=$('po'),pm=document.querySelector('input[name=pm]:checked').value,phone=g('cp');b.disabled=true;b.textContent='Placing order…';
   var items=Object.keys(cart).map(function(id){return{item_id:id,qty:cart[id]}});
-  var body={p_vendor:V.id,p_name:g('cn'),p_phone:phone,p_email:g('ce')||null,p_address:FU==='pickup'?'Pick-up at '+V.name:g('ca')+(g('sq')?' · '+g('sq'):''),p_lat:ll?ll.lat:null,p_lng:ll?ll.lng:null,p_km:FU==='delivery'?km:null,p_payment:pm,p_notes:g('cno'),p_items:items};
+  var body={p_vendor:V.id,p_name:g('cn'),p_phone:phone,p_email:g('ce')||null,p_address:FU==='pickup'?'Pick-up at '+V.name:g('ca')+(g('sq')?' · '+g('sq'):''),p_lat:ll?ll.lat:null,p_lng:ll?ll.lng:null,p_km:FU==='delivery'?km:null,p_payment:pm,p_notes:(sidesText()+g('cno')).trim(),p_items:items};
   rpc('food_place_order_v2',Object.assign({p_fulfilment:FU},body)).catch(function(e){if(/food_place_order_v2|PGRST202|schema cache/.test(String(e.message))){if(FU==='pickup')throw new Error('Pick-up needs the latest system update. Please contact us.');return rpc('food_place_order',body).then(function(r){r.grand_total=r.total;return r})}throw e}).then(function(r){
     try{localStorage.setItem('velosContact',JSON.stringify({n:g('cn'),p:phone,e:g('ce'),a:g('ca')}));localStorage.setItem('velosLastFood',r.order_no)}catch(e){}
     cart={};cartUI();$('sh').remove();
