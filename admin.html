@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head>
+<html lang="en"><head><link rel="manifest" href="manifest-admin.json"><meta name="theme-color" content="#080d1f"><link rel="apple-touch-icon" href="icon-192.png"><script src="velos-pwa.js" defer></script>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://ptmedfjkapzqxltntynf.supabase.co; base-uri 'self'; form-action 'none'"><title>Velos Admin</title>
 <style>
@@ -72,13 +72,15 @@ async function boot(){
   if(!p){ await db.auth.signOut(); show(false); $('#err').textContent = pe ? 'Database error: ' + pe.message : 'This account is not authorised as staff. (login id ' + session.user.id + ')'; return; }
   me = p; $('#who').textContent = p.full_name || p.role; show(true);
   const {data} = await db.from('categories').select('*').order('sort_order'); cats = data || [];
-  const hide = ({manager:['team','settings','frules'], staff:['report','products','agents','leads','team','import','export','security','settings','fmenu','supplies','fvendors','friders','frules']})[p.role] || [];
+  const hide = ({manager:['team','settings','frules'], staff:['report','products','agents','leads','team','import','export','security','applinks','settings','fmenu','supplies','fvendors','friders','frules']})[p.role] || [];
   window.TB = TABS.filter(t => !hide.includes(t[0]));
   $('#nav').innerHTML = TB.map(t => `<button id="n-${t[0]}" onclick="go('${t[0]}')">${t[1]}</button>`).join('');
   go('home');
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['settings','Settings'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['applinks','App links'],['settings','Settings'],['import','Import']];
+function alCopy(i){ const u = AL[i][1]; (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('Link copied'), () => { prompt('Copy this link', u); }); }
+function alShare(i){ const a = AL[i]; if(navigator.share) navigator.share({title:a[0], text:'Install the Velos '+a[0], url:a[1]}).catch(()=>{}); else alCopy(i); }
 async function go(k){
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.id === 'n-'+k));
   $('#view').innerHTML = '<p class="mut">Loading…</p>';
@@ -465,6 +467,12 @@ const VIEWS = {
     (s.data||[]).forEach(x => add(x.customer_name, x.customer_phone, x.created_at, 's', 0));
     window.CU = Object.values(M).sort((a,b) => b.spent - a.spent || (a.last < b.last ? 1 : -1));
     $('#view').innerHTML = `<h2>Customers (${CU.length})</h2><input id="cq" placeholder="Search name or phone…" oninput="drawC()"><div id="clist"></div>`; drawC();
+  },
+
+  async applinks(){
+    const base = location.href.replace(/[^\/]*([?#].*)?$/, '');
+    window.AL = [['Restaurant app','restaurant.html','For restaurants: orders, menu availability, prep time'],['Rider app','rider.html','For delivery riders: job offers and earnings'],['Partner app','partner.html','For security companies and technicians'],['Security partner application','security-partners.html','Application page for security companies'],['Sales agent app','agent.html','For sales agents']].map(a => [a[0], base + a[1], a[2]]);
+    $('#view').innerHTML = '<h2>App links</h2><p class="mut">Copy or share a link. The person opens it on their phone or computer and taps Install (on iPhone: Share, then Add to Home Screen).</p>' + AL.map((a,i) => `<div class="card"><b>${esc(a[0])}</b><div class="mut">${esc(a[2])}</div><div class="mut" style="word-break:break-all">${esc(a[1])}</div><div class="row"><button onclick="alCopy(${i})">Copy link</button><button class="ghost" onclick="alShare(${i})">Share</button></div></div>`).join('') + `<h2>Alerts on this device</h2><div class="card"><div class="mut">Status: ${VelosPWA.status()}</div><button onclick="VelosPWA.ask().then(()=>go('applinks'))">Turn on notifications</button></div>`;
   },
 
   async export(){
