@@ -1,4 +1,7 @@
 (function(){var W=window;
+function lz(n){if(n.tagName==='IMG'){if(!n.hasAttribute('loading'))n.setAttribute('loading','lazy');if(!n.hasAttribute('decoding'))n.setAttribute('decoding','async')}else if(n.querySelectorAll)n.querySelectorAll('img').forEach(lz)}
+try{new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(lz)})}).observe(document.documentElement,{childList:true,subtree:true})}catch(e){}
+addEventListener('DOMContentLoaded',function(){document.querySelectorAll('img').forEach(lz)});
 if('serviceWorker'in navigator)addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});
 var dp=null;addEventListener('beforeinstallprompt',function(e){e.preventDefault();dp=e;bar()});
 function bar(){if(document.getElementById('vpb')||matchMedia('(display-mode: standalone)').matches)return;
