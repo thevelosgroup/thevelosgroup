@@ -72,18 +72,32 @@ async function boot(){
   if(!p){ await db.auth.signOut(); show(false); $('#err').textContent = pe ? 'Database error: ' + pe.message : 'This account is not authorised as staff. (login id ' + session.user.id + ')'; return; }
   me = p; $('#who').textContent = p.full_name || p.role; show(true);
   const {data} = await db.from('categories').select('*').order('sort_order'); cats = data || [];
-  const hide = ({manager:['team','settings','frules'], staff:['report','products','agents','leads','team','import','export','security','applinks','promos','settings','fmenu','supplies','fvendors','friders','frules']})[p.role] || [];
+  const hide = ({manager:['team','settings','frules'], staff:['report','products','agents','leads','team','import','export','security','applinks','promos','bundles','settings','fmenu','supplies','fvendors','friders','frules']})[p.role] || [];
   window.TB = TABS.filter(t => !hide.includes(t[0]));
   $('#nav').innerHTML = TB.map(t => `<button id="n-${t[0]}" onclick="go('${t[0]}')">${t[1]}</button>`).join('');
   go('home');
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['settings','Settings'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['bundles','Combos & bundles'],['settings','Settings'],['import','Import']];
 function alCopy(i){ const u = AL[i][1]; (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('Link copied'), () => { prompt('Copy this link', u); }); }
 function alShare(i){ const a = AL[i]; if(navigator.share) navigator.share({title:a[0], text:'Install the Velos '+a[0], url:a[1]}).catch(()=>{}); else alCopy(i); }
 async function savePromos(){
   for(const [k,i] of [['site_festive','pf'],['site_promo_text','pt'],['site_promo_until','pu']]){ const {error} = await db.from('settings').upsert({key:k, value:$('#'+i).value.trim()}); if(error) return toast(error.message, true); }
   toast('Promotions saved. Public pages update on next load.');
+}
+async function feeAct(id, a){ const {error} = await db.rpc('admin_vendor_fee', {p_vendor:id, p_action:a}); toast(error ? error.message : (a==='confirm' ? 'Fee confirmed. You can now set the restaurant to active.' : 'Fee waived'), !!error); if(!error) go('fvendors'); }
+function bdFilter(){ const q = ($('#bd_q').value||'').toLowerCase(); $('#bd_p').innerHTML = BP.filter(p => !q || p.name.toLowerCase().includes(q)).slice(0,80).map(p => `<option value="${esc(p.id)}">${esc(p.name)} (${ugx(p.price_ugx)})</option>`).join(''); }
+function bdTotal(){ return BD.lines.reduce((s,l) => s + l.p.price_ugx * l.k, 0); }
+function bdPrice(){ const m = $('#bd_m').value, d = $('#bd_d').value, t = bdTotal(); if(m !== '') return Number(m); if(d !== '') return Math.round(t * (100 - Number(d)) / 100 / 100) * 100; return t; }
+function bdAdd(){ const p = BP.find(x => x.id === $('#bd_p').value), k = Math.max(1, parseInt($('#bd_k').value, 10) || 1); if(!p) return toast('Pick a product first', true); const l = BD.lines.find(x => x.p.id === p.id); if(l) l.k += k; else BD.lines.push({p, k}); bdDraw(); }
+function bdRm(i){ BD.lines.splice(i,1); bdDraw(); }
+function bdDraw(){ $('#bd_l').innerHTML = BD.lines.map((l,i) => `<div class="row"><span>${l.k} × ${esc(l.p.name)} <span class="mut">${ugx(l.p.price_ugx * l.k)}</span></span><button class="ghost" onclick="bdRm(${i})">✕</button></div>`).join('') || '<p class="mut">No products added yet.</p>'; const t = bdTotal(), pr = bdPrice(); $('#bd_s').textContent = 'Normal price ' + ugx(t) + ' · Bundle price ' + ugx(pr) + ' · Customer saves ' + ugx(Math.max(0, t - pr)); }
+async function bdCreate(){
+  const n = $('#bd_n').value.trim(), pr = bdPrice(), t = bdTotal(); if(!n) return toast('Give the bundle a name', true); if(BD.lines.length < 2) return toast('Add at least two products', true); if(!(pr > 0)) return toast('Set a discount or a price', true);
+  const id = 'bd' + Date.now().toString(36), inc = BD.lines.map(l => l.k + '× ' + l.p.name).join(', '), sub = ('Bundle · Includes: ' + inc + (t > pr ? ' · Save ' + ugx(t - pr) : '')).slice(0,240);
+  let img = null; const f = $('#bd_f').files[0]; try { if(f) img = await upImg(f, id); } catch(e){ return toast('Photo upload failed: ' + e.message, true); }
+  const {error} = await db.from('products').insert({id, name:n, category_key:$('#bd_c').value, subcategory:sub, price_ugx:pr, image_url:img});
+  toast(error ? error.message : 'Bundle created. Find it in Products.', !!error); if(!error) go('bundles');
 }
 async function go(k){
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.id === 'n-'+k));
@@ -482,6 +496,17 @@ const VIEWS = {
     $('#view').innerHTML = `<h2>Customers (${CU.length})</h2><input id="cq" placeholder="Search name or phone…" oninput="drawC()"><div id="clist"></div>`; drawC();
   },
 
+  async bundles(){
+    const {data,error} = await db.from('products').select('id,name,price_ugx,category_key').not('price_ugx','is',null).order('name'); if(error) throw error;
+    window.BP = data; window.BD = {lines:[]};
+    $('#view').innerHTML = `<h2>Combos & bundles</h2><p class="mut">Group products into one offer at a special price, for example a Back-to-School pack or a festive gift set. It appears in the shop like any other product.</p>
+      <div class="card"><input id="bd_n" placeholder="Bundle name * (e.g. Back-to-School Pack)"><select id="bd_c">${cats.map(c => `<option value="${c.key}">${esc(c.label)}</option>`).join('')}</select>
+      <input id="bd_q" placeholder="Search a product to add…" oninput="bdFilter()"><select id="bd_p"></select><input id="bd_k" type="number" min="1" value="1" placeholder="Quantity"><button class="ghost" onclick="bdAdd()">Add to bundle</button><div id="bd_l"></div></div>
+      <div class="card"><div class="grid2"><input id="bd_d" type="number" min="0" max="90" placeholder="Discount % (e.g. 10)" oninput="bdDraw()"><input id="bd_m" type="number" placeholder="or set the bundle price UGX" oninput="bdDraw()"></div><div id="bd_s" class="gold"></div>
+      <label class="mut">Photo (optional)</label><input id="bd_f" type="file" accept="image/*"><button onclick="bdCreate()">Create bundle</button></div>`;
+    bdFilter(); bdDraw();
+  },
+
   async promos(){
     const {data} = await db.from('settings').select('key,value').in('key',['site_festive','site_promo_text','site_promo_until']); const P = {}; (data||[]).forEach(x => P[x.key] = x.value);
     const F = [['auto','Automatic (by date and visitor country)'],['off','Off: no festive design'],['christmas','Christmas'],['newyear','New Year'],['valentine','Valentine’s Day'],['easter','Easter'],['eid','Eid'],['labour','Labour Day'],['indep','Independence Day']];
@@ -596,6 +621,7 @@ const VIEWS = {
       <div class="row"><span class="mut">Commission %</span><input class="sm" id="vc-${x.id}" type="number" step="0.5" value="${x.commission_pct}" style="width:80px"><span class="mut">Customer markup %</span><input class="sm" id="vm-${x.id}" type="number" step="0.5" value="${x.markup_pct}" style="width:80px"><button onclick="saveVendor('${x.id}')">Save</button></div>
       <div class="row"><input class="sm" id="vl-${x.id}" type="email" placeholder="Their login email" style="flex:1"><button onclick="linkFood('vendor','${x.id}','vl-${x.id}')">${x.user_id?'Re-link login':'Link login'}</button></div>
       <div class="row"><input class="sm" id="vlat-${x.id}" type="number" step="0.00001" placeholder="Latitude" value="${x.lat??''}" style="width:130px"><input class="sm" id="vlng-${x.id}" type="number" step="0.00001" placeholder="Longitude" value="${x.lng??''}" style="width:130px"><button class="ghost" onclick="saveLoc('${x.id}')">Save location</button></div>
+      ${x.kind==='restaurant' ? `<div class="mut">Registration fee: ${ugx(x.reg_fee_ugx)} · <b class="gold">${esc(x.reg_fee_status)}</b>${x.reg_fee_ref ? ' · ' + esc(x.reg_fee_method||'') + ' ref ' + esc(x.reg_fee_ref) + ' from ' + esc(x.reg_fee_phone||'') : ''}</div>${adm && ['unpaid','submitted'].includes(x.reg_fee_status) ? `<div class="row"><button onclick="feeAct('${x.id}','confirm')">Confirm fee received</button><button class="ghost" onclick="feeAct('${x.id}','waive')">Waive fee</button></div>` : ''}` : ''}
       ${adm && x.kind==='restaurant' ? `<div class="row"><input class="sm" id="pf-${x.id}" type="date" value="${d0}"><input class="sm" id="pt-${x.id}" type="date" value="${d1}"><button onclick="makePayout('${x.id}')">Create weekly payout</button></div>` : ''}</div>`).join('')
       + '<h2>Restaurant payouts</h2>' + (p.data.length ? p.data.map(x => `<div class="card"><div class="row"><b>${esc(x.food_vendors?.name||'')}</b><span class="pill ${x.status==='paid'?'gold':''}">${x.status}</span></div><div class="mut">${x.period_start} → ${x.period_end} · ${x.orders_count} orders · gross ${ugx(x.gross_base_ugx)} − commission ${ugx(x.commission_ugx)} − penalties ${ugx(x.penalties_ugx)}</div><div><b class="gold">Pay ${ugx(x.net_ugx)}</b></div>
       ${adm && x.status==='due' ? `<div class="row"><input class="sm" id="pr-${x.id}" placeholder="Payment reference" style="flex:1"><button onclick="paidVendor('${x.id}')">Mark paid</button></div>` : (x.reference?`<div class="mut">${esc(x.reference)}</div>`:'')}</div>`).join('') : '<p class="mut">No payouts yet.</p>');
