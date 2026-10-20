@@ -135,7 +135,7 @@ async function upFood(f){ if(f.size > 5*1024*1024) throw Error('Photo is over 5 
   const {error} = await db.storage.from('food-images').upload(p, f, {contentType:f.type}); if(error) throw error; return db.storage.from('food-images').getPublicUrl(p).data.publicUrl; }
 function drawF(){
   const q = ($('#fq')?.value||'').toLowerCase(), cn = {}; FC.forEach(c => cn[c.id] = c.name);
-  $('#flist').innerHTML = FI.filter(i => !q || i.name.toLowerCase().includes(q)).slice(0,60).map(i => `<div class="card" id="fi-${i.id}"><div class="row"><span><img src="${esc(i.image_url||'')}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:8px;background:#fff" onerror="this.style.display='none'"><b>${esc(i.name)}</b></span><span class="mut">${esc(cn[i.category_id]||'')} · ${i.unit}</span></div>
+  $('#flist').innerHTML = FI.filter(i => !q || i.name.toLowerCase().includes(q)).slice(0,window.FLIM||60).map(i => `<div class="card" id="fi-${i.id}"><div class="row"><span><img src="${esc(i.image_url||'')}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:8px;background:#fff" onerror="this.style.display='none'"><b>${esc(i.name)}</b></span><span class="mut">${esc(cn[i.category_id]||'')} · ${i.unit}</span></div>
     <div class="grid2"><input class="fp" type="number" placeholder="Base price UGX" value="${i.base_price_ugx??''}"><input class="ft" type="number" placeholder="Prep minutes" value="${i.prep_minutes}"></div>
     <div class="grid2"><input class="fd" type="number" placeholder="Flash discount % (0 = end)"><input class="fh" type="number" placeholder="Hours (default 24)"></div><input class="fo" placeholder="Side options, comma separated (e.g. Chips, Rice, Salad)" value="${esc(i.options||'')}"><label class="mut">Change photo</label><input class="ff" type="file" accept="image/*">
     <div class="row"><label><input class="sm fa" type="checkbox" ${i.is_available?'checked':''}> Available</label><label><input class="sm fv" type="checkbox" ${i.is_active?'checked':''}> Shown on menu</label><button onclick="saveFood('${i.id}')">Save</button></div></div>`).join('') + (FI.length > 60 && !q ? '<p class="mut">Showing 60 — use search for others.</p>' : '');
@@ -343,7 +343,7 @@ const VIEWS = {
         <select id="a_cat">${cats.map(c=>`<option value="${c.key}">${esc(c.label)}</option>`).join('')}</select>
         <input id="a_sub" placeholder="Sub-category (optional)"><input id="a_price" type="number" placeholder="Price UGX (blank = Request Quote)">
         <input id="a_img" placeholder="Image URL (optional)"><label class="mut">Or upload a photo</label><input id="a_file" type="file" accept="image/*"><button onclick="addP()">Add</button></details>
-      <div id="plist"></div>`;
+      <div id="plist"></div><button class="ghost" onclick="PLIM=(window.PLIM||60)+100;drawP()">Show more products</button>`;
     drawP();
   },
 
@@ -610,7 +610,7 @@ const VIEWS = {
       <input id="ni_t" type="number" placeholder="Preparation minutes" value="20"><input id="ni_o" placeholder="Side options, comma separated (e.g. Chips, Rice, Salad). Optional"><label class="mut">Photo</label><input id="ni_f" type="file" accept="image/*"><button onclick="addFood()">Add item</button></details>
       <details class="card"><summary class="gold">📷 Bulk photo import (menu pictures)</summary><p class="mut">Unzip the menu photo files on your phone, then select many pictures at once. Each one is uploaded and matched to its menu item automatically. You can repeat with the remaining pictures.</p>
       <input id="bp_f" type="file" accept="image/*" multiple><button onclick="bulkPhotos()">Upload and match</button><pre id="bp_log" class="mut" style="white-space:pre-wrap"></pre></details>
-      <input id="fq" placeholder="Search items…" oninput="drawF()"><div id="flist"></div>`; drawF();
+      <input id="fq" placeholder="Search items…" oninput="drawF()"><div id="flist"></div><button class="ghost" onclick="FLIM=(window.FLIM||60)+100;drawF()">Show more items</button>`; drawF();
   },
 
   async fvendors(){
@@ -660,7 +660,7 @@ const VIEWS = {
 
 function drawP(){
   const q = ($('#q')?.value || '').toLowerCase();
-  $('#plist').innerHTML = PR.filter(p => !q || (p.name + ' ' + p.id + ' ' + (p.subcategory||'')).toLowerCase().includes(q)).slice(0,60).map(p => `
+  $('#plist').innerHTML = PR.filter(p => !q || (p.name + ' ' + p.id + ' ' + (p.subcategory||'')).toLowerCase().includes(q)).slice(0,window.PLIM||60).map(p => `
     <div class="card" id="p-${p.id}">
       <div class="row"><span><img src="${esc(p.image_url||'')}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:8px" onerror="this.style.display='none'">${p.in_stock===false?'<span class="pill" style="color:var(--bad)">OUT</span> ':''}${(window.PM||{})[p.id]?`<span class="pill gold">-${PM[p.id]}%</span> `:''}<b>${esc(p.name)}</b></span><span class="mut">${esc(p.id)} · ${esc(p.category_key)}</span></div>
       <div class="grid2"><input class="nm" value="${esc(p.name)}"><input class="pr" type="number" value="${p.price_ugx ?? ''}" placeholder="Request Quote"></div>
