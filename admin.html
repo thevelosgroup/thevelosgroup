@@ -72,12 +72,12 @@ async function boot(){
   if(!p){ await db.auth.signOut(); show(false); $('#err').textContent = pe ? 'Database error: ' + pe.message : 'This account is not authorised as staff. (login id ' + session.user.id + ')'; return; }
   me = p; $('#who').textContent = p.full_name || p.role; show(true);
   const {data} = await db.from('categories').select('*').order('sort_order'); cats = data || [];
-  const hide = ({manager:['team','settings','frules'], staff:['report','products','agents','leads','team','import','export','security','applinks','promos','bundles','settings','fmenu','supplies','fvendors','friders','frules']})[p.role] || [];
+  const hide = ({manager:['team','settings','frules'], staff:['report','products','agents','leads','team','import','export','security','applinks','promos','bundles','photos','settings','fmenu','supplies','fvendors','friders','frules']})[p.role] || [];
   window.TB = TABS.filter(t => !hide.includes(t[0]));
   go('home');
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['bundles','Combos & bundles'],['settings','Settings'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['bundles','Combos & bundles'],['photos','Bulk photos'],['settings','Settings'],['import','Import']];
 function alCopy(i){ const u = AL[i][1]; (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('Link copied'), () => { prompt('Copy this link', u); }); }
 function alShare(i){ const a = AL[i]; if(navigator.share) navigator.share({title:a[0], text:'Install the Velos '+a[0], url:a[1]}).catch(()=>{}); else alCopy(i); }
 async function savePromos(){
@@ -98,10 +98,26 @@ async function bdCreate(){
   const {error} = await db.from('products').insert({id, name:n, category_key:$('#bd_c').value, subcategory:sub, price_ugx:pr, image_url:img});
   toast(error ? error.message : 'Bundle created. Find it in Products.', !!error); if(!error) go('bundles');
 }
-const GROUPS = [['Overview','📊',['home','report','inq','messages']],['Orders','🧾',['orders','forders','payments','designs','gifts','service','security']],['Food','🍽️',['fmenu','fvendors','friders','frules','supplies']],['Shop','🛍️',['products','bundles','promos','import']],['People','👥',['customers','agents','leads','techs','team']],['System','⚙️',['applinks','export','settings']]];
+const GROUPS = [['Overview','📊',['home','report','inq','messages']],['Orders','🧾',['orders','forders','payments','designs','gifts','service','security']],['Food','🍽️',['fmenu','fvendors','friders','frules','supplies']],['Shop','🛍️',['products','photos','bundles','promos','import']],['People','👥',['customers','agents','leads','techs','team']],['System','⚙️',['applinks','export','settings']]];
 function navFor(k){ const lab = Object.fromEntries(TB.map(t => [t[0], t[1]])); window.NG = GROUPS.map(g => [g[0], g[1], g[2].filter(x => lab[x])]).filter(g => g[2].length); const gi = Math.max(0, NG.findIndex(g => g[2].includes(k)));
   $('#nav').innerHTML = NG.map((g,i) => `<button class="${i===gi?'on':''}" onclick="go('${g[2][0]}')">${g[1]} ${g[0]}</button>`).join('');
   $('#nav2').innerHTML = NG[gi][2].map(x => `<button class="${x===k?'on':''}" onclick="go('${x}')">${lab[x]}</button>`).join(''); }
+function phNorm(s){ return String(s).toLowerCase().replace(/\.[a-z0-9]+$/,'').replace(/[\s_\-.]+/g,' ').replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim(); }
+function phMatch(fn){ const n = phNorm(fn); let x = PH.all.find(i => phNorm(i.name) === n); if(x) return x; const ta = new Set(n.split(' ')); let best = null, bs = 0;
+  PH.all.forEach(i => { const tb = phNorm(i.name).split(' '), c = tb.filter(w => ta.has(w)).length, s = c / Math.max(ta.size, tb.length); if(c && s > bs){ bs = s; best = i; } }); return bs >= 0.6 ? best : null; }
+function phPick(){ PH.files = Array.from($('#ph_f').files || []); $('#ph_l').innerHTML = PH.files.map((f,i) => { const m = phMatch(f.name); return `<div class="card"><div class="row"><img src="${URL.createObjectURL(f)}" style="width:56px;height:56px;object-fit:cover;border-radius:8px"><span class="mut" style="word-break:break-all">${esc(f.name)}</span></div><input id="ph-a-${i}" list="ph_dl" placeholder="Type to choose the item" value="${m ? esc(m.label) : ''}"><div id="ph-s-${i}" class="mut">${m ? '✓ matched' : '⚠ choose an item, or it will be skipped'}</div></div>`; }).join(''); $('#ph_go').style.display = PH.files.length ? '' : 'none'; $('#ph_s').textContent = PH.files.length + ' picture(s) selected'; }
+function phResize(f){ return new Promise((res, rej) => { const u = URL.createObjectURL(f), im = new Image(); im.onload = () => { const s = Math.min(1, 900 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * s); c.height = Math.round(im.height * s); const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(im, 0, 0, c.width, c.height); c.toBlob(b => { URL.revokeObjectURL(u); b ? res(b) : rej(Error('Could not read the picture')); }, 'image/jpeg', 0.82); }; im.onerror = () => rej(Error('Not a picture')); im.src = u; }); }
+async function phGo(){ let ok = 0, skip = 0, bad = 0; $('#ph_go').disabled = true;
+  for(let i = 0; i < PH.files.length; i++){ const st = $('#ph-s-' + i), it = PH.map[($('#ph-a-' + i).value || '').trim()];
+    if(!it){ skip++; st.textContent = '– skipped (no item chosen)'; continue; }
+    st.textContent = 'Uploading…';
+    try { const b = await phResize(PH.files[i]), food = it.t === 'food', bucket = food ? 'food-images' : 'product-images', path = (food ? 'f' : 'p') + String(it.id).replace(/[^\w-]/g, '_') + '-' + Date.now() + '.jpg';
+      const up = await db.storage.from(bucket).upload(path, b, {contentType:'image/jpeg'}); if(up.error) throw up.error;
+      const url = db.storage.from(bucket).getPublicUrl(path).data.publicUrl, r = await db.from(food ? 'food_items' : 'products').update({image_url:url}).eq('id', it.id); if(r.error) throw r.error;
+      ok++; st.textContent = '✓ saved to ' + it.label; }
+    catch(e){ bad++; st.textContent = '✗ ' + e.message; }
+    $('#ph_s').textContent = 'Done ' + (i + 1) + ' of ' + PH.files.length; }
+  $('#ph_go').disabled = false; toast(ok + ' photo(s) saved' + (bad ? ', ' + bad + ' failed' : '') + (skip ? ', ' + skip + ' skipped' : ''), !!bad); }
 async function go(k){
   navFor(k);
   $('#view').innerHTML = '<p class="mut">Loading…</p>';
@@ -508,6 +524,16 @@ const VIEWS = {
       <div class="card"><div class="grid2"><input id="bd_d" type="number" min="0" max="90" placeholder="Discount % (e.g. 10)" oninput="bdDraw()"><input id="bd_m" type="number" placeholder="or set the bundle price UGX" oninput="bdDraw()"></div><div id="bd_s" class="gold"></div>
       <label class="mut">Photo (optional)</label><input id="bd_f" type="file" accept="image/*"><button onclick="bdCreate()">Create bundle</button></div>`;
     bdFilter(); bdDraw();
+  },
+
+  async photos(){
+    const [f,p] = await Promise.all([db.from('food_items').select('id,name').order('name'), db.from('products').select('id,name').order('name')]);
+    const all = []; (f.data||[]).forEach(x => all.push({t:'food', id:x.id, name:x.name, label:'Food: ' + x.name})); (p.data||[]).forEach(x => all.push({t:'shop', id:x.id, name:x.name, label:'Shop: ' + x.name}));
+    window.PH = {all, map:{}, files:[]}; all.forEach(x => PH.map[x.label] = x);
+    $('#view').innerHTML = `<h2>Bulk photo upload</h2><p class="mut">1. Tap <b>Choose photos</b> and select as many pictures as you like.<br>2. Each picture is matched to a food item or shop product by its file name (for example <i>Tomatoes.jpg</i> goes to Tomatoes). Fix any wrong or empty match by typing the item name.<br>3. Tap <b>Upload all</b>. Pictures are made smaller automatically so the app stays fast.</p>
+      <datalist id="ph_dl">${all.map(x => `<option value="${esc(x.label)}">`).join('')}</datalist>
+      <input id="ph_f" type="file" accept="image/*" multiple style="display:none" onchange="phPick()"><button onclick="$('#ph_f').click()">📷 Choose photos</button>
+      <div id="ph_l"></div><button id="ph_go" style="display:none" onclick="phGo()">⬆️ Upload all</button><div id="ph_s" class="mut"></div>`;
   },
 
   async promos(){
