@@ -26,6 +26,8 @@ var catP = Promise.all([api('categories?select=*&order=sort_order'), api('produc
 catP.then(function(res){
   var cs = res[0], ps = res[1];
   if(!cs || !cs.length || !ps || !ps.length) return;
+  var WC = window.WING_CATS;
+  if(WC){ cs = cs.filter(function(c){ return WC.indexOf(c.key) > -1; }); ps = ps.filter(function(p){ return WC.indexOf(p.category_key) > -1; }); }
   var order = {}; cs.forEach(function(c, i){ order[c.key] = i; });
   ps.sort(function(a, b){ return (order[a.category_key] - order[b.category_key]) || a.id.localeCompare(b.id, undefined, {numeric:true}); });
   CATEGORIES.length = 0;
@@ -33,6 +35,7 @@ catP.then(function(res){
   cs.forEach(function(c){ CATEGORIES.push({key:c.key, label:c.label, thumb:c.thumb_url}); if(c.note) CATEGORY_NOTES[c.key] = c.note; });
   PRODUCTS.length = 0;
   ps.forEach(function(p){ PRODUCTS.push({id:p.id, cat:p.category_key, sub:p.subcategory || undefined, name:p.name, price:p.price_ugx, img:p.image_url, real:p.verified_photo, 'new':p.is_new, inStock:p.in_stock !== false}); });
+  if(WC && cs.length && WC.indexOf(activeCat) < 0) activeCat = cs[0].key; document.documentElement.classList.add('wing-ready');
   ['renderTabs', 'renderProducts', 'updateCartUI'].forEach(function(f){ try { if(window[f]) window[f](); } catch(e){} });
 }).catch(function(e){ console.warn('Velos: using built-in catalog', e); });
 
