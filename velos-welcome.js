@@ -38,9 +38,7 @@ function onboard(){if(L('v_ob'))return;var o=document.createElement('div');o.id=
   var d=o.firstChild;if(!W.VelosPWA||VelosPWA.status()!=='default'){L('v_ob','1');o.remove();location.reload();return}
   d.innerHTML='<h2>Stay updated</h2><p style="color:#a3adc6">Allow notifications for order updates, offers and festive deals.</p><button id="va">Allow notifications</button><button class="g" id="vk">Not now</button>';
   var fin=function(){L('v_ob','1');o.remove();location.reload()};document.getElementById('va').onclick=function(){VelosPWA.ask().then(fin)};document.getElementById('vk').onclick=fin}}
-function splash(){var show=standalone?!sessionStorage.vs:!L('v_seen');if(!show){return false}try{sessionStorage.vs=1}catch(e){}L('v_seen','1');
- var s=document.createElement('div');s.id='vsp';s.innerHTML='<img src="logo.png" alt="The Velos Group"><b style="animation-delay:.8s">Anything.</b><b style="animation-delay:1.3s">Anywhere.</b><b style="animation-delay:1.8s"><i>Precisely.</i></b>';document.body.appendChild(s);
- setTimeout(function(){s.style.opacity=0;setTimeout(function(){s.remove();onboard()},600)},3000);return true}
+function splash(){var sp=document.getElementById('vsp');if(sp){addEventListener('velos-splash-done',onboard);return true}return false}
 function promo(t,u){if(!t||u&&u<new Date().toISOString().slice(0,10))return;t.split('|').forEach(function(x){x=x.trim();if(x)TK.push('🔥 '+x)})}
 function go(){wa();if(!splash())onboard();var P={};
  function fin(){ov=P.site_festive||'auto';applySeason();promo(P.site_promo_text,P.site_promo_until);build()}
