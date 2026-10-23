@@ -77,7 +77,7 @@ async function boot(){
   go('home');
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['bundles','Combos & bundles'],['photos','Bulk photos'],['settings','Settings'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['bundles','Combos & bundles'],['photos','Photos'],['settings','Settings'],['import','Import']];
 function alCopy(i){ const u = AL[i][1]; (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('Link copied'), () => { prompt('Copy this link', u); }); }
 function alShare(i){ const a = AL[i]; if(navigator.share) navigator.share({title:a[0], text:'Install the Velos '+a[0], url:a[1]}).catch(()=>{}); else alCopy(i); }
 async function savePromos(){
@@ -102,20 +102,34 @@ const GROUPS = [['Overview','📊',['home','report','inq','messages']],['Orders'
 function navFor(k){ const lab = Object.fromEntries(TB.map(t => [t[0], t[1]])); window.NG = GROUPS.map(g => [g[0], g[1], g[2].filter(x => lab[x])]).filter(g => g[2].length); const gi = Math.max(0, NG.findIndex(g => g[2].includes(k)));
   $('#nav').innerHTML = NG.map((g,i) => `<button class="${i===gi?'on':''}" onclick="go('${g[2][0]}')">${g[1]} ${g[0]}</button>`).join('');
   $('#nav2').innerHTML = NG[gi][2].map(x => `<button class="${x===k?'on':''}" onclick="go('${x}')">${lab[x]}</button>`).join(''); }
+const PH_ACC = '.jpg,.jpeg,.png,.webp,.gif,.bmp,.avif,.heic,.heif,image/*';
 function phNorm(s){ return String(s).toLowerCase().replace(/\.[a-z0-9]+$/,'').replace(/[\s_\-.]+/g,' ').replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim(); }
 function phMatch(fn){ const n = phNorm(fn); let x = PH.all.find(i => phNorm(i.name) === n); if(x) return x; const ta = new Set(n.split(' ')); let best = null, bs = 0;
   PH.all.forEach(i => { const tb = phNorm(i.name).split(' '), c = tb.filter(w => ta.has(w)).length, s = c / Math.max(ta.size, tb.length); if(c && s > bs){ bs = s; best = i; } }); return bs >= 0.6 ? best : null; }
-function phPick(){ PH.files = Array.from($('#ph_f').files || []); $('#ph_l').innerHTML = PH.files.map((f,i) => { const m = phMatch(f.name); return `<div class="card"><div class="row"><img src="${URL.createObjectURL(f)}" style="width:56px;height:56px;object-fit:cover;border-radius:8px"><span class="mut" style="word-break:break-all">${esc(f.name)}</span></div><input id="ph-a-${i}" list="ph_dl" placeholder="Type to choose the item" value="${m ? esc(m.label) : ''}"><div id="ph-s-${i}" class="mut">${m ? '✓ matched' : '⚠ choose an item, or it will be skipped'}</div></div>`; }).join(''); $('#ph_go').style.display = PH.files.length ? '' : 'none'; $('#ph_s').textContent = PH.files.length + ' picture(s) selected'; }
-function phResize(f){ return new Promise((res, rej) => { const u = URL.createObjectURL(f), im = new Image(); im.onload = () => { const s = Math.min(1, 900 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * s); c.height = Math.round(im.height * s); const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(im, 0, 0, c.width, c.height); c.toBlob(b => { URL.revokeObjectURL(u); b ? res(b) : rej(Error('Could not read the picture')); }, 'image/jpeg', 0.82); }; im.onerror = () => rej(Error('Not a picture')); im.src = u; }); }
+function phIsTile(x){ return !x.img || /^data:/.test(x.img); }
+function phList(){ const q = ($('#ph_q').value || '').toLowerCase(), t = $('#ph_t').value, only = $('#ph_n').checked;
+  const L = PH.all.map((x,i) => [x,i]).filter(([x]) => (!t || x.t === t) && (!only || phIsTile(x)) && (!q || x.label.toLowerCase().includes(q)));
+  $('#ph_list').innerHTML = L.slice(0, PH.lim).map(([x,i]) => `<div class="row" style="align-items:center;margin:6px 0"><img src="${esc(x.img||'')}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;background:#1a2244"><span style="flex:1">${esc(x.label)}</span><button onclick="phOne(${i})">📷</button></div>`).join('') + (L.length > PH.lim ? `<button class="ghost" onclick="PH.lim+=30;phList()">Show more (${L.length - PH.lim} left)</button>` : '') + (L.length ? '' : '<p class="mut">Nothing to show. Untick the box above to see all items.</p>'); }
+function phOne(i){ PH.one = i; const f = $('#ph_one'); f.value = ''; f.click(); }
+async function phOneDone(){ const file = $('#ph_one').files[0]; if(!file) return; const it = PH.all[PH.one]; toast('Uploading ' + it.name + '…');
+  try { await phUp(it, file); toast('Saved: ' + it.name); phList(); } catch(e){ toast(e.message || 'Upload failed', true); } }
+function phResize(f){ return new Promise((res, rej) => { const u = URL.createObjectURL(f), im = new Image(); im.onload = () => { const s = Math.min(1, 900 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * s); c.height = Math.round(im.height * s); const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(im, 0, 0, c.width, c.height); c.toBlob(b => { URL.revokeObjectURL(u); b ? res(b) : rej(Error('Could not read the picture')); }, 'image/jpeg', 0.85); }; im.onerror = () => rej(Error('Not readable')); im.src = u; }); }
+async function phUp(it, file){ let b; try { b = await phResize(file); } catch(e){ if(/^image\/(jpeg|png|webp)$/.test(file.type)) b = file; else throw Error('This picture format cannot be read here. Please use JPG or PNG.'); }
+  const food = it.t === 'food', bucket = food ? 'food-images' : 'product-images', path = (food ? 'f' : 'p') + String(it.id).replace(/[^\w-]/g, '_') + '-' + Date.now() + '.jpg';
+  const up = await db.storage.from(bucket).upload(path, b, {contentType:b.type || 'image/jpeg'}); if(up.error) throw up.error;
+  const url = db.storage.from(bucket).getPublicUrl(path).data.publicUrl, r = await db.from(food ? 'food_items' : 'products').update({image_url:url}).eq('id', it.id); if(r.error) throw r.error; it.img = url; }
+function phPick(){ PH.files = Array.from($('#ph_f').files || []); PH.sel = PH.files.map(f => phMatch(f.name));
+  $('#ph_l').innerHTML = PH.files.map((f,i) => `<div class="card"><div class="row"><img src="${URL.createObjectURL(f)}" style="width:56px;height:56px;object-fit:cover;border-radius:8px"><span class="mut" style="word-break:break-all">${esc(f.name)}</span></div><input id="ph-a-${i}" placeholder="Type the item name to choose it" value="${PH.sel[i] ? esc(PH.sel[i].label) : ''}" oninput="phSug(${i})"><div id="ph-g-${i}"></div><div id="ph-s-${i}" class="mut">${PH.sel[i] ? '✓ matched' : '⚠ choose an item, or it will be skipped'}</div></div>`).join('');
+  $('#ph_go').style.display = PH.files.length ? '' : 'none'; phCount(); }
+function phCount(){ const m = PH.sel.filter(Boolean).length; $('#ph_s').textContent = PH.files.length + ' picture(s): ' + m + ' matched, ' + (PH.files.length - m) + ' need an item'; }
+function phSug(i){ const v = $('#ph-a-' + i).value.trim(), q = v.toLowerCase(); PH.sel[i] = PH.map[v] || null; $('#ph-s-' + i).textContent = PH.sel[i] ? '✓ matched' : '⚠ choose an item, or it will be skipped';
+  $('#ph-g-' + i).innerHTML = (!PH.sel[i] && q.length > 1) ? PH.all.map((x,k) => [x,k]).filter(([x]) => x.label.toLowerCase().includes(q)).slice(0,6).map(([x,k]) => `<button class="ghost" style="display:block;width:100%;text-align:left;margin:3px 0" onclick="phSet(${i},${k})">${esc(x.label)}</button>`).join('') : ''; phCount(); }
+function phSet(i, k){ PH.sel[i] = PH.all[k]; $('#ph-a-' + i).value = PH.all[k].label; $('#ph-g-' + i).innerHTML = ''; $('#ph-s-' + i).textContent = '✓ matched'; phCount(); }
 async function phGo(){ let ok = 0, skip = 0, bad = 0; $('#ph_go').disabled = true;
-  for(let i = 0; i < PH.files.length; i++){ const st = $('#ph-s-' + i), it = PH.map[($('#ph-a-' + i).value || '').trim()];
+  for(let i = 0; i < PH.files.length; i++){ const st = $('#ph-s-' + i), it = PH.sel[i];
     if(!it){ skip++; st.textContent = '– skipped (no item chosen)'; continue; }
     st.textContent = 'Uploading…';
-    try { const b = await phResize(PH.files[i]), food = it.t === 'food', bucket = food ? 'food-images' : 'product-images', path = (food ? 'f' : 'p') + String(it.id).replace(/[^\w-]/g, '_') + '-' + Date.now() + '.jpg';
-      const up = await db.storage.from(bucket).upload(path, b, {contentType:'image/jpeg'}); if(up.error) throw up.error;
-      const url = db.storage.from(bucket).getPublicUrl(path).data.publicUrl, r = await db.from(food ? 'food_items' : 'products').update({image_url:url}).eq('id', it.id); if(r.error) throw r.error;
-      ok++; st.textContent = '✓ saved to ' + it.label; }
-    catch(e){ bad++; st.textContent = '✗ ' + e.message; }
+    try { await phUp(it, PH.files[i]); ok++; st.textContent = '✓ saved to ' + it.label; } catch(e){ bad++; st.textContent = '✗ ' + (e.message || 'failed'); }
     $('#ph_s').textContent = 'Done ' + (i + 1) + ' of ' + PH.files.length; }
   $('#ph_go').disabled = false; toast(ok + ' photo(s) saved' + (bad ? ', ' + bad + ' failed' : '') + (skip ? ', ' + skip + ' skipped' : ''), !!bad); }
 async function go(k){
@@ -527,13 +541,16 @@ const VIEWS = {
   },
 
   async photos(){
-    const [f,p] = await Promise.all([db.from('food_items').select('id,name').order('name'), db.from('products').select('id,name').order('name')]);
-    const all = []; (f.data||[]).forEach(x => all.push({t:'food', id:x.id, name:x.name, label:'Food: ' + x.name})); (p.data||[]).forEach(x => all.push({t:'shop', id:x.id, name:x.name, label:'Shop: ' + x.name}));
-    window.PH = {all, map:{}, files:[]}; all.forEach(x => PH.map[x.label] = x);
-    $('#view').innerHTML = `<h2>Bulk photo upload</h2><p class="mut">1. Tap <b>Choose photos</b> and select as many pictures as you like.<br>2. Each picture is matched to a food item or shop product by its file name (for example <i>Tomatoes.jpg</i> goes to Tomatoes). Fix any wrong or empty match by typing the item name.<br>3. Tap <b>Upload all</b>. Pictures are made smaller automatically so the app stays fast.</p>
-      <datalist id="ph_dl">${all.map(x => `<option value="${esc(x.label)}">`).join('')}</datalist>
-      <input id="ph_f" type="file" accept="image/*" multiple style="display:none" onchange="phPick()"><button onclick="$('#ph_f').click()">📷 Choose photos</button>
-      <div id="ph_l"></div><button id="ph_go" style="display:none" onclick="phGo()">⬆️ Upload all</button><div id="ph_s" class="mut"></div>`;
+    const [f,p] = await Promise.all([db.from('food_items').select('id,name,image_url').order('name'), db.from('products').select('id,name,image_url').order('name')]);
+    const all = []; (f.data||[]).forEach(x => all.push({t:'food', id:x.id, name:x.name, img:x.image_url, label:'Food: ' + x.name})); (p.data||[]).forEach(x => all.push({t:'shop', id:x.id, name:x.name, img:x.image_url, label:'Shop: ' + x.name}));
+    window.PH = {all, map:{}, files:[], sel:[], one:null, lim:30}; all.forEach(x => PH.map[x.label] = x);
+    $('#view').innerHTML = `<h2>Photos</h2>
+      <div class="card"><b>A. Add a photo to one item</b><p class="mut">Works with any picture name. Find the item, tap 📷, then take a photo or choose one from your gallery.</p>
+      <div class="row"><select id="ph_t" onchange="PH.lim=30;phList()"><option value="">Food and Shop</option><option value="food">Food only</option><option value="shop">Shop only</option></select><label class="mut"><input id="ph_n" type="checkbox" checked onchange="PH.lim=30;phList()" style="width:auto"> Only items without a real photo</label></div>
+      <input id="ph_q" placeholder="Search items…" oninput="PH.lim=30;phList()"><input id="ph_one" type="file" accept="${PH_ACC}" style="display:none" onchange="phOneDone()"><div id="ph_list"></div></div>
+      <div class="card"><b>B. Upload many at once (match by file name)</b><p class="mut">Name the pictures like the items (for example <i>Tomatoes.jpg</i>). Check the matches, fix any that are wrong, then upload. JPG, PNG, WebP, GIF, BMP and AVIF are accepted.</p>
+      <input id="ph_f" type="file" accept="${PH_ACC}" multiple style="display:none" onchange="phPick()"><button onclick="$('#ph_f').click()">📷 Choose many photos</button><div id="ph_l"></div><button id="ph_go" style="display:none" onclick="phGo()">⬆️ Upload all matched</button><div id="ph_s" class="mut"></div></div>`;
+    phList();
   },
 
   async promos(){
@@ -637,8 +654,7 @@ const VIEWS = {
       <details class="card"><summary class="gold">+ Add item</summary><input id="ni_n" placeholder="Item name *"><textarea id="ni_d" placeholder="Description"></textarea><div class="grid2"><input id="ni_p" type="number" placeholder="Price UGX (restaurant base price) *"><select id="ni_u"><option value="item">Per item</option><option value="kg">Per kg (decimals allowed)</option></select></div>
       <div class="grid2"><input id="ni_s" type="number" step="0.1" placeholder="Step (1 or 0.1)" value="1"><input id="ni_m" type="number" step="0.1" placeholder="Minimum qty" value="1"></div><div class="grid2"><select id="ni_c"><option value="">— Category —</option>${FC.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select><input id="ni_nc" placeholder="…or a new category"></div>
       <input id="ni_t" type="number" placeholder="Preparation minutes" value="20"><input id="ni_o" placeholder="Side options, comma separated (e.g. Chips, Rice, Salad). Optional"><label class="mut">Photo</label><input id="ni_f" type="file" accept="image/*"><button onclick="addFood()">Add item</button></details>
-      <details class="card"><summary class="gold">📷 Bulk photo import (menu pictures)</summary><p class="mut">Unzip the menu photo files on your phone, then select many pictures at once. Each one is uploaded and matched to its menu item automatically. You can repeat with the remaining pictures.</p>
-      <input id="bp_f" type="file" accept="image/*" multiple><button onclick="bulkPhotos()">Upload and match</button><pre id="bp_log" class="mut" style="white-space:pre-wrap"></pre></details>
+      <details class="card"><summary class="gold">📷 Photos</summary><p class="mut">All photo uploads are now in one place, and they work with any picture name.</p><button onclick="go('photos')">Open Photos</button></details>
       <input id="fq" placeholder="Search items…" oninput="drawF()"><div id="flist"></div><button class="ghost" onclick="FLIM=(window.FLIM||60)+100;drawF()">Show more items</button>`; drawF();
   },
 
