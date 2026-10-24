@@ -28,6 +28,7 @@ catP.then(function(res){
   if(!cs || !cs.length || !ps || !ps.length) return;
   var WC = window.WING_CATS;
   if(WC){ cs = cs.filter(function(c){ return WC.indexOf(c.key) > -1; }); ps = ps.filter(function(p){ return WC.indexOf(p.category_key) > -1; }); }
+  var EX = window.SHOP_EXCLUDE; if(EX){ cs = cs.filter(function(c){ return EX.indexOf(c.key) < 0; }); ps = ps.filter(function(p){ return EX.indexOf(p.category_key) < 0; }); }
   var order = {}; cs.forEach(function(c, i){ order[c.key] = i; });
   ps.sort(function(a, b){ return (order[a.category_key] - order[b.category_key]) || a.id.localeCompare(b.id, undefined, {numeric:true}); });
   CATEGORIES.length = 0;
@@ -593,16 +594,16 @@ function dom(){
   if(document.body.getAttribute('data-page') === 'gifts'){
     var host = document.querySelector('main') || document.querySelector('.container') || document.body, g = document.createElement('a');
     g.href = 'gift-request.html';
-    g.innerHTML = '<b style="font-size:17px;font-family:Georgia,serif">🎁 Any gift, any budget</b><br><span style="font-size:14px">Tell us the occasion and budget, or the gift you have in mind. We source it for you, anywhere. Tap to start →</span>';
+    g.innerHTML = '<b style="font-size:17px;font-family:Georgia,serif">🎁 Any gift, any budget</b><br><span style="font-size:14px">Tell us the occasion and budget, or the gift you have in mind. We source it for you, anywhere. Tap to start</span>';
     g.style.cssText = 'display:block;margin:16px;padding:16px;border:1px solid #e8c766;border-radius:14px;background:#0f1730;color:#f4f1ea;text-decoration:none';
     host.insertBefore(g, host.firstChild);
   }
   var ft = document.querySelector('footer');
-  if(ft){ var lk = document.createElement('div'); lk.style.cssText = 'text-align:center;padding:10px;font-size:13px'; lk.innerHTML = '<a href="terms.html" style="color:#e8c766">Terms &amp; Conditions</a> · <a href="privacy.html" style="color:#e8c766">Privacy Policy</a> · <a href="foods.html" style="color:#e8c766">Velos Foods</a> · <a href="agent.html" style="color:#e8c766">Sales agents</a> · <a href="security-partners.html" style="color:#e8c766">Security partners</a> · <a href="partner.html" style="color:#e8c766">Partner login</a>'; ft.appendChild(lk); }
+  if(ft){ var lk = document.createElement('div'); lk.style.cssText = 'text-align:center;padding:10px;font-size:13px'; lk.innerHTML = '<a href="terms.html" style="color:#e8c766">Terms &amp; Conditions</a> · <a href="privacy.html" style="color:#e8c766">Privacy Policy</a> · <a href="foods.html" style="color:#e8c766">Velos Foods</a> · <a href="fashion.html" style="color:#e8c766">Fashions &amp; Beauty</a> · <a href="careers.html" style="color:#e8c766">Careers</a>'; ft.appendChild(lk); }
   var last = null; try { last = localStorage.getItem('velosLast'); } catch(x){}
   if(last && !/track\.html|book-service/.test(location.pathname)){
-    var a = document.createElement('a'); a.href = 'track.html?o=' + last; a.textContent = 'Track ' + (last[0] === 'S' ? 'request ' : 'order #') + last.slice(1) + ' →';
-    a.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:9999;background:#0f1730;color:#e8c766;border:1px solid #2a3560;border-radius:99px;padding:9px 14px;font:600 13px system-ui;text-decoration:none';
+    var a = document.createElement('a'); a.href = 'track.html?o=' + last; a.textContent = 'Track ' + (last[0] === 'S' ? 'request ' : 'order #') + last.slice(1);
+    a.style.cssText = 'position:fixed;left:12px;bottom:96px;z-index:900;background:#0f1730;color:#e8c766;border:1px solid #2a3560;border-radius:99px;padding:9px 14px;font:600 13px system-ui;text-decoration:none';
     document.body.appendChild(a);
   }
 }

@@ -569,3 +569,9 @@
   .wing-card .wg-go{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--gold-1); text-transform:uppercase; letter-spacing:0.06em; display:flex; align-items:center; gap:6px; }
   .wing-card .wg-go svg{ width:13px; height:13px; transition:transform .16s ease; }
   .wing-card:hover .wg-go svg{ transform:translateX(3px); }
+
+/* VELOS refinement: clear labelled buttons instead of arrows */
+.wg-go svg,.cat-tile-go svg,.svc-link svg,.btn-primary svg,.btn-secondary svg{display:none!important}
+.wg-go{display:inline-block!important;margin-top:14px;padding:9px 20px;border:1px solid var(--gold-1,#e8c766);border-radius:3px;color:var(--gold-1,#e8c766)!important;font:600 11px 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase}
+.wing-card:hover .wg-go{background:var(--gold-1,#e8c766);color:#0a1230!important}
+.cat-tile-go{display:inline-block!important;margin:2px 14px 14px;padding:7px 14px;border:1px solid rgba(232,199,102,.55);border-radius:3px;font-size:10.5px!important}
