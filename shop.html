@@ -59,7 +59,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
-<link rel="manifest" href="manifest-site.json"><meta name="theme-color" content="#03113e"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="supabase-config.js" defer></script><script src="velos-pwa.js" defer></script><script src="velos-welcome.js" defer></script><script src="velos-search.js" defer></script></head>
+<link rel="manifest" href="manifest-site.json"><meta name="theme-color" content="#03113e"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="supabase-config.js" defer></script><script src="velos-pwa.js" defer></script><script src="velos-welcome.js" defer></script><script src="velos-search.js" defer></script><link rel="stylesheet" href="velos-shop.css"><script src="velos-shop-ui.js" defer></script></head>
 <body data-page="shop">
 
 <header>
@@ -108,29 +108,17 @@
 
 <section id="shop">
   <div class="wrap">
-    <div class="div-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#e8c766" stroke-width="1.6"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 18h6"/></svg>
-    </div>
-    <div class="page-hero" id="pageHero"></div>
-
-    <div class="section-head">
-      <div class="eyebrow">Velos Global Shop — Active Division</div>
-      <h2>Explore & Order Online</h2>
-      <p>Smartphones, laptops, smart TVs, home theater & audio, kitchen appliances, cameras, phone accessories, furniture, and hotel supply — sourced through direct institutional channels to eliminate gray-market risk. Add items to your cart and send your order straight to our dispatch desk on WhatsApp — zero upfront payment on retail orders until you've physically verified the product yourself. Wholesale and bulk buyers (minimum order quantities noted per category) receive institutional pricing.</p>
-    </div>
-    <div class="shop-trust-strip">
-      <div class="shop-trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg><span>Verified Product Sourcing</span></div>
-      <div class="shop-trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg><span>Cash on Delivery — Inspect Before You Pay</span></div>
-      <div class="shop-trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span>24/7 Dispatch Response</span></div>
-      <div class="shop-trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"/></svg><span>Institutional Wholesale Pricing</span></div>
-    </div>
-
-    <div class="section-subhead">Shop by Category</div>
-    <div class="cat-tile-grid" id="categoryTiles"></div>
-
-    <div class="tabs" id="tabBar"></div>
-
-    <div class="shop-toolbar">
+    </div><div class="vs-hero" style="--hero:url('shop-hero.jpg')"><img class="vs-mark" src="icon-512.png" alt="" aria-hidden="true"><div class="vs-hero-in"><div class="vs-eyebrow">VELOS GLOBAL SHOP</div><h1>Premium products.<br>Sourced with precision.</h1><p>Phones, laptops, appliances, school supplies, bedding, drinks and more. Verified quality, transparent pricing and reliable delivery.</p><div class="vs-btns"><a class="vs-btn" href="#catalog">Shop the collection &rarr;</a><a class="vs-link" href="contact.html">How Velos works &rarr;</a></div></div></div>
+<div class="vs-trust"><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg><p style="margin:0"><b>Verified suppliers</b><span>Authentic products. Trusted sources.</span></p></div><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg><p style="margin:0"><b>Quality checked</b><span>Inspected before it reaches you.</span></p></div><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><p style="margin:0"><b>Secure ordering</b><span>Your data. Our priority.</span></p></div><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.5"/><circle cx="17" cy="17.5" r="1.5"/></svg><p style="margin:0"><b>Delivery coordination</b><span>From source to your door.</span></p></div></div>
+<div class="wrap">
+<div class="page-hero" id="pageHero" style="margin-top:36px"></div>
+<div class="vs-head"><h2>Shop by category</h2><a href="#catalog">Browse all &rarr;</a></div>
+<div class="cat-tile-grid" id="categoryTiles"></div>
+<div id="featuredWrap"><div class="vs-head"><h2>The Velos Edit</h2><span>Featured products</span></div><div class="product-grid" id="bestSellers"></div></div>
+<div id="catalog" style="scroll-margin-top:90px"></div>
+<div class="vs-head"><h2>Full catalogue</h2><span>Everything in one place</span></div>
+<div class="tabs" id="tabBar"></div>
+<div class="shop-toolbar">
       <div class="shop-search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
         <input type="text" id="shopSearchInput" placeholder="Search this category — e.g. 'Samsung', '55 inch', 'iPhone 15'" oninput="renderProducts()">
@@ -153,14 +141,15 @@
       <p><b>Ordering more than one unit?</b> Ask about bulk pricing — discounts are available on qualifying wholesale orders (see minimum order quantities in each category). <b>Can't find what you're looking for?</b> Send us an inquiry — Velos Global Shop also sources custom orders internationally on request, including brands and specs not shown here.</p>
       <a class="btn-secondary" href="https://wa.me/256755215751?text=Hello%20Velos%20Global%20Electronics%2C%20I%20have%20a%20product%20inquiry%20%2F%20custom%20sourcing%20request." target="_blank" rel="noopener">Send an Inquiry</a>
     </div>
+  <div class="vs-sourcing"><div><h3>Buying from abroad? We handle the details.</h3><p>From sourcing to shipping, customs and delivery, we make global shopping simple, safe and seamless.</p></div><a class="vs-btn" href="https://wa.me/256755215751?text=Hello%20Velos%2C%20I%20would%20like%20help%20sourcing%20a%20product." target="_blank" rel="noopener">Talk to a specialist &rarr;</a></div>
   </div>
 </section>
-<footer>
-  <div class="wrap">
-    <span class="mono">© 2026 THE VELOS GROUP — All rights reserved.</span>
-    <span class="mono">info@thevelosgroup.com · dispatch@thevelosgroup.com · +256 755 215 751 · Kampala, Uganda</span>
-  </div>
-</footer>
+<footer class="vs-footer"><div class="vs-footer-in"><div><div class="brand"><img src="logo.png" alt="The Velos Group"><div><b>THE VELOS GROUP</b><small>ANYTHING. ANYWHERE. PRECISELY.</small></div></div><p style="color:#8f9bbb;font-size:13px;margin:0">Kampala, Uganda</p></div>
+<div><h5>Shop</h5><a href="shop.html">Velos Global Shop</a><a href="fashion.html">Fashions &amp; Beauty</a><a href="foods.html">Velos Foods</a><a href="gifts.html">Gift Concierge</a></div>
+<div><h5>Support</h5><a href="track.html">Track order</a><a href="contact.html">Contact &amp; dispatch</a><a href="terms.html">Terms</a><a href="privacy.html">Privacy policy</a></div>
+<div><h5>Company</h5><a href="about.html">About &amp; governance</a><a href="services.html">Global services</a><a href="technicians.html">Technician network</a><a href="designs.html">Global designs</a></div>
+<div><h5>Get in touch</h5><a href="https://wa.me/256755215751" target="_blank" rel="noopener">💬 WhatsApp +256 755 215 751</a><a href="mailto:info@thevelosgroup.com">info@thevelosgroup.com</a><a href="account.html">👤 My account</a></div></div>
+<div class="vs-legal"><span>&copy; 2026 THE VELOS GROUP. ALL RIGHTS RESERVED.</span><span>ANYTHING. ANYWHERE. PRECISELY.</span></div></footer>
 
 <!-- ===================== CHATBOT ===================== -->
 <div class="chat-window" id="chatWindow">
