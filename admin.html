@@ -335,7 +335,7 @@ async function payPartner(id){
   toast(error ? error.message : 'Marked paid', !!error); if(!error) go('security');
 }
 async function saveSite(){
-  const R = {site_wa:$('#sw').value.replace(/\D/g,''), site_phone:$('#sp').value.trim(), site_email:$('#se').value.trim(), site_banner_on:$('#sbo').value, site_banner_text:$('#sbt').value.trim(), site_banner_link:$('#sbl').value.trim(), site_show_foods:$('#sf').value, site_pay_mtn_number:$('#spm').value.trim(), site_pay_mtn_name:$('#spmn').value.trim(), site_pay_airtel_number:$('#spa').value.trim(), site_pay_airtel_name:$('#span').value.trim(), site_pickup_name:$('#spk').value.trim(), site_pickup_address:$('#spka').value.trim(), site_pickup_note:$('#spkn').value.trim()};
+  const R = {site_vendor_reg_fee:String(Math.max(0,Number($('#svrf').value)||0)), site_wa:$('#sw').value.replace(/\D/g,''), site_phone:$('#sp').value.trim(), site_email:$('#se').value.trim(), site_banner_on:$('#sbo').value, site_banner_text:$('#sbt').value.trim(), site_banner_link:$('#sbl').value.trim(), site_show_foods:$('#sf').value, site_pay_mtn_number:$('#spm').value.trim(), site_pay_mtn_name:$('#spmn').value.trim(), site_pay_airtel_number:$('#spa').value.trim(), site_pay_airtel_name:$('#span').value.trim(), site_pickup_name:$('#spk').value.trim(), site_pickup_address:$('#spka').value.trim(), site_pickup_note:$('#spkn').value.trim()};
   for(const k in R){ const {error} = await db.from('settings').upsert({key:k, value:R[k]}); if(error) return toast(error.message, true); }
   toast('Website settings saved');
 }
@@ -605,7 +605,8 @@ const VIEWS = {
     const [f,p] = await Promise.all([db.from('food_items').select('id,name,image_url').order('name'), db.from('products').select('id,name,image_url').order('name')]);
     const all = []; (f.data||[]).forEach(x => all.push({t:'food', id:x.id, name:x.name, img:x.image_url, label:'Food: ' + x.name})); (p.data||[]).forEach(x => all.push({t:'shop', id:x.id, name:x.name, img:x.image_url, label:'Shop: ' + x.name}));
     window.PH = {all, map:{}, files:[], sel:[], one:null, lim:30}; all.forEach(x => PH.map[x.label] = x);
-    $('#view').innerHTML = `<h2>Photos</h2>
+    const missing = all.filter(x => !x.img || /^data:/.test(x.img));
+    $('#view').innerHTML = `<h2>Photos</h2><div class="card"><b>Catalogue image status</b><div class="stats"><div class="stat"><b>${all.length}</b><span class="mut">Total food + shop items</span></div><div class="stat"><b>${missing.length}</b><span class="mut">Need a photo</span></div><div class="stat"><b>${all.length-missing.length}</b><span class="mut">Have a photo URL</span></div></div><p class="mut">Upload photos directly from this admin page. You do not need to edit code or upload image files to GitHub. Use genuine item photos where possible; illustrative stock images should not be presented as a restaurant's actual dish.</p></div>
       <div class="card"><b>Bulk upload</b><p class="mut">1. Tap <b>Choose photos</b> and select all your pictures (name each picture like its item, for example <i>Tomatoes.jpg</i>).<br>2. Tap <b>Match photos</b>. Each picture finds its item by name.<br>3. Check the list, fix any that are wrong, then tap <b>Upload matched photos</b>. JPG, PNG, WebP, GIF, BMP and AVIF are accepted.</p>
       <input id="ph_f" type="file" accept="${PH_ACC}" multiple style="display:none" onchange="phPick()"><button onclick="$('#ph_f').click()">📷 Choose photos</button> <button id="ph_m" class="ghost" style="display:none" onclick="phMatchAll()">🔍 Match photos</button><div id="ph_l"></div><button id="ph_ord" class="ghost" style="display:none" onclick="phOrder()">↕ Give photos with no match the next items in order</button><button id="ph_go" style="display:none" onclick="phGo()">⬆️ Upload matched photos</button><div id="ph_s" class="mut"></div></div><div class="card"><b>Add a photo to one item</b><p class="mut">Works with any picture name. Find the item, tap 📷, then take a photo or choose one from your gallery.</p>
       <div class="row"><select id="ph_t" onchange="PH.lim=30;phList()"><option value="">Food and Shop</option><option value="food">Food only</option><option value="shop">Shop only</option></select><label class="mut"><input id="ph_n" type="checkbox" checked onchange="PH.lim=30;phList()" style="width:auto"> Only items without a real photo</label></div>
@@ -704,7 +705,7 @@ const VIEWS = {
       <label class="mut">Deposit for single-item orders (%)</label><input id="rs" type="number" value="${esc(v('rule_deposit_single_pct')||30)}">
       <label class="mut">Deposit for bulk orders (%)</label><input id="rb" type="number" value="${esc(v('rule_deposit_bulk_pct')||70)}">
       <label class="mut">Bulk means this many units of one item or more</label><input id="rm" type="number" value="${esc(v('rule_bulk_min_units')||5)}"><button onclick="saveRules()">Save rules</button></div>
-      <h2>Website settings</h2><div class="card"><p class="mut">Changes show on the live website straight away.</p>
+      <h2>Website settings</h2><div class="card"><p class="mut">Changes show on the live website straight away.</p><label class="mut">Restaurant registration fee (UGX) — set to 0 for free registration</label><input id="svrf" type="number" min="0" step="1000" value="${esc(v('site_vendor_reg_fee')===''?0:v('site_vendor_reg_fee'))}"><p class="mut">Launch recommendation: keep this at 0 while onboarding Clover and your first pilot restaurants.</p>
       <label class="mut">WhatsApp number (digits only, with country code, e.g. 256755215751)</label><input id="sw" value="${esc(v('site_wa'))}">
       <label class="mut">Public phone number</label><input id="sp" value="${esc(v('site_phone'))}"><label class="mut">Public email</label><input id="se" value="${esc(v('site_email'))}">
       <label class="mut">Announcement banner</label><select id="sbo"><option value="0" ${v('site_banner_on')!=='1'?'selected':''}>Hidden</option><option value="1" ${v('site_banner_on')==='1'?'selected':''}>Shown at the top of every page</option></select>
@@ -757,8 +758,8 @@ const VIEWS = {
   async fvendors(){
     const [v,p] = await Promise.all([db.from('food_vendors').select('*').order('created_at',{ascending:false}), db.from('food_vendor_payouts').select('*, food_vendors(name)').order('created_at',{ascending:false}).limit(40)]);
     if(v.error) throw v.error; const d1 = new Date().toISOString().slice(0,10), d0 = new Date(Date.now()-6*864e5).toISOString().slice(0,10), adm = me.role === 'admin';
-    $('#view').innerHTML = '<h2>Restaurants and stores</h2>' + v.data.map(x => `<div class="card"><div class="row"><b>${esc(x.name)}</b><select class="sm" onchange="vStatus('${x.id}',this.value)">${['pending','active','suspended','rejected'].map(s => `<option ${s===x.status?'selected':''}>${s}</option>`).join('')}</select></div>
-      <div class="mut">${esc(x.kind)} · ${esc(x.phone||'')} · ${esc(x.address||'')} · ★ ${x.rating_avg} (${x.rating_count})</div><div class="mut">Payout: ${esc(x.payout_method||'—')} ${esc(x.payout_account||'')}</div>
+    $('#view').innerHTML = '<h2>Restaurants and stores</h2><p class="mut">Manage restaurant logos here. Logo uploads are stored in Supabase and do not require a GitHub upload.</p>' + v.data.map(x => `<div class="card"><div class="row">${x.logo_url ? `<img src="${esc(x.logo_url)}" alt="${esc(x.name)} logo" style="width:58px;height:58px;object-fit:contain;background:#fff;border-radius:12px;padding:4px">` : `<div style="width:58px;height:58px;display:grid;place-items:center;background:#18213d;border-radius:12px">🍽️</div>`}<b style="flex:1">${esc(x.name)}</b><select class="sm" onchange="vStatus('${x.id}',this.value)">${['pending','active','suspended','rejected'].map(s => `<option ${s===x.status?'selected':''}>${s}</option>`).join('')}</select></div>
+      <div class="mut">${esc(x.kind)} · ${esc(x.phone||'')} · ${esc(x.address||'')} · ★ ${x.rating_avg} (${x.rating_count})</div><div class="row"><input class="sm" type="file" accept="image/png,image/jpeg,image/webp" id="vlogo-${x.id}" style="flex:1"><button class="ghost" onclick="adminVendorLogo('${x.id}')">Upload logo</button></div><div class="mut">Payout: ${esc(x.payout_method||'—')} ${esc(x.payout_account||'')}</div>
       <div class="row"><span class="mut">Commission %</span><input class="sm" id="vc-${x.id}" type="number" step="0.5" value="${x.commission_pct}" style="width:80px"><span class="mut">Customer markup %</span><input class="sm" id="vm-${x.id}" type="number" step="0.5" value="${x.markup_pct}" style="width:80px"><button onclick="saveVendor('${x.id}')">Save</button></div>
       <div class="row"><input class="sm" id="vl-${x.id}" type="email" placeholder="Their login email" style="flex:1"><button onclick="linkFood('vendor','${x.id}','vl-${x.id}')">${x.user_id?'Re-link login':'Link login'}</button></div>
       <div class="row"><input class="sm" id="vlat-${x.id}" type="number" step="0.00001" placeholder="Latitude" value="${x.lat??''}" style="width:130px"><input class="sm" id="vlng-${x.id}" type="number" step="0.00001" placeholder="Longitude" value="${x.lng??''}" style="width:130px"><button class="ghost" onclick="saveLoc('${x.id}')">Save location</button></div>
@@ -826,6 +827,16 @@ async function addP(){
   try { if(f) row.image_url = await upImg(f, row.id); } catch(e){ return toast('Photo upload failed: ' + e.message, true); }
   const {error} = await db.from('products').insert(row);
   toast(error ? error.message : 'Product added', !!error); if(!error) go('products');
+}
+
+async function adminVendorLogo(id){
+  const f = $('#vlogo-'+id)?.files?.[0]; if(!f) return toast('Choose a logo image first.', true);
+  if(f.size>4*1024*1024) return toast('Please use a logo under 4 MB.', true);
+  try { const ext=(f.name.split('.').pop()||'png').toLowerCase().replace(/[^a-z0-9]/g,''); const path=String(id)+'/'+Date.now()+'.'+ext;
+    const up=await db.storage.from('food-logos').upload(path,f,{upsert:true,contentType:f.type}); if(up.error) throw up.error;
+    const url=db.storage.from('food-logos').getPublicUrl(path).data.publicUrl;
+    const {error}=await db.from('food_vendors').update({logo_url:url}).eq('id',id); if(error) throw error; toast('Restaurant logo updated'); go('fvendors');
+  } catch(e){ toast('Logo upload failed: '+(e.message||'Check Supabase migration and storage policies.'),true); }
 }
 
 async function upImg(f, id){
