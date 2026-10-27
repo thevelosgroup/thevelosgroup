@@ -1,8 +1,9 @@
 {
+ "id": "velos-restaurant",
  "name": "Velos Restaurant",
  "short_name": "Restaurant",
  "start_url": "./restaurant.html",
- "scope": "./",
+ "scope": "./restaurant.html",
  "display": "standalone",
  "background_color": "#080d1f",
  "theme_color": "#080d1f",

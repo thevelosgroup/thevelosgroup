@@ -1,8 +1,9 @@
 {
+ "id": "velos-security",
  "name": "Velos Security",
  "short_name": "Security",
  "start_url": "./security-partners.html",
- "scope": "./",
+ "scope": "./security-partners.html",
  "display": "standalone",
  "background_color": "#080d1f",
  "theme_color": "#080d1f",

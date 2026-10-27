@@ -1,8 +1,9 @@
 {
+ "id": "velos-partner",
  "name": "Velos Partner",
  "short_name": "Partner",
  "start_url": "./partner.html",
- "scope": "./",
+ "scope": "./partner.html",
  "display": "standalone",
  "background_color": "#080d1f",
  "theme_color": "#080d1f",

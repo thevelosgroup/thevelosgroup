@@ -1,8 +1,9 @@
 {
+ "id": "velos-agent",
  "name": "Velos Agent",
  "short_name": "Agent",
  "start_url": "./agent.html",
- "scope": "./",
+ "scope": "./agent.html",
  "display": "standalone",
  "background_color": "#080d1f",
  "theme_color": "#080d1f",

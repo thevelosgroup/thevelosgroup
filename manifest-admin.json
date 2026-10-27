@@ -1,8 +1,9 @@
 {
+ "id": "velos-admin",
  "name": "Velos Admin",
  "short_name": "Admin",
  "start_url": "./admin.html",
- "scope": "./",
+ "scope": "./admin.html",
  "display": "standalone",
  "background_color": "#080d1f",
  "theme_color": "#080d1f",

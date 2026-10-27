@@ -1,8 +1,9 @@
 {
+ "id": "velos-rider",
  "name": "Velos Rider",
  "short_name": "Rider",
  "start_url": "./rider.html",
- "scope": "./",
+ "scope": "./rider.html",
  "display": "standalone",
  "background_color": "#080d1f",
  "theme_color": "#080d1f",

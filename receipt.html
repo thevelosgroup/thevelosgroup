@@ -20,6 +20,7 @@ function draw(o){
    +'<div class="row"><span>Total paid to date</span><b>'+U(paid)+'</b></div><div class="row"><span>Balance remaining</span><b>'+(bal>0?U(bal):'Nil (fully paid)')+'</b></div>'
    +(bal>0?'<p class="m">The balance is payable on '+(o.fulfilment==='pickup'?'collection':'delivery')+'.</p>':'')
    +(o.fulfilment==='pickup'?'<p class="m"><b>Collection:</b> please bring your National ID or another valid identification document. The name must match the person who placed the order.</p>':'')
+   +'<div style="margin-top:18px"><img src="signature.png" alt="" style="height:64px;display:block" onerror="this.style.display=\'none\'"><div style="border-top:1px solid #c9cedd;width:200px;padding-top:4px" class="m">Authorised signature · The Velos Group</div></div>'
    +'<p class="m">Thank you for shopping with Velos. Questions? Contact us via WhatsApp or our contact page. Keep this receipt for your records.</p><button onclick="window.print()">Print or save as PDF</button><a class="np" href="'+(K==='food'?'food-track.html':'track.html')+'?o='+o.order_no+'">Track order</a></div>';
 }
 if(!NO||!R)$('v').innerHTML='<div class="r">Invalid receipt link.</div>';else go();
