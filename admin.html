@@ -64,7 +64,7 @@ async function signIn(){
   boot();
 }
 let AL_SINCE = new Date().toISOString(), AL_T = null, AL_ON = false; const AL_N = {};
-const AL_SRC = [['orders','🛍️ New shop order','orders'],['food_orders','🍽️ New food order','forders'],['payments','💰 New payment to approve','payments'],['service_requests','🛠️ New service request','service'],['gift_requests','🎁 New gift request','gifts'],['design_requests','🎨 New design request','designs'],['inquiries','✉️ New inquiry','inq'],['leads','📣 New lead','leads'],['technician_applications','🧰 New technician application','techs'],['food_help_requests','🆘 A restaurant needs help','forders','warn']];
+const AL_SRC = [['orders','🛍️ New shop order','orders'],['food_orders','🍽️ New food order','forders'],['payments','💰 New payment to approve','payments'],['service_requests','🛠️ New service request','service'],['gift_requests','🎁 New gift request','gifts'],['design_requests','🎨 New design request','designs'],['inquiries','✉️ New inquiry','inq'],['leads','📣 New lead','leads'],['technician_applications','🧰 New technician application','techs'],['food_help_requests','🆘 A restaurant needs help','forders','warn'],['phone_verifications','📱 Phone check waiting','phones']];
 async function alPoll(){ const t0 = new Date().toISOString(), since = AL_SINCE; AL_SINCE = t0;
   await Promise.all(AL_SRC.map(async ([tb, label, tab, kind]) => { try { const r = await db.from(tb).select('id', {count:'exact', head:true}).gt('created_at', since); if(r.error || !r.count) return; AL_N[tb] = (AL_N[tb] || 0) + r.count;
     VelosAlerts.alarm('adm-' + tb, {title:label, body:AL_N[tb] + ' new. Tap View to open.', kind:kind || 'order', every:kind === 'warn' ? 8000 : 10000, btn:'View', onAck:() => { AL_N[tb] = 0; if(window.TB && TB.some(x => x[0] === tab)) go(tab); }}); } catch(e){} })); }
@@ -83,7 +83,7 @@ async function boot(){
   go('home'); startAlerts();
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['docs','Invoices & quotes'],['customers','Customers'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['bundles','Combos & bundles'],['careers','Careers'],['bizset','Business profile'],['photos','Photos'],['settings','Settings'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['docs','Invoices & quotes'],['customers','Customers'],['phones','Phone checks'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['bundles','Combos & bundles'],['careers','Careers'],['bizset','Business profile'],['photos','Photos'],['settings','Settings'],['import','Import']];
 function alCopy(i){ const u = AL[i][1]; (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('Link copied'), () => { prompt('Copy this link', u); }); }
 function alShare(i){ const a = AL[i]; if(navigator.share) navigator.share({title:a[0], text:'Install the Velos '+a[0], url:a[1]}).catch(()=>{}); else alCopy(i); }
 async function savePromos(){
@@ -104,7 +104,7 @@ async function bdCreate(){
   const {error} = await db.from('products').insert({id, name:n, category_key:$('#bd_c').value, subcategory:sub, price_ugx:pr, image_url:img});
   toast(error ? error.message : 'Bundle created. Find it in Products.', !!error); if(!error) go('bundles');
 }
-const GROUPS = [['Overview','📊',['home','report','inq','messages']],['Orders','🧾',['orders','forders','payments','docs','designs','gifts','service','security']],['Food','🍽️',['fmenu','fvendors','friders','frules','supplies']],['Shop','🛍️',['products','photos','bundles','promos','import']],['People','👥',['customers','agents','leads','techs','team','careers']],['System','⚙️',['bizset','applinks','export','settings']]];
+const GROUPS = [['Overview','📊',['home','report','inq','messages']],['Orders','🧾',['orders','forders','payments','docs','designs','gifts','service','security']],['Food','🍽️',['fmenu','fvendors','friders','frules','supplies']],['Shop','🛍️',['products','photos','bundles','promos','import']],['People','👥',['customers','phones','agents','leads','techs','team','careers']],['System','⚙️',['bizset','applinks','export','settings']]];
 function navFor(k){ const lab = Object.fromEntries(TB.map(t => [t[0], t[1]])); window.NG = GROUPS.map(g => [g[0], g[1], g[2].filter(x => lab[x])]).filter(g => g[2].length); const gi = Math.max(0, NG.findIndex(g => g[2].includes(k)));
   $('#nav').innerHTML = NG.map((g,i) => `<button class="${i===gi?'on':''}" onclick="go('${g[2][0]}')">${g[1]} ${g[0]}</button>`).join('');
   $('#nav2').innerHTML = NG[gi][2].map(x => `<button class="${x===k?'on':''}" onclick="go('${x}')">${lab[x]}</button>`).join(''); }
@@ -134,8 +134,17 @@ async function phUp(it, file){ let b; try { b = await phResize(file); } catch(e)
   const up = await db.storage.from(bucket).upload(path, b, {contentType:b.type || 'image/jpeg'}); if(up.error) throw Error(phErr(up.error));
   const url = db.storage.from(bucket).getPublicUrl(path).data.publicUrl, r = await db.from(food ? 'food_items' : 'products').update({image_url:url}).eq('id', it.id).select('id');
   if(r.error) throw Error(phErr(r.error)); if(!r.data || !r.data.length) throw Error('The photo uploaded but the item was not updated. Run velos-upgrade-21.sql in Supabase, then try again.'); it.img = url; }
-function phPick(){ (PH.rows || []).forEach(r => { try { URL.revokeObjectURL(r.url); } catch(e){} }); const fs = Array.from($('#ph_f').files || []); PH.rows = fs.map(f => ({f, url:URL.createObjectURL(f), it:null, sug:[], note:'', done:false, amb:false}));
-  $('#ph_m').style.display = PH.rows.length ? '' : 'none'; if(!PH.rows.length){ $('#ph_l').innerHTML = ''; $('#ph_go').style.display = 'none'; $('#ph_ord').style.display = 'none'; $('#ph_s').textContent = ''; return; } phMatchAll(true); }
+const PH_ACC_FILES = '.jpg,.jpeg,.png,.webp,.gif,.bmp,.avif,.heic,.heif';
+function phGeneric(n){ const b = String(n).replace(/\.[a-z0-9]+$/i, ''); return !/[a-z]{3}/i.test(b.replace(/(img|image|photo|pxl|dsc|picker|screenshot|mvimg|burst|cover)/ig, '')) || /^(img|image|photo|pxl|dsc|mvimg|burst)[-_ ]?\d/i.test(b) || /image_picker/i.test(b) || /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(b) || /^\d{6,}/.test(b); }
+function phPick(id){ const el = $('#' + (id || 'ph_f')); phUse(Array.from(el.files || [])); try { el.value = ''; } catch(e){} }
+function phLoadZip(){ if(window.JSZip) return Promise.resolve(); return new Promise((ok,bad) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'; s.onload = ok; s.onerror = () => bad(Error('Could not load the ZIP tool. Check your internet and try again.')); document.head.appendChild(s); }); }
+async function phZip(){ const f = ($('#ph_z').files || [])[0]; if(!f) return; try { toast('Reading ZIP…'); await phLoadZip(); const z = await JSZip.loadAsync(f), out = [], T = {jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', webp:'image/webp', gif:'image/gif', bmp:'image/bmp', avif:'image/avif'};
+    for(const name of Object.keys(z.files)){ const e = z.files[name]; if(e.dir || /(^|\/)(__MACOSX|\.)/.test(name)) continue; const base = name.split('/').pop(), m = base.match(/\.(jpe?g|png|webp|gif|bmp|avif)$/i); if(!m) continue; const blob = await e.async('blob'); out.push(new File([blob], base, {type:T[m[1].toLowerCase()]})); }
+    if(!out.length) return toast('No pictures found in that ZIP', true); phUse(out); } catch(e){ toast(e.message || 'Could not read the ZIP', true); } try { $('#ph_z').value = ''; } catch(e){} }
+function phUse(fs){ (PH.rows || []).forEach(r => { try { URL.revokeObjectURL(r.url); } catch(e){} }); PH.rows = fs.map(f => ({f, url:URL.createObjectURL(f), it:null, sug:[], note:'', done:false, amb:false}));
+  $('#ph_m').style.display = PH.rows.length ? '' : 'none'; const bad = PH.rows.filter(r => phGeneric(r.f.name)).length;
+  $('#ph_w').innerHTML = (PH.rows.length && bad >= Math.ceil(PH.rows.length / 2)) ? '<div class="card" style="border-color:#e8c766"><b class="gold">⚠ Your phone changed the picture names</b><p class="mut">Pictures chosen from the Gallery often lose their names (they become numbers). To keep the names you typed, tap <b>Choose from Files</b> and pick them from the folder where you renamed them, or put them in a ZIP file and tap <b>Choose a ZIP</b>.</p></div>' : '';
+  if(!PH.rows.length){ $('#ph_l').innerHTML = ''; $('#ph_go').style.display = 'none'; $('#ph_ord').style.display = 'none'; $('#ph_s').textContent = ''; return; } phMatchAll(true); }
 function phMatchAll(auto){ const taken = new Set(); PH.rows.forEach(r => { if(r.done && r.it) taken.add(r.it.t + r.it.id); });
   PH.rows.forEach(r => { if(r.done) return; r.it = null; r.amb = false; r.note = ''; const rk = phRank(r.f.name); r.sug = rk.slice(0,3).map(z => z.x);
     if(rk.length && rk[0].s >= 0.6){ const top = rk[0].s, tied = rk.filter(z => z.s >= top - 0.001).map(z => z.x), free = tied.filter(x => !taken.has(x.t + x.id)); if(!free.length){ r.note = 'Another photo in this batch already matches this item. Choose a different item or skip.'; }
@@ -213,6 +222,41 @@ function crRm(i){ crRead(); CR.jobs.splice(i,1); crDraw(); }
 async function crSave(){ crRead(); const rows = [['site_careers', JSON.stringify(CR.jobs.filter(j => j.title))], ['site_careers_apply', $('#cr_a').value.trim()], ['site_careers_whatsapp', $('#cr_w').value.trim()], ['site_careers_email', $('#cr_e').value.trim()]];
   for(const [key,value] of rows){ const {error} = await db.from('settings').upsert({key, value}); if(error) return toast(error.message, true); } toast('Careers page saved'); }
 async function bizSave(){ const g = k => $('#bz_'+k).value.trim(), b = {name:g('name'), tag:g('tag'), addr:g('addr'), phone:g('phone'), email:g('email'), tin:g('tin'), bank:g('bank'), foot:g('foot')}; const {error} = await db.from('settings').upsert({key:'site_biz', value:JSON.stringify(b)}); toast(error ? error.message : 'Business profile saved', !!error); }
+/* ---- Form records as signed PDFs (service, design, gift, technician, security) ---- */
+const REC = {
+  service_requests:{title:'Service Request and Authorisation', pre:'S', no:'req_no', name:'customer_name', phone:'customer_phone', who:'Customer'},
+  design_requests:{title:'Design Brief and Quote Acceptance', pre:'D', no:'req_no', name:'customer_name', phone:'customer_phone', who:'Customer'},
+  gift_requests:{title:'Gift and Sourcing Request', pre:'G', no:'req_no', name:'customer_name', phone:'customer_phone', who:'Customer'},
+  technician_applications:{title:'Technician Application and Declaration', pre:'T', no:null, name:'full_name', phone:'phone', who:'Applicant'},
+  security_companies:{title:'Security Partner Application and Agreement', pre:'P', no:'ref_no', name:'contact_name', phone:'phone', who:'Authorised partner signatory', skip:['staff_notes']},
+  security_contracts:{title:'Security Services Contract', pre:'#', no:'contract_no', name:'client_name', phone:'client_phone', who:'Client', sel:'*, security_companies(company_name)', skip:['partner_monthly_payout_ugx','staff_notes']}
+};
+const REC_SKIP = ['id','user_id','company_id','assigned_to','doc_paths','created_by','updated_at','lat','lng','req_no','ref_no','contract_no','status'];
+function recLabel(k){ return k.replace(/_ugx$/,' (UGX)').replace(/_/g,' ').replace(/^./, m => m.toUpperCase()); }
+function recVal(k, v){ if(v == null || v === '') return null; if(Array.isArray(v)) return v.length ? v.join(', ') : null; if(typeof v === 'boolean') return v ? 'Yes' : 'No';
+  if(typeof v === 'object'){ const t = Object.values(v).filter(x => x != null && typeof x !== 'object').join(', '); return t || null; }
+  if((/_ugx$/.test(k) || /(fee|price|total|payout|quote)$/.test(k)) && v !== '' && !isNaN(Number(v))) return docsFmt(Number(v));
+  if(/^\d{4}-\d{2}-\d{2}T/.test(String(v))) return new Date(v).toLocaleString('en-GB', {dateStyle:'medium', timeStyle:'short'}); if(/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return new Date(v).toLocaleDateString('en-GB', {dateStyle:'medium'}); return String(v); }
+async function docsCo(){ let CO = DOC_CO; try { const q = await db.from('settings').select('value').eq('key','site_biz').maybeSingle(); const b = JSON.parse((q.data && q.data.value) || '{}'); if(b.name) CO = {name:b.name, tag:b.tag || '', lines:[b.addr, b.phone && ('Tel / WhatsApp: ' + b.phone), b.email, b.tin && ('TIN: ' + b.tin)].filter(Boolean), foot:b.foot}; } catch(e){} return CO; }
+async function recDoc(c, row){ await docsLoadLib(); const {jsPDF} = window.jspdf, doc = new jsPDF({unit:'mm', format:'a4'}), NV = [3,17,62], GD = [212,175,55], TX = [30,35,50], GR = [110,118,140], LT = [244,246,251], W = 210, CO = await docsCo(), logo = await docsImg('icon-512.png'), sig = await docsSig();
+  const num = c.no && row[c.no] != null ? c.pre + row[c.no] : (c.pre + String(row.id || '').slice(0,6).toUpperCase()), who = row[c.name] || '-'; let page = 1;
+  const foot = pg => { doc.setFillColor(...NV); doc.rect(0,284,W,13,'F'); doc.setFillColor(...GD); doc.rect(0,284,W,0.8,'F'); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(232,199,102); doc.text(((CO.foot || 'Thank you for choosing The Velos Group') + (CO.tag ? '  |  ' + CO.tag : '')), W/2, 291, {align:'center'}); doc.setTextColor(180,190,215); doc.text('Page ' + pg, 195, 291, {align:'right'}); };
+  doc.setFillColor(...NV); doc.rect(0,0,W,40,'F'); doc.setFillColor(...GD); doc.rect(0,40,W,1.4,'F'); if(logo) doc.addImage(logo,'JPEG',15,8,24,24);
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.text(CO.name, 44, 17); doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(232,199,102); doc.text(CO.tag || '', 44, 23); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(190,200,225); CO.lines.slice(0,4).forEach((l,i) => doc.text(l, 44, 29 + i*3.8));
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(232,199,102); doc.text(doc.splitTextToSize(c.title.toUpperCase(), 80), 195, 14, {align:'right'}); doc.setFontSize(10); doc.setTextColor(255,255,255); doc.text('Ref ' + num, 195, 31, {align:'right'}); doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.text('Printed ' + new Date().toLocaleDateString('en-GB', {dateStyle:'medium'}) + (row.status ? '  |  Status: ' + String(row.status).replace(/_/g,' ') : ''), 195, 36, {align:'right'});
+  let y = 52; const skip = REC_SKIP.concat(c.skip || []), flat = Object.assign({}, row); Object.keys(row).forEach(k => { const v = row[k]; if(v && typeof v === 'object' && !Array.isArray(v)) Object.keys(v).forEach(j => { if(v[j] != null && typeof v[j] !== 'object') flat[j] = v[j]; }); });
+  const rows = []; Object.keys(flat).forEach(k => { if(skip.indexOf(k) > -1 || (row[k] && typeof row[k] === 'object' && !Array.isArray(row[k]))) return; const v = recVal(k, flat[k]); if(v) rows.push([recLabel(k), v]); });
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...GR); doc.text('DETAILS', 15, y); y += 4;
+  rows.forEach((r,i) => { const lines = doc.splitTextToSize(r[1], 118), h = Math.max(7.5, lines.length * 4.6 + 3.4); if(y + h > 262){ foot(page); doc.addPage(); page++; y = 20; } if(i % 2 === 0){ doc.setFillColor(...LT); doc.rect(15,y,180,h,'F'); } doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...GR); doc.text(r[0], 18, y + 5); doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...TX); lines.forEach((l,k) => doc.text(l, 72, y + 5 + k*4.6)); y += h; });
+  y += 8; if(y > 215){ foot(page); doc.addPage(); page++; y = 22; }
+  const consent = 'By signing below, the signatory confirms that the information on this form is correct and agrees to proceed on these details and The Velos Group published Terms of Service.'; doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...GR); doc.splitTextToSize(consent, 180).forEach(l => { doc.text(l, 15, y); y += 4.2; });
+  let sy = y + 30; if(sy > 262){ foot(page); doc.addPage(); page++; sy = 60; }
+  if(sig){ try { doc.addImage(sig, 'PNG', 20, sy - 25, 36, 24.2); } catch(e){} }
+  doc.setDrawColor(...GR); doc.setLineWidth(.3); doc.line(15,sy,75,sy); doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...TX); doc.text(CO.name, 15, sy + 4.5); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...GR); doc.text('Authorised signature', 15, sy + 8.8); doc.text('Date: ........ / ........ / ............', 15, sy + 14);
+  doc.line(135,sy,195,sy); doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...TX); doc.text(String(who), 135, sy + 4.5); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...GR); doc.text(c.who + ' signature', 135, sy + 8.8); doc.text('Date: ........ / ........ / ............', 135, sy + 14);
+  foot(page); return {doc, no:num, who}; }
+async function recPdf(table, id, mode){ const c = REC[table]; if(!c) return; try { toast('Preparing PDF…'); const {data:row, error} = await db.from(table).select(c.sel || '*').eq('id', id).single(); if(error) throw error; const r = await recDoc(c, row), fname = (c.title.split(' ')[0] + '-' + r.no).replace(/[^\w#-]/g,'') + '.pdf', file = new File([r.doc.output('blob')], fname, {type:'application/pdf'}); DC = window.DC = {last:{no:fname.replace(/\.pdf$/,''), file, d:{type:c.title.toLowerCase()}}}; if(mode === 'share') await docsShare(); else docsSave(); } catch(e){ toast(e.message || 'Could not create the PDF', true); } }
+const pdfBtns = (t, id) => `<div class="row" style="justify-content:flex-start;gap:8px"><button class="ghost" onclick="recPdf('${t}','${id}')">📄 PDF</button><button class="ghost" onclick="recPdf('${t}','${id}','share')">📤 Share PDF</button></div>`;
 async function go(k){
   navFor(k);
   $('#view').innerHTML = '<p class="mut">Loading…</p>';
@@ -242,6 +286,7 @@ async function resendMsg(id){
   const n = NF.find(x => x.id === id), {error} = await db.from('notifications').insert({kind:n.kind, ref:n.ref, phone:n.phone, email:n.email, message:n.message});
   toast(error ? error.message : 'Queued again', !!error); if(!error) go('messages');
 }
+async function phDecide(id, ok){ const {error} = await db.rpc('admin_decide_phone', {p_id:id, p_approve:ok}); toast(error ? error.message : (ok ? 'Number verified' : 'Rejected'), !!error); if(!error) go('phones'); }
 async function approveQuote(id, sub){ const v = Number($('#fq-'+id).value); const {error} = await db.from('food_orders').update({delivery_fee_ugx:v, total_ugx:sub+v, quote_approved:true}).eq('id', id); toast(error ? error.message : 'Quote approved', !!error); if(!error) go('forders'); }
 async function offerRider(no, id){ const r = $('#rd-'+id).value; if(!r) return toast('Choose a rider', true); const {error} = await db.rpc('food_offer_rider', {p_order_no:no, p_rider:r}); toast(error ? error.message : 'Job offered to rider', !!error); if(!error) go('forders'); }
 async function adminCancel(no, id){ if(!confirm('Cancel this order?')) return; const {error} = await db.rpc('food_admin_cancel', {p_order_no:no, p_reason:$('#cr-'+id).value, p_waive:$('#cw-'+id).checked}); toast(error ? error.message : 'Order cancelled', !!error); if(!error) go('forders'); }
@@ -464,7 +509,7 @@ const VIEWS = {
   async techs(){
     const {data,error} = await db.from('technician_applications').select('*').order('created_at',{ascending:false});
     if(error) throw error;
-    window.TD = data; $('#view').innerHTML = '<h2>Technician applications</h2>' + (data.length ? data.map(t => `<div class="card">
+    window.TD = data; $('#view').innerHTML = '<h2>Technician applications</h2>' + (data.length ? data.map(t => `<div class="card">${pdfBtns('technician_applications',t.id)}
       <div class="row"><b>${esc(t.full_name)}</b>${sel('technician_applications',t.id,t.status,['pending','verified','rejected','suspended'])}</div>
       <div>${esc(t.trade)} · ${esc(t.experience)}</div>
       <div class="mut">${esc(t.country)} / ${esc(t.city)} / ${esc(t.area)}</div>
@@ -482,7 +527,7 @@ const VIEWS = {
       const opts = TS.slice().sort((x,y) => near(r,y) - near(r,x)).map(t => `<option value="${t.id}" ${t.id===r.assigned_to?'selected':''}>${near(r,t)?'★ ':''}${esc(t.full_name)} · ${esc(t.trade)} · ${esc(t.city)}</option>`).join('');
       const tech = TS.find(t => t.id === r.assigned_to);
       const map = r.lat ? `https://www.google.com/maps?q=${r.lat},${r.lng}` : `https://www.google.com/maps/search/${encodeURIComponent([r.address,r.town,r.region,r.country].filter(Boolean).join(', '))}`;
-      return `<div class="card"><div class="row"><b class="gold">S${r.req_no}</b>${sel('service_requests',r.id,r.status,['new','reviewing','assigned','on_the_way','in_progress','completed','cancelled'])}</div>
+      return `<div class="card">${pdfBtns('service_requests',r.id)}<div class="row"><b class="gold">S${r.req_no}</b>${sel('service_requests',r.id,r.status,['new','reviewing','assigned','on_the_way','in_progress','completed','cancelled'])}</div>
         <div><b>${esc(r.service)}</b> ${r.urgency!=='standard'?`<span class="pill" style="color:var(--bad)">${esc(r.urgency).toUpperCase()}</span>`:''}</div>
         <div>${esc(r.customer_name)} · <a href="${wa(r.customer_phone)}" target="_blank">${esc(r.customer_phone)}</a> <span class="mut">(${esc(r.contact_pref||'')})</span></div>
         <div class="mut">📍 ${esc([r.address,r.town,r.region,r.country].filter(Boolean).join(', '))} · <a href="${map}" target="_blank">Open map</a></div>
@@ -524,7 +569,7 @@ const VIEWS = {
   async gifts(){
     const {data,error} = await db.from('gift_requests').select('*').order('created_at',{ascending:false}).limit(100);
     if(error) throw error;
-    $('#view').innerHTML = '<h2>Gift requests</h2>' + (data.length ? data.map(g => `<div class="card">
+    $('#view').innerHTML = '<h2>Gift requests</h2>' + (data.length ? data.map(g => `<div class="card">${pdfBtns('gift_requests',g.id)}
       <div class="row"><b class="gold">G${g.req_no}</b>${sel('gift_requests',g.id,g.status,['new','sourcing','quote_sent','approved','delivered','cancelled'])}</div>
       <div><b>${esc(g.occasion)}</b> for ${esc(g.recipient||'—')} · <span class="mut">${esc(g.mode)}</span></div>
       <div class="mut">Budget: ${esc(g.budget_label||'')}${g.budget_ugx?' ('+ugx(g.budget_ugx)+')':''}</div><div>${esc(g.gift_idea||'')}</div><div class="mut">${esc(g.interests||'')}</div>
@@ -538,7 +583,7 @@ const VIEWS = {
   async designs(){
     const {data,error} = await db.from('design_requests').select('*').order('created_at',{ascending:false}).limit(100);
     if(error) throw error;
-    $('#view').innerHTML = '<h2>Design requests</h2>' + (data.length ? data.map(g => `<div class="card">
+    $('#view').innerHTML = '<h2>Design requests</h2>' + (data.length ? data.map(g => `<div class="card">${pdfBtns('design_requests',g.id)}
       <div class="row"><b class="gold">D${g.req_no}</b>${sel('design_requests',g.id,g.status,['new','brief_review','quoted','approved','in_design','review','completed','cancelled'])}</div>
       <div><b>${esc(g.design_type)}</b> · ${esc(g.business_name||'')}</div><div class="mut">Budget: ${esc(g.budget_label||'')} · Needed by ${esc(g.deadline||'flexible')}</div>
       <div>${esc(g.about||'')}</div><div class="mut">${esc(g.style_notes||'')}</div><div>${esc(g.brief||'')}</div>
@@ -626,8 +671,9 @@ const VIEWS = {
     const all = []; (f.data||[]).forEach(x => all.push({t:'food', id:x.id, name:x.name, img:x.image_url, label:'Food: ' + x.name})); (p.data||[]).forEach(x => all.push({t:'shop', id:x.id, name:x.name, img:x.image_url, label:'Shop: ' + x.name}));
     window.PH = {all, map:{}, rows:[], one:null, lim:30}; all.forEach(x => { x.tk = phToks(x.name); PH.map[x.label] = x; });
     $('#view').innerHTML = `<h2>Photos</h2>
-      <div class="card"><b>Bulk upload</b><p class="mut">1. Name each picture like its item, for example <i>Tomatoes.jpg</i> or <i>Red Dress.png</i>.<br>2. Tap <b>Choose photos</b> and select all of them at once. The names are read and matched automatically. Tap <b>Match photos</b> any time to match again.<br>3. Check the list (fix anything marked yellow or red), then tap <b>Upload matched photos</b>. You do not need to pick the pictures again.</p>
-      <input id="ph_f" type="file" accept="${PH_ACC}" multiple style="display:none" onchange="phPick()"><div class="row"><button onclick="$('#ph_f').click()">📷 Choose photos</button> <button id="ph_m" class="ghost" style="display:none" onclick="phMatchAll()">🔍 Match photos</button></div>
+      <div class="card"><b>Bulk upload</b><p class="mut">1. Name each picture like its item, for example <i>Tomatoes.jpg</i> or <i>Red Dress.png</i>.<br>2. Tap <b>Choose from Files</b> (this keeps the names you typed) and select all of them at once. Pictures chosen from the Gallery often lose their names. The names are read and matched automatically. Tap <b>Match photos</b> any time to match again.<br>3. Check the list (fix anything marked yellow or red), then tap <b>Upload matched photos</b>. You do not need to pick the pictures again.</p>
+      <input id="ph_f" type="file" accept="${PH_ACC}" multiple style="display:none" onchange="phPick('ph_f')"><input id="ph_f2" type="file" accept="${PH_ACC_FILES}" multiple style="display:none" onchange="phPick('ph_f2')"><input id="ph_z" type="file" accept=".zip,application/zip" style="display:none" onchange="phZip()">
+      <div class="row"><button onclick="$('#ph_f2').click()">📁 Choose from Files (keeps names)</button><button class="ghost" onclick="$('#ph_f').click()">🖼️ Choose from Gallery</button><button class="ghost" onclick="$('#ph_z').click()">🗜️ Choose a ZIP</button></div><div class="row"><button id="ph_m" class="ghost" style="display:none" onclick="phMatchAll()">🔍 Match photos</button></div><div id="ph_w"></div>
       <label class="mut" style="display:block;margin:8px 0"><input id="ph_rep" type="checkbox" checked style="width:auto"> Replace photos that items already have</label><div id="ph_s" class="mut"></div><div id="ph_l"></div><button id="ph_ord" class="ghost" style="display:none" onclick="phOrder()">↕ Give photos with no match the next items in order</button><button id="ph_go" style="display:none" onclick="phGo()">⬆️ Upload matched photos</button></div><div class="card"><b>Add a photo to one item</b><p class="mut">Works with any picture name. Find the item, tap 📷, then take a photo or choose one from your gallery.</p>
       <div class="row"><select id="ph_t" onchange="PH.lim=30;phList()"><option value="">Food and Shop</option><option value="food">Food only</option><option value="shop">Shop only</option></select><label class="mut"><input id="ph_n" type="checkbox" checked onchange="PH.lim=30;phList()" style="width:auto"> Only items without a real photo</label></div>
       <input id="ph_q" placeholder="Search items…" oninput="PH.lim=30;phList()"><input id="ph_one" type="file" accept="${PH_ACC}" style="display:none" onchange="phOneDone()"><div id="ph_list"></div></div>
@@ -695,7 +741,7 @@ const VIEWS = {
       db.from('security_contracts').select('*, security_companies(company_name)').order('created_at',{ascending:false}),
       db.from('partner_payments').select('*, security_contracts(contract_no), security_companies(company_name)').eq('status','due').order('period')]);
     if(co.error) throw co.error; window.SC = co.data; const ver = co.data.filter(c => c.status === 'verified'), adm = me.role === 'admin';
-    $('#view').innerHTML = `<h2>Security partner companies</h2>` + (co.data.length ? co.data.map(c => `<div class="card">
+    $('#view').innerHTML = `<h2>Security partner companies</h2>` + (co.data.length ? co.data.map(c => `<div class="card">${pdfBtns('security_companies',c.id)}
       <div class="row"><b class="gold">P${c.ref_no}</b>${sel('security_companies',c.id,c.status,['pending','under_review','verified','rejected','suspended'])}</div>
       <div><b>${esc(c.company_name)}</b> · Reg ${esc(c.reg_no)} · TIN ${esc(c.tin||'—')}</div>
       <div class="mut">Licence ${esc(c.licence_no)} (exp ${esc(c.licence_expiry||'—')}) · Insurance ${esc(c.insurance_provider||'—')} (exp ${esc(c.insurance_expiry||'—')})</div>
@@ -709,7 +755,7 @@ const VIEWS = {
       <select id="nc_c"><option value="">— Verified company —</option>${ver.map(c => `<option value="${c.id}">${esc(c.company_name)}</option>`).join('')}</select>
       <div class="grid2"><input id="nc_g" type="number" placeholder="Guards"><input id="nc_s" placeholder="Shift (day / night / 24h)"></div><div class="grid2"><input id="nc_sd" type="date"><input id="nc_ed" type="date"></div>
       <div class="grid2"><input id="nc_f" type="number" placeholder="Client pays Velos / month UGX"><input id="nc_o" type="number" placeholder="Velos pays partner / month UGX"></div><button onclick="newContract()">Create contract</button></div>
-      <h2>Security contracts</h2>` + (ct.data.length ? ct.data.map(c => `<div class="card"><div class="row"><b class="gold">#${c.contract_no}</b>${sel('security_contracts',c.id,c.status,['draft','active','paused','ended','cancelled'])}</div>
+      <h2>Security contracts</h2>` + (ct.data.length ? ct.data.map(c => `<div class="card">${pdfBtns('security_contracts',c.id)}<div class="row"><b class="gold">#${c.contract_no}</b>${sel('security_contracts',c.id,c.status,['draft','active','paused','ended','cancelled'])}</div>
       <div><b>${esc(c.client_name)}</b> · ${esc(c.client_phone)} · ${esc(c.site_address)}</div><div class="mut">${c.guards} guard(s) · ${esc(c.shift||'')} · ${esc(c.start_date)} → ${esc(c.end_date||'open')} · Partner: ${esc(c.security_companies?.company_name||'unassigned')}</div>
       <div class="mut">Client pays ${ugx(c.client_monthly_fee_ugx)}/mo · Partner payout ${ugx(c.partner_monthly_payout_ugx)}/mo · <b class="gold">Margin ${ugx(c.client_monthly_fee_ugx - c.partner_monthly_payout_ugx)}</b></div>
       ${c.company_id && adm ? `<div class="row"><button class="ghost" onclick="makePay('${c.id}','${c.company_id}',${c.partner_monthly_payout_ugx})">Queue this month's partner payout</button></div>` : ''}
@@ -747,6 +793,10 @@ const VIEWS = {
       ${n.status==='failed'||n.status==='skipped'?`<button class="ghost" onclick="resendMsg('${n.id}')">Resend</button>`:''}</div>`).join('') : '<p class="mut">No messages yet.</p>');
   },
 
+  async phones(){
+    const r = await db.rpc('admin_pending_phones'); if(r.error) throw r.error; const L = r.data || [];
+    $('#view').innerHTML = '<h2>Phone checks</h2><p class="muted">A customer sends their code from WhatsApp. Open the WhatsApp message, check the code and the sending number match, then tap Approve.</p>' + (L.length ? L.map(x => `<div class="card"><div class="row"><b class="gold">${esc(x.phone)}</b><span>Code <b>${esc(x.code)}</b></span></div><div>${esc(x.name||'')} · ${esc(x.email||'')}</div><div class="muted">${dt(x.created_at)}</div><div class="row"><button onclick="phDecide('${x.id}',true)">Approve</button><button class="ghost" onclick="phDecide('${x.id}',false)">Reject</button><a href="https://wa.me/${String(x.phone).replace(/\D/g,'')}" target="_blank" rel="noopener">Open WhatsApp</a></div></div>`).join('') : '<p class="muted">No phone checks waiting.</p>');
+  },
   async forders(){
     const [o,r] = await Promise.all([db.from('food_orders').select('*, food_vendors(name), food_riders(full_name)').order('created_at',{ascending:false}).limit(80), db.from('food_riders').select('id,full_name').eq('status','active')]);
     if(o.error) throw o.error; const ropts = (r.data||[]).map(x => `<option value="${x.id}">${esc(x.full_name)}</option>`).join('');

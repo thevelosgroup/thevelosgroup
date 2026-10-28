@@ -15,8 +15,22 @@ async function su(){var n=$('n').value.trim(),p=$('p').value.replace(/[^\d+]/g,'
 async function si(){var r=await db.auth.signInWithPassword({email:$('em').value.trim(),password:$('pw').value});if(r.error)er(r.error.message);else boot()}
 async function goog(){var r=await db.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.href.split('#')[0]}});if(r.error)er('Google sign-in is not switched on yet. Please use email for now.')}
 async function out(){await db.auth.signOut();boot()}
-async function save(){var r=await db.auth.updateUser({data:{full_name:$('n').value.trim(),phone:$('p').value.trim()}});$('toast').textContent=r.error?r.error.message:'Saved';$('toast').hidden=false;setTimeout(function(){$('toast').hidden=true},2200)}
+async function save(){var r=await db.auth.updateUser({data:{full_name:$('n').value.trim(),phone:$('p').value.trim()}});$('toast').textContent=r.error?r.error.message:'Saved';$('toast').hidden=false;setTimeout(function(){$('toast').hidden=true},2200);if(!r.error)pvLoad()}
 async function boot(){var r=await db.auth.getSession(),s=r.data.session;if(!s)return auth();var m=s.user.user_metadata||{};
- V('<h1>Hello, '+esc((m.full_name||s.user.email).split(' ')[0])+' 👋</h1><div class="c"><input id="n" placeholder="Full name" value="'+esc(m.full_name||'')+'"><input id="p" type="tel" placeholder="Phone" value="'+esc(m.phone||'')+'"><p class="m">Email: '+esc(s.user.email)+'</p><button class="full" onclick="save()">Save my details</button></div><div class="c"><a href="food-track.html" style="color:#e8c766">📦 Track a food order</a><br><a href="track.html" style="color:#e8c766">📦 Track a shop order</a><br><a href="https://wa.me/256755215751" style="color:#e8c766">💬 Chat with us on WhatsApp</a></div><button class="g" onclick="out()">Sign out</button>')}
+ V('<h1>Hello, '+esc((m.full_name||s.user.email).split(' ')[0])+' 👋</h1><div class="c"><input id="n" placeholder="Full name" value="'+esc(m.full_name||'')+'"><input id="p" type="tel" placeholder="Phone" value="'+esc(m.phone||'')+'"><p class="m">Email: '+esc(s.user.email)+'</p><button class="full" onclick="save()">Save my details</button></div><div class="c" id="pv"><p class="m">Checking your phone…</p></div><div class="c"><a href="food-track.html" style="color:#e8c766">📦 Track a food order</a><br><a href="track.html" style="color:#e8c766">📦 Track a shop order</a><br><a href="https://wa.me/256755215751" style="color:#e8c766">💬 Chat with us on WhatsApp</a></div><button class="g" onclick="out()">Sign out</button>');pvLoad()}
+var PV_WA='256755215751',pvT=null;
+function pvBox(h){var b=$('pv');if(b)b.innerHTML=h}
+async function pvLoad(){clearTimeout(pvT);var r=await db.rpc('my_phone_status');
+ if(r.error||!r.data)return pvBox('<p class="m">Phone check is not switched on yet.</p>');
+ var d=r.data,ph=esc(d.current_phone||'');
+ if(!d.current_phone)return pvBox('<b>📱 Verify your phone</b><p class="m">Add your phone number above and tap Save, then verify it here.</p>');
+ if(d.verified)return pvBox('<b style="color:#6fdc8c">✅ Phone verified</b><p class="m">'+ph+'</p>');
+ if(d.pending&&d.pending.phone===d.current_phone){var msg='Verify my Velos phone number. Code: '+d.pending.code;
+  pvBox('<b>📱 Verify '+ph+'</b><p class="m">Step 1: tap the green button. WhatsApp opens with your code already typed.<br>Step 2: press Send (use this same phone number).<br>Step 3: we confirm it, usually within a few hours. Then this page shows ✅.</p><a class="full" style="display:block;text-align:center;background:#25d366;color:#052e16;padding:12px;border-radius:10px;font-weight:700;text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/'+PV_WA+'?text='+encodeURIComponent(msg)+'">Send code on WhatsApp</a><p class="m">Your code: <b>'+esc(d.pending.code)+'</b></p><button class="g full" onclick="pvLoad()">I have sent it · refresh</button><button class="g full" onclick="pvAsk()">Get a new code</button>');
+  pvT=setTimeout(pvLoad,30000);return}
+ pvBox('<b>📱 Verify your phone</b><p class="m">'+ph+(d.last_status==='rejected'?' · last check was not approved, please try again':'')+'</p><p class="m">Verified numbers get faster order updates and delivery calls.</p><button class="full" onclick="pvAsk()">Verify my number</button>')}
+async function pvAsk(){var r=await db.rpc('request_phone_verification',{p_phone:(document.getElementById('p')||{}).value||''});
+ if(r.error){pvBox('<p class="m bad">'+esc(r.error.message)+'</p><button class="g full" onclick="pvLoad()">Back</button>');return}
+ pvLoad()}
 boot();
 </script></body></html>
