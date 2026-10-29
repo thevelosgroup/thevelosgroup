@@ -1,0 +1,44 @@
+/* Velos Foods: original Velos design (navy and gold). Only loaded by foods.html */
+:root{--r:18px;--sh:0 8px 26px rgba(0,0,0,.35)}
+body{background:radial-gradient(1200px 500px at 50% -120px,#13235f 0,var(--bg) 60%) no-repeat,var(--bg)}
+.top{position:sticky;top:0;z-index:30;background:rgba(8,13,31,.92);backdrop-filter:blur(8px);margin:0 -14px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.top h1{font-size:24px}
+.srch{margin:14px 0 4px;padding:15px 18px;border-radius:99px;background:#0f1730;border:1px solid var(--line);font-size:16px}
+.srch:focus{outline:2px solid var(--gold);border-color:var(--gold)}
+#home h2,#vview h2{font-size:19px;margin:22px 0 10px}
+.hero{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;padding:22px;border-radius:22px;background:linear-gradient(120deg,#1b2f7a,#0f1a47 60%,#2a2260);border:1px solid #31428f;box-shadow:var(--sh);cursor:pointer;overflow:hidden}
+.hero h2{margin:6px 0 4px;font-size:24px;color:var(--gold)}.hero p{margin:0 0 12px;color:#d6dcf0;max-width:34ch}.hero .em{font-size:78px;filter:drop-shadow(0 6px 10px rgba(0,0,0,.4));flex:none}
+.hero .tag{font-size:12px;letter-spacing:.06em;text-transform:uppercase;background:var(--gold);color:#080d1f;padding:3px 10px;border-radius:99px;font-weight:700}
+.pro{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 0 6px}
+.pc{scroll-snap-align:start;min-width:230px;max-width:260px;background:linear-gradient(135deg,#7a1f2a,#b3392f);border-radius:16px;padding:14px;color:#fff;cursor:pointer;box-shadow:var(--sh)}
+.pc .m{color:#ffe3df}.pc .pct{display:inline-block;margin-left:8px;background:#fff;color:#b3392f;border-radius:99px;padding:1px 9px;font-size:12px;font-weight:800}
+.rg{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px}
+.rc{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;cursor:pointer;box-shadow:var(--sh);transition:transform .15s}
+.rc:hover{transform:translateY(-3px)}.rc.own{border-color:var(--gold)}
+.rc .cv{position:relative;height:130px;background:linear-gradient(135deg,#243a8a,#0f1730);display:flex;align-items:center;justify-content:center}
+.rc .cv img{width:100%;height:100%;object-fit:cover;display:block}.rc .cv .ph{font-size:52px;opacity:.8}
+.rc .bd{position:absolute;left:10px;bottom:10px;background:#d7263d;color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:99px}.rc .bd.own{left:auto;right:10px;top:10px;bottom:auto;background:var(--gold);color:#080d1f}
+.rb{display:flex;gap:12px;padding:12px;align-items:center}.rb b{font-size:16px}
+.lg{width:48px;height:48px;border-radius:14px;object-fit:cover;flex:none;background:#fff;border:2px solid var(--line)}.ph2{display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--bg)}
+.hl{display:flex;flex-direction:column;gap:10px}.hi{display:flex;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;cursor:pointer}.hi img{width:64px;height:64px;border-radius:12px;object-fit:cover;background:#fff}
+/* menu page */
+.back{margin:12px 0 0;border-radius:99px}
+#vhead>div{border-radius:20px!important;box-shadow:var(--sh)}
+#cats{position:sticky;top:56px;z-index:20;background:var(--bg);padding:8px 0!important;margin-top:10px!important}
+#cats button{border-radius:99px}
+#q{border-radius:99px;padding:12px 18px}
+#vview .grid{grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+#vview .it{flex-direction:row-reverse;align-items:stretch;border-radius:16px}
+#vview .it img{width:128px;height:auto;min-height:128px;flex:none}
+#vview .it .b2{padding:12px 14px;gap:4px}
+#vview .it h4{font-size:16px}
+#vview .it .row{justify-content:flex-start;gap:8px;margin-top:4px}
+#vview .it .row button{border-radius:99px;padding:9px 18px}
+#vview .car .s{border-radius:16px}
+/* basket bar */
+.cartbtn{left:14px;right:14px;bottom:12px;max-width:560px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;border-radius:99px;padding:15px 22px;font-size:16px;box-shadow:0 10px 30px rgba(0,0,0,.55)}
+.cartbtn[hidden]{display:none}
+.sheet .bx{border-radius:22px 22px 0 0}
+@media(min-width:900px){.rg{grid-template-columns:repeat(3,1fr)}}
+@media(prefers-reduced-motion:reduce){.rc{transition:none}.rc:hover{transform:none}}
+#vend{display:none!important}
