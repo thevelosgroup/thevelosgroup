@@ -53,16 +53,17 @@
   /* ---------- banner slider ---------- */
   function slides(){ var wa = 'https://wa.me/256755215751?text=' + encodeURIComponent('Hello Velos, I would like help sourcing a product.');
     return [
-      {k:'a', t:FASH ? 'Fashion & beauty, curated' : 'Premium products. Sourced with precision.', s:FASH ? 'Dresses, wigs, perfumes, bags, suits and grooming for ladies and men.' : 'Verified suppliers, transparent prices and reliable delivery across Kampala.', b:'Shop now', h:'#vj-cats'},
-      {k:'b', t:FASH ? 'Looking for electronics?' : 'Fashion & beauty', s:FASH ? 'Phones, laptops, TVs and home appliances in Velos Global Shop.' : 'Ladies and men: dresses, wigs, perfumes, bags, suits and grooming.', b:FASH ? 'Visit the shop' : 'Explore fashion', h:FASH ? 'shop.html' : 'fashion.html'},
+      {k:'a', img:FASH ? 'fashion-hero.jpg' : 'shop-hero.jpg', t:FASH ? 'Fashion & beauty, curated' : 'Premium products. Sourced with precision.', s:FASH ? 'Dresses, wigs, perfumes, bags, suits and grooming for ladies and men.' : 'Verified suppliers, transparent prices and reliable delivery across Kampala.', b:'Shop now', h:'#vj-cats'},
+      {k:'b', img:FASH ? 'shop-hero.jpg' : 'fashion-hero.jpg', t:FASH ? 'Looking for electronics?' : 'Fashion & beauty', s:FASH ? 'Phones, laptops, TVs and home appliances in Velos Global Shop.' : 'Ladies and men: dresses, wigs, perfumes, bags, suits and grooming.', b:FASH ? 'Visit the shop' : 'Explore fashion', h:FASH ? 'shop.html' : 'fashion.html'},
       {k:'c', t:'Buying from abroad?', s:'We handle sourcing, shipping, customs and delivery for you.', b:'Ask on WhatsApp', h:wa, x:1},
-      {k:'d', t:'Hungry? Velos Foods delivers', s:'Restaurants, groceries and fresh supplies to your door.', b:'Order food', h:'foods.html'}]; }
-  function slider(){ var S = slides(); return '<div class="vj-sl" id="vj-sl">' + S.map(function(x, i){ return '<a class="vj-s vj-s-' + x.k + '" href="' + esc(x.h) + '"' + (x.x ? ' target="_blank" rel="noopener"' : '') + '><div><b>' + esc(x.t) + '</b><span>' + esc(x.s) + '</span><i>' + esc(x.b) + ' ›</i></div></a>'; }).join('') + '</div><div class="vj-dots" id="vj-dots">' + S.map(function(_, i){ return '<i class="' + (i ? '' : 'on') + '"></i>'; }).join('') + '</div>'; }
+      {k:'d', food:1, t:'Hungry? Velos Foods delivers', s:'Restaurants, groceries and fresh supplies to your door.', b:'Order food', h:'foods.html'}]; }
+  function slider(){ var S = slides(); return '<div class="vj-sl" id="vj-sl">' + S.map(function(x, i){ return '<a class="vj-s vj-s-' + x.k + '"' + (x.food ? ' id="vj-food"' : '') + ' href="' + esc(x.h) + '"' + (x.x ? ' target="_blank" rel="noopener"' : '') + (x.img ? ' style="background-image:linear-gradient(90deg,rgba(2,8,28,.9) 0,rgba(2,8,28,.5) 60%,rgba(2,8,28,.15) 100%),url(\'' + x.img + '\');background-size:cover;background-position:center"' : '') + '><div><b>' + esc(x.t) + '</b><span>' + esc(x.s) + '</span><i>' + esc(x.b) + ' ›</i></div></a>'; }).join('') + '</div><div class="vj-dots" id="vj-dots">' + S.map(function(_, i){ return '<i class="' + (i ? '' : 'on') + '"></i>'; }).join('') + '</div>'; }
   function autoplay(){ var el = $('vj-sl'); if(!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return; var n = 0, ds = $('vj-dots').children, hold = 0;
     el.addEventListener('pointerdown', function(){ hold = 1; }); el.addEventListener('pointerup', function(){ setTimeout(function(){ hold = 0; }, 3000); });
     el.addEventListener('scroll', function(){ var i = Math.round(el.scrollLeft / el.clientWidth); for(var k = 0; k < ds.length; k++) ds[k].className = k === i ? 'on' : ''; n = i; });
     setInterval(function(){ if(hold || document.hidden) return; n = (n + 1) % ds.length; el.scrollTo({left: n * el.clientWidth, behavior: 'smooth'}); }, 5200); }
 
+  function foodBg(){ var S = window.VELOS_SUPABASE; if(!S) return; fetch(S.url + '/rest/v1/rpc/food_menu_v2', {method:'POST', headers:{apikey:S.key, 'Content-Type':'application/json'}, body:'{}'}).then(function(r){ return r.ok ? r.json() : null; }).then(function(m){ var a = []; if(!m || !m.vendors) return; m.vendors.forEach(function(v){ if(v.cover_url) a.push(v.cover_url); v.categories.forEach(function(c){ c.items.forEach(function(i){ if(i.image && i.image.indexOf('ph-') < 0 && !/^data:/.test(i.image)) a.push(i.image); }); }); }); if(!a.length) return; var k = 0, el = $('vj-food'); function go(){ if(!el) return; el.style.backgroundImage = 'linear-gradient(90deg,rgba(2,8,28,.9) 0,rgba(2,8,28,.5) 60%,rgba(2,8,28,.15) 100%),url("' + a[k++ % a.length].replace(/"/g, '%22') + '")'; el.style.backgroundSize = 'cover'; el.style.backgroundPosition = 'center'; } go(); setInterval(go, 6000); }).catch(function(){}); }
   /* ---------- category row ---------- */
   var catSig = '';
   function catRow(){ var box = $('vj-cats'); if(!box || !ready()) return; var sig = CATEGORIES.map(function(c){ return c.key; }).join(','); if(sig === catSig) return; catSig = sig;
@@ -84,7 +85,7 @@
     var top = document.createElement('div'); top.className = 'wrap vj-top'; top.innerHTML = slider() + '<div class="vj-cats" id="vj-cats"></div><div id="vj-res" hidden></div>';
     sec.insertBefore(top, sec.firstChild); sec.insertBefore(bar, sec.firstChild);
     $('vj-q').addEventListener('input', function(){ clearTimeout(st); st = setTimeout(search, 140); }); $('vj-q').addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); clearTimeout(st); search(); this.blur(); } });
-    nav(); autoplay(); catRow(); badges(); }
+    nav(); autoplay(); catRow(); badges(); foodBg(); }
   function boot(){ build(); catRow(); badges(); }
   var tries = 0, iv = setInterval(function(){ if(ready()) boot(); if(++tries > 60) clearInterval(iv); }, 500);
   addEventListener('load', function(){ setTimeout(function(){ if(ready()){ boot(); if(typeof renderProducts === 'function'){ try { renderProducts(); } catch(e){} } } }, 400); });
