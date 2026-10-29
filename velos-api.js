@@ -83,6 +83,11 @@ function checkout(items, onDone){
   var pk = {n:SITE.pickup_name || 'Velos Pick-up Station', a:SITE.pickup_address || 'Kampala, Uganda', note:SITE.pickup_note || 'Please bring your National ID or another valid identification document. The name must match the person who placed the order.'};
   var both = function(n){ return window.velosBoth ? window.velosBoth(n) : ugxs(n); };
   var mode = 'delivery', km = 0, fee = 0, pinned = false, map = null, pin = null;
+  /* Where the goods leave from: electronics and general items from the main shop point, fashion and beauty from the fashion shop.
+     If one order has both, the delivery fee is worked out from the farther pick-up point. */
+  var FASH = ['women-fashion','women-beauty','men-fashion','men-grooming'], useMain = false, useFash = false;
+  items.forEach(function(it){ var p = PRODUCTS.find(function(x){ return x.id === it.product_id; }); if(p && FASH.indexOf(p.cat) > -1) useFash = true; else useMain = true; });
+  function origins(){ var o = []; if(useMain || !useFash) o.push({lat:RULES.oLat, lng:RULES.oLng}); if(useFash) o.push({lat:RULES.fLat, lng:RULES.fLng}); return o; }
   var d = modal('Complete your order',
     '<div class="sum">' + t.lines.map(esc).join('<br>') + '<br><b>Goods total: ' + both(t.total) + '</b>' + (dep ? '<br><b style="color:#e8c766">' + pct + '% deposit required' + (bulk ? ' (bulk order)' : '') + ': ' + both(dep) + '</b>' : '') + '</div>'
     + '<div class="sum"><b>How would you like to receive your order?</b></div>'
@@ -107,10 +112,10 @@ function checkout(items, onDone){
   }
   function hav(a1, b1, c2, d2){ var p = Math.PI / 180, x = Math.sin((c2 - a1) * p / 2), y = Math.sin((d2 - b1) * p / 2), h = x * x + Math.cos(a1 * p) * Math.cos(c2 * p) * y * y; return 12742 * Math.asin(Math.sqrt(h)); }
   function setPin(a1, o1){
-    pin.setLatLng([a1, o1]); map.panTo([a1, o1]); var st = hav(RULES.oLat, RULES.oLng, a1, o1);
+    pin.setLatLng([a1, o1]); map.panTo([a1, o1]); var og = null; origins().forEach(function(q){ var dd = hav(q.lat, q.lng, a1, o1); if(!og || dd > og.d) og = {lat:q.lat, lng:q.lng, d:dd}; }); var st = og.d;
     function money(){ fee = Math.max(Math.round(km * RULES.perKm / 100) * 100, RULES.minFee || 0); pinned = true; totUI(); }
     km = Math.round(st * 1.3 * 10) / 10; money();
-    fetch('https://router.project-osrm.org/route/v1/driving/' + RULES.oLng + ',' + RULES.oLat + ';' + o1 + ',' + a1 + '?overview=false').then(function(r){ return r.json(); })
+    fetch('https://router.project-osrm.org/route/v1/driving/' + og.lng + ',' + og.lat + ';' + o1 + ',' + a1 + '?overview=false').then(function(r){ return r.json(); })
       .then(function(j){ if(j.routes && j.routes[0]){ km = Math.max(Math.round(j.routes[0].distance / 100) / 10, Math.round(st * 10) / 10); money(); } }).catch(function(){});
   }
   totUI();
@@ -231,8 +236,8 @@ window.v_sendTechRegistration = window.sendTechRegistration = function(){
 /* ---------- 5. STOREFRONT UPGRADE ---------- */
 var SITE = {};
 window.formatUGX = function(n){ return window.velosMoney ? window.velosMoney(n) : 'UGX ' + Math.round(n || 0).toLocaleString('en-US'); };
-var RULES = {thr:1000000, single:30, bulk:70, bulkMin:5, perKm:900, minFee:0, oLat:0.40206, oLng:32.58973};
-api('settings?select=key,value&key=like.rule_*').then(function(r){ (r || []).forEach(function(x){ var v = Number(x.value); if(x.key === 'rule_deposit_threshold_ugx') RULES.thr = v; else if(x.key === 'rule_deposit_single_pct') RULES.single = v; else if(x.key === 'rule_deposit_bulk_pct') RULES.bulk = v; else if(x.key === 'rule_bulk_min_units') RULES.bulkMin = v; else if(x.key === 'rule_delivery_per_km') RULES.perKm = v; else if(x.key === 'rule_delivery_min_ugx') RULES.minFee = v; else if(x.key === 'rule_shop_origin_lat') RULES.oLat = v; else if(x.key === 'rule_shop_origin_lng') RULES.oLng = v; }); }).catch(function(){});
+var RULES = {thr:1000000, single:30, bulk:70, bulkMin:5, perKm:900, minFee:0, oLat:0.3163, oLng:32.5822, fLat:0.3163, fLng:32.5822};
+api('settings?select=key,value&key=like.rule_*').then(function(r){ (r || []).forEach(function(x){ var v = Number(x.value); if(x.key === 'rule_deposit_threshold_ugx') RULES.thr = v; else if(x.key === 'rule_deposit_single_pct') RULES.single = v; else if(x.key === 'rule_deposit_bulk_pct') RULES.bulk = v; else if(x.key === 'rule_bulk_min_units') RULES.bulkMin = v; else if(x.key === 'rule_delivery_per_km') RULES.perKm = v; else if(x.key === 'rule_delivery_min_ugx') RULES.minFee = v; else if(x.key === 'rule_shop_origin_lat') RULES.oLat = v; else if(x.key === 'rule_shop_origin_lng') RULES.oLng = v; else if(x.key === 'rule_fashion_origin_lat') RULES.fLat = v; else if(x.key === 'rule_fashion_origin_lng') RULES.fLng = v; }); }).catch(function(){});
 var PROMO = {}, PINFO = {};
 function effPrice(p){ var d = PROMO[p.id]; return (p.price && d) ? Math.round(p.price * (100 - d) / 100) : p.price; }
 var promoP = api('promotions?select=product_id,discount_percent,starts_at,ends_at&is_active=eq.true');

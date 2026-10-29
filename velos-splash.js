@@ -2,8 +2,10 @@
 function show(){if(document.getElementById('vsp'))return;if(!document.getElementById('vsps')){var s=document.createElement('style');s.id='vsps';s.textContent=CSS;(document.head||document.documentElement).appendChild(s)}
  var d=document.createElement('div');d.id='vsp';d.innerHTML='<div class="lg"><img src="logo.png" alt="The Velos Group"></div><b style="animation-delay:.9s">Anything.</b><b style="animation-delay:1.4s">Anywhere.</b><b style="animation-delay:1.9s"><i>Precisely.</i></b><small>THE VELOS GROUP</small>';
  document.documentElement.appendChild(d);setTimeout(function(){d.style.opacity=0;setTimeout(function(){d.remove();W.dispatchEvent(new Event('velos-splash-done'))},700)},3200)}
+/* Plays once when the app or site is opened (including re-opened after being closed or left for a few minutes).
+   It does NOT play when someone taps Back/Forward or moves between pages. */
+var back=false;try{var nv=performance.getEntriesByType('navigation')[0];back=!!(nv&&nv.type==='back_forward')}catch(e){}
 var fresh=true;try{if(sessionStorage.v_sp)fresh=false;sessionStorage.v_sp=1}catch(e){}
-if(fresh)show();
-document.addEventListener('visibilitychange',function(){if(document.hidden)hid=Date.now();else if(hid&&Date.now()-hid>15000){hid=0;show()}});
-W.addEventListener('pageshow',function(e){if(e.persisted)show()});
+if(fresh&&!back)show();
+document.addEventListener('visibilitychange',function(){if(document.hidden)hid=Date.now();else if(hid&&Date.now()-hid>180000){hid=0;show()}});
 })();
