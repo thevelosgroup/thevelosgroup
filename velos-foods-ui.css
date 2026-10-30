@@ -1,7 +1,7 @@
 /* Velos Foods: original Velos design (navy and gold). Only loaded by foods.html */
 :root{--r:18px;--sh:0 8px 26px rgba(0,0,0,.35)}
 body{background:radial-gradient(1200px 500px at 50% -120px,#13235f 0,var(--bg) 60%) no-repeat,var(--bg)}
-.top{position:sticky;top:0;z-index:30;background:rgba(8,13,31,.92);backdrop-filter:blur(8px);margin:0 -14px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.top{position:sticky;top:0;z-index:30;background:rgba(8,13,31,.92);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);margin:0 -14px;padding:10px 14px;border-bottom:1px solid var(--line)}
 .top h1{font-size:24px}
 .srch{margin:14px 0 4px;padding:15px 18px;border-radius:99px;background:#0f1730;border:1px solid var(--line);font-size:16px}
 .srch:focus{outline:2px solid var(--gold);border-color:var(--gold)}
@@ -42,3 +42,10 @@ body{background:radial-gradient(1200px 500px at 50% -120px,#13235f 0,var(--bg) 6
 @media(min-width:900px){.rg{grid-template-columns:repeat(3,1fr)}}
 @media(prefers-reduced-motion:reduce){.rc{transition:none}.rc:hover{transform:none}}
 #vend{display:none!important}
+
+/* VELOS-IOS */
+input[type=search],input[type=text],input[type=tel],input[type=email],input[type=password],input[type=number],textarea,select{-webkit-appearance:none;appearance:none;border-radius:10px}
+input,textarea,select{font-size:16px}
+button,a{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+html{-webkit-text-size-adjust:100%}
+body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
