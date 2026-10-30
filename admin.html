@@ -24,6 +24,15 @@ main{padding:12px;max-width:900px;margin:auto}
 .sm{width:auto;display:inline-block;margin:0}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 #toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ok);color:#06210f;padding:10px 16px;border-radius:99px;font-weight:700;z-index:9}
 #toast.bad{background:var(--bad);color:#fff}pre{white-space:pre-wrap;color:var(--mut);font-size:13px}
+
+.top .tl{display:flex;align-items:center;gap:10px}#mbtn{background:var(--gold);color:#080d1a;border:0;border-radius:10px;padding:8px 14px;font-weight:800}
+#crumb{padding:6px 12px;font-size:.95rem}
+#mscrim{position:fixed;inset:0;background:rgba(2,8,28,.7);z-index:900}
+#drawer{position:fixed;top:0;left:0;bottom:0;width:min(86vw,340px);background:#0b1226;border-right:1px solid #2a3560;z-index:901;overflow:auto;-webkit-overflow-scrolling:touch;padding:12px 12px calc(20px + env(safe-area-inset-bottom));animation:dsl .18s ease-out}
+@keyframes dsl{from{transform:translateX(-30px);opacity:0}to{transform:none;opacity:1}}
+#drawer .dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}#drawer input{width:100%;margin-bottom:8px}
+.mgh{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:#a3adc6;margin:14px 4px 6px}
+.mi{display:flex;flex-direction:column;align-items:flex-start;width:100%;text-align:left;background:transparent;border:1px solid transparent;border-radius:10px;padding:10px 12px;margin:2px 0;color:#f4f1ea;font-size:1rem}.mi small{color:#a3adc6;font-size:.75rem;margin-top:2px}.mi:hover{background:#141d3b}.mi.on{background:var(--gold);color:#080d1a}.mi.on small{color:#3a3a2a}
 </style></head><body>
 
 <div id="login" class="box" hidden>
@@ -36,9 +45,10 @@ main{padding:12px;max-width:900px;margin:auto}
 
 <div id="app" hidden>
   <header>
-    <div class="top"><b class="gold">VELOS ADMIN</b><span><span id="who" class="mut"></span> <button class="ghost" onclick="signOut()">Sign out</button></span></div>
-    <nav id="nav"></nav><nav id="nav2"></nav>
+    <div class="top"><span class="tl"><button id="mbtn" onclick="menuOpen()" aria-label="Open menu">☰ Menu</button><b class="gold">VELOS ADMIN</b></span><span><span id="who" class="mut"></span> <button class="ghost" onclick="signOut()">Sign out</button></span></div>
+    <div id="crumb"></div><nav id="nav2"></nav>
   </header>
+  <div id="mscrim" onclick="menuClose()" hidden></div><aside id="drawer" hidden><div class="dh"><b class="gold">Velos back office</b><button class="ghost" onclick="menuClose()">✕</button></div><input id="mq" type="search" placeholder="Search a page…" oninput="menuFilter()"><div id="mlist"></div></aside>
   <main id="view"></main>
 </div>
 <div id="toast" hidden></div>
@@ -130,9 +140,18 @@ async function bdCreate(){
   toast(error ? error.message : 'Bundle created. Find it in Products.', !!error); if(!error) go('bundles');
 }
 const GROUPS = [['Overview','📊',['home','report','inq','messages']],['Orders','🧾',['orders','forders','payments','docs','designs','gifts','service','security']],['Food','🍽️',['fmenu','fvendors','friders','frules','supplies']],['Shop','🛍️',['products','photos','bundles','promos','import']],['People','👥',['customers','phones','agents','leads','techs','team','careers']],['System','⚙️',['bizset','applinks','export','settings']]];
-function navFor(k){ const lab = Object.fromEntries(TB.map(t => [t[0], t[1]])); window.NG = GROUPS.map(g => [g[0], g[1], g[2].filter(x => lab[x])]).filter(g => g[2].length); const gi = Math.max(0, NG.findIndex(g => g[2].includes(k)));
-  $('#nav').innerHTML = NG.map((g,i) => `<button class="${i===gi?'on':''}" onclick="go('${g[2][0]}')">${g[1]} ${g[0]}</button>`).join('');
-  $('#nav2').innerHTML = NG[gi][2].map(x => `<button class="${x===k?'on':''}" onclick="go('${x}')">${lab[x]}</button>`).join(''); }
+const MENU_NOTE = {home:'Overview',orders:'Shop orders',forders:'Food orders',payments:'Confirm payments',fvendors:'Restaurants & Velos Foods Store',fmenu:'Menu items & prices',frules:'Delivery fees, markup, origins',phones:'Verify new customers',settings:'Site settings',team:'Staff & access'};
+function navFor(k){ const lab = Object.fromEntries(TB.map(t => [t[0], t[1]])); const used = new Set(GROUPS.flatMap(g => g[2])); const G = GROUPS.map(g => [g[0], g[1], g[2].filter(x => lab[x])]).filter(g => g[2].length); const rest = TB.map(t => t[0]).filter(x => !used.has(x)); if(rest.length) G.push(['Other','📁',rest]); window.NG = G; window.MLAB = lab; window.CURK = k;
+  const gi = Math.max(0, G.findIndex(g => g[2].includes(k)));
+  $('#crumb').innerHTML = '<b>' + G[gi][1] + ' ' + G[gi][0] + '</b> <span class="mut">›</span> <span class="gold">' + esc(lab[k] || '') + '</span>';
+  $('#nav2').innerHTML = G[gi][2].map(x => `<button class="${x===k?'on':''}" onclick="go('${x}')">${lab[x]}</button>`).join('');
+  menuFilter(); }
+function menuOpen(){ $('#drawer').hidden = false; $('#mscrim').hidden = false; document.body.style.overflow = 'hidden'; $('#mq').value = ''; menuFilter(); }
+function menuClose(){ $('#drawer').hidden = true; $('#mscrim').hidden = true; document.body.style.overflow = ''; }
+function menuFilter(){ const q = ($('#mq').value || '').toLowerCase().trim(); if(!window.NG) return;
+  $('#mlist').innerHTML = NG.map((g, gi) => { const items = g[2].filter(x => !q || (MLAB[x] || '').toLowerCase().includes(q) || (MENU_NOTE[x] || '').toLowerCase().includes(q) || g[0].toLowerCase().includes(q)); if(!items.length) return '';
+    return `<div class="mg"><div class="mgh">${g[1]} ${g[0]}</div>` + items.map(x => `<button class="mi ${x===CURK?'on':''}" onclick="menuClose();go('${x}')"><span>${esc(MLAB[x])}</span>${MENU_NOTE[x] ? `<small>${esc(MENU_NOTE[x])}</small>` : ''}</button>`).join('') + '</div>'; }).join('') || '<p class="mut" style="padding:12px">No page matches.</p>'; }
+addEventListener('keydown', e => { if(e.key === 'Escape') menuClose(); });
 const PH_ACC = '.jpg,.jpeg,.png,.webp,.gif,.bmp,.avif,.heic,.heif,image/*';
 function phIsTile(x){ return !x.img || /^data:/.test(x.img); }
 function phList(){ const q = ($('#ph_q').value || '').toLowerCase(), t = $('#ph_t').value, only = $('#ph_n').checked;
@@ -370,7 +389,8 @@ async function makePayout(id){ const {error} = await db.rpc('food_make_vendor_pa
 async function paidVendor(id){ const {error} = await db.from('food_vendor_payouts').update({status:'paid', paid_at:new Date().toISOString(), reference:$('#pr-'+id).value.trim()||null}).eq('id', id); toast(error ? error.message : 'Marked paid', !!error); if(!error) go('fvendors'); }
 async function payRider(id){ const {error} = await db.rpc('food_pay_rider', {p_rider:id, p_ref:$('#rr-'+id).value.trim()||null}); toast(error ? error.message : 'Rider paid', !!error); if(!error) go('friders'); }
 function mapPt(k){ const a = $('#fr_rule_'+k+'_origin_lat').value, b = $('#fr_rule_'+k+'_origin_lng').value; window.open('https://www.google.com/maps?q=' + encodeURIComponent(a + ',' + b), '_blank'); }
-async function saveFRules(){ const ks = ['rule_delivery_per_km','rule_delivery_min_ugx','rule_shop_origin_lat','rule_shop_origin_lng','rule_fashion_origin_lat','rule_fashion_origin_lng','rule_food_free_km','rule_food_mid_km','rule_food_mid_pct','rule_food_customer_per_km','rule_food_rider_per_km','rule_food_grace_min','rule_food_penalty_pct_per_min','rule_food_cancel_after_min','rule_food_stockout_penalty_pct','rule_food_road_factor'];
+async function applyAll(w){ if(!confirm('Apply the saved ' + w + ' percentage to ALL restaurants now? This changes customer prices.')) return; const {data, error} = await db.rpc('admin_apply_food_defaults', {p_what:w}); toast(error ? error.message : ('Updated ' + data + ' restaurants'), !!error); }
+async function saveFRules(){ const ks = ['rule_delivery_per_km','rule_delivery_min_ugx','rule_shop_origin_lat','rule_shop_origin_lng','rule_fashion_origin_lat','rule_fashion_origin_lng','rule_food_free_km','rule_food_mid_km','rule_food_mid_pct','rule_food_customer_per_km','rule_food_rider_per_km','rule_food_grace_min','rule_food_penalty_pct_per_min','rule_food_cancel_after_min','rule_food_stockout_penalty_pct','rule_food_road_factor','rule_food_default_markup','rule_food_default_commission'];
   for(const k of ks){ const {error} = await db.from('settings').upsert({key:k, value:String(Number($('#fr_'+k).value))}); if(error) return toast(error.message, true); } toast('Rules saved'); }
 const SITEURL = () => location.href.replace(/admin\.html.*$/, '');
 function openMail(to, subject, body){ if(!to) return toast('This customer left no email address', true); location.href = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body); }
@@ -881,8 +901,8 @@ const VIEWS = {
 
   async frules(){
     const {data} = await db.from('settings').select('*').like('key','rule_food_%'), v = k => (data||[]).find(x => x.key === k)?.value ?? '';
-    const F = [['rule_delivery_per_km','Shop and other deliveries: customer rate per km (UGX)'],['rule_delivery_min_ugx','Minimum delivery fee (UGX)'],['rule_shop_origin_lat','Electronics and general shop pick-up point: latitude (Nakasero Street, Kampala Central)'],['rule_shop_origin_lng','Electronics and general shop pick-up point: longitude'],['rule_fashion_origin_lat','Fashion and beauty shop pick-up point: latitude'],['rule_fashion_origin_lng','Fashion and beauty shop pick-up point: longitude'],['rule_food_free_km','Free delivery radius (km) — included in the 15% markup'],['rule_food_mid_km','Percentage-fee zone ends at (km)'],['rule_food_mid_pct','Extra % of the order between those distances'],['rule_food_customer_per_km','Customer rate per km beyond that (UGX)'],['rule_food_rider_per_km','Rider pay per km (UGX)'],['rule_food_grace_min','Late grace added automatically (minutes)'],['rule_food_penalty_pct_per_min','Restaurant penalty per late minute (% of order value)'],['rule_food_cancel_after_min','Auto-cancel after this many penalty minutes'],['rule_food_stockout_penalty_pct','Penalty for out-of-stock cancellation (%)'],['rule_food_road_factor','Straight-line to road distance factor']];
-    $('#view').innerHTML = '<h2>Food delivery rules</h2><div class="card">' + F.map(f => `<label class="mut">${f[1]}</label><input id="fr_${f[0]}" type="number" step="any" value="${esc(v(f[0]))}">`).join('') + '<p class="mut">Check a point on the map: <a href="#" onclick="mapPt(\'shop\');return false">electronics point</a> · <a href="#" onclick="mapPt(\'fashion\');return false">fashion shop point</a>. To get exact numbers: open Google Maps, press and hold on the exact spot, then tap the numbers that appear and copy them here.</p><button onclick="saveFRules()">Save rules</button><p class="mut">Restaurant customer markup (15%) and commission (15%) are set per restaurant in Restaurants.</p></div>';
+    const F = [['rule_delivery_per_km','Shop and other deliveries: customer rate per km (UGX)'],['rule_delivery_min_ugx','Minimum delivery fee (UGX)'],['rule_shop_origin_lat','Electronics and general shop pick-up point: latitude (Nakasero Street, Kampala Central)'],['rule_shop_origin_lng','Electronics and general shop pick-up point: longitude'],['rule_fashion_origin_lat','Fashion and beauty shop pick-up point: latitude'],['rule_fashion_origin_lng','Fashion and beauty shop pick-up point: longitude'],['rule_food_free_km','Free delivery radius (km)'],['rule_food_mid_km','Percentage-fee zone ends at (km)'],['rule_food_mid_pct','Extra % of the order between those distances'],['rule_food_customer_per_km','Customer rate per km beyond that (UGX)'],['rule_food_rider_per_km','Rider pay per km (UGX)'],['rule_food_grace_min','Late grace added automatically (minutes)'],['rule_food_penalty_pct_per_min','Restaurant penalty per late minute (% of order value)'],['rule_food_cancel_after_min','Auto-cancel after this many penalty minutes'],['rule_food_stockout_penalty_pct','Penalty for out-of-stock cancellation (%)'],['rule_food_road_factor','Straight-line to road distance factor'],['rule_food_default_markup','Platform fee added to restaurant menu prices (%): default for new restaurants. Covers running costs, taxes and service fees so customers are not charged them separately'],['rule_food_default_commission','Velos commission charged to restaurants (%): default for new restaurants']];
+    $('#view').innerHTML = '<h2>Food delivery rules</h2><div class="card">' + F.map(f => `<label class="mut">${f[1]}</label><input id="fr_${f[0]}" type="number" step="any" value="${esc(v(f[0]))}">`).join('') + '<p class="mut">Check a point on the map: <a href="#" onclick="mapPt(\'shop\');return false">electronics point</a> · <a href="#" onclick="mapPt(\'fashion\');return false">fashion shop point</a>. To get exact numbers: open Google Maps, press and hold on the exact spot, then tap the numbers that appear and copy them here.</p><button onclick="saveFRules()">Save rules</button><div class="card" style="margin-top:10px"><b>Apply the percentages to restaurants already on Velos</b><p class="mut">New restaurants get the defaults above automatically. To change restaurants already registered, save the rules first, then tap a button. You can still set one restaurant differently in Restaurants. The Velos Foods Store is never changed.</p><button onclick="applyAll(\'markup\')">Apply markup to all restaurants</button> <button class="ghost" onclick="applyAll(\'commission\')">Apply commission to all restaurants</button></div></div>';
   },
 
   async supplies(){

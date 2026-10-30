@@ -59,7 +59,7 @@ function draw(){
   V.categories.forEach(function(c){if(CAT&&CAT!==c.id)return;var it=c.items.filter(function(i){return !q||(i.name+' '+(i.description||'')).toLowerCase().indexOf(q)>-1});if(it.length)h+='<h2>'+esc(c.name)+'</h2><div class="grid">'+it.map(card).join('')+'</div>'});
   $('list').innerHTML=h||'<p class="m">Nothing found.</p>'}
 function car(){
-  var all=[];V.categories.forEach(function(c){c.items.forEach(function(i){if(i.available&&i.price)all.push(i)})});
+  var all=[];V.categories.forEach(function(c){c.items.forEach(function(i){if(i.available&&i.price&&!/(drink|beverage|juice|soda|soft|water|coffee|tea\b|latte|cappuccino|espresso|mocha|smoothie|shake|beer|wine|spirit|cocktail|mocktail|mojito|lager|energy|fanta|coke|pepsi|sprite)/i.test(c.name+' '+i.name))all.push(i)})});
   var seed=Math.floor(Date.now()/3600000),r=function(){seed=(seed*9301+49297)%233280;return seed/233280};
   var pr=all.filter(function(i){return i.promo}),rest=all.filter(function(i){return !i.promo&&i.image&&i.image.indexOf('ph-')<0}).sort(function(){return r()-.5}),pick=pr.concat(rest).slice(0,8);
   $('carbox').hidden=!pick.length;$('car').innerHTML=pick.map(function(i){return '<div class="s"><img src="'+esc(i.image)+'" alt="" onerror="ie(this)"><div><b>'+esc(i.name)+'</b>'+(i.promo?'<span class="off" style="align-self:flex-start">-'+i.promo+'% flash deal</span>':'')+'<div class="pr">'+ugx(i.price)+(i.promo?' <s>'+ugx(i.orig)+'</s>':'')+'</div><button onclick="add(\''+i.id+'\',1)">Add to cart</button></div></div>'}).join('');
