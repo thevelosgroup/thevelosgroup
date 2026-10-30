@@ -1,7 +1,7 @@
 (function(){var W=window;
 var UA=navigator.userAgent,IOS=/iphone|ipad|ipod/i.test(UA)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1),SAF=IOS&&!/crios|fxios|edgios|opios/i.test(UA),STANDALONE=(function(){try{return matchMedia('(display-mode: standalone)').matches||navigator.standalone===true}catch(e){return false}})();
 if(IOS){try{document.documentElement.className+=' ios'}catch(e){}}
-try{var st=document.createElement('style');st.textContent='body:has(.sheet) #vpb,body:has(#vob) #vpb,body:has(#hs) #vpb{display:none!important}';document.head.appendChild(st)}catch(e){}
+try{var st=document.createElement('style');st.textContent='body:has(.sheet) #vpb,body:has(#vob) #vpb,body:has(#hs) #vpb{display:none!important}body:has(#vs-bar) #vpb{bottom:calc(76px + env(safe-area-inset-bottom))!important}';document.head.appendChild(st)}catch(e){}
 function lz(n){if(n.tagName==='IMG'){if(!n.hasAttribute('loading'))n.setAttribute('loading','lazy');if(!n.hasAttribute('decoding'))n.setAttribute('decoding','async')}else if(n.querySelectorAll)n.querySelectorAll('img').forEach(lz)}
 try{new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(lz)})}).observe(document.documentElement,{childList:true,subtree:true})}catch(e){}
 addEventListener('DOMContentLoaded',function(){document.querySelectorAll('img').forEach(lz)});
