@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><script src="velos-splash.js"></script><script src="velos-alerts.js"></script><script src="velos-approval.js"></script><link rel="manifest" href="manifest-admin.json"><meta name="theme-color" content="#080d1f"><link rel="apple-touch-icon" href="icon-192.png"><script src="velos-pwa.js" defer></script>
+<html lang="en"><head><script src="velos-splash.js"></script><script src="velos-alerts.js"></script><script src="velos-push.js"></script><script src="velos-approval.js"></script><link rel="manifest" href="manifest-admin.json"><meta name="theme-color" content="#080d1f"><link rel="apple-touch-icon" href="icon-192.png"><script src="velos-pwa.js" defer></script>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://ptmedfjkapzqxltntynf.supabase.co; base-uri 'self'; form-action 'none'"><title>Velos Admin</title>
 <style>
@@ -86,7 +86,7 @@ async function boot(){
   if(!session) return show(false);
   const {data:p, error:pe} = await db.from('profiles').select('full_name,role').eq('id', session.user.id).maybeSingle();
   if(!p){ await db.auth.signOut(); show(false); $('#err').textContent = pe ? 'Database error: ' + pe.message : 'This account is not authorised as staff. (login id ' + session.user.id + ')'; return; }
-  me = p; $('#who').textContent = p.full_name || p.role; show(true);
+  me = p; $('#who').textContent = p.full_name || p.role; show(true); try { VelosPush.mount(db); } catch(e){}
   const {data} = await db.from('categories').select('*').order('sort_order'); cats = data || [];
   const hide = ({manager:['team','settings','frules'], staff:['report','products','agents','leads','team','import','export','security','applinks','promos','bundles','photos','docs','careers','bizset','settings','fmenu','supplies','fvendors','friders','frules']})[p.role] || [];
   window.TB = TABS.filter(t => !hide.includes(t[0]));

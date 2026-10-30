@@ -155,7 +155,7 @@ function checkout(items, onDone){
         modal('Thank you for shopping with Velos ✓',
           '<div class="sum" style="font-size:15px;color:#f4f1ea">Dear ' + esc(n) + ', your Order <b>#' + no + '</b> is confirmed. Grand total: <b>' + both(t.total + f) + '</b>' + (f ? ' (delivery ' + both(f) + ', paid on delivery)' : '') + '.'
           + (mode === 'pickup' ? '<br><br><b style="color:#e8c766">Collection:</b> ' + esc(pk.n) + ', ' + esc(pk.a) + '. ' + esc(pk.note) : '<br><br>We will keep you updated at every step.') + '<br><br>Keep your order number to track progress.</div>',
-          '<a class="vb go" href="track.html?o=' + no + '">Track my order</a><a class="vb cx" href="pay.html?o=' + no + '&p=' + encodeURIComponent(p) + '">Pay online now (optional)</a><a class="vb cx" target="_blank" rel="noopener" href="' + waLink(wa) + '">Message us on WhatsApp (optional)</a>');
+          '<a class="vb go" href="track.html?o=' + no + '">Track my order</a>' + (window.VelosPush ? VelosPush.custBtn(p, 'shop', no, 'vb cx') : '') + '<a class="vb cx" href="pay.html?o=' + no + '&p=' + encodeURIComponent(p) + '">Pay online now (optional)</a><a class="vb cx" target="_blank" rel="noopener" href="' + waLink(wa) + '">Message us on WhatsApp (optional)</a>');
       })
       .catch(function(err){
         goBtn.disabled = false; goBtn.textContent = 'Place order';
