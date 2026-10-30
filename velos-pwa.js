@@ -1,6 +1,7 @@
 (function(){var W=window;
 var UA=navigator.userAgent,IOS=/iphone|ipad|ipod/i.test(UA)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1),SAF=IOS&&!/crios|fxios|edgios|opios/i.test(UA),STANDALONE=(function(){try{return matchMedia('(display-mode: standalone)').matches||navigator.standalone===true}catch(e){return false}})();
 if(IOS){try{document.documentElement.className+=' ios'}catch(e){}}
+try{var st=document.createElement('style');st.textContent='body:has(.sheet) #vpb,body:has(#vob) #vpb,body:has(#hs) #vpb{display:none!important}';document.head.appendChild(st)}catch(e){}
 function lz(n){if(n.tagName==='IMG'){if(!n.hasAttribute('loading'))n.setAttribute('loading','lazy');if(!n.hasAttribute('decoding'))n.setAttribute('decoding','async')}else if(n.querySelectorAll)n.querySelectorAll('img').forEach(lz)}
 try{new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(lz)})}).observe(document.documentElement,{childList:true,subtree:true})}catch(e){}
 addEventListener('DOMContentLoaded',function(){document.querySelectorAll('img').forEach(lz)});
@@ -8,7 +9,7 @@ if('serviceWorker'in navigator)addEventListener('load',function(){navigator.serv
 var dp=null;addEventListener('beforeinstallprompt',function(e){e.preventDefault();dp=e;bar()});
 function bar(){if(document.getElementById('vpb')||STANDALONE)return;
  var ios=IOS,b=document.createElement('div');b.id='vpb';
- b.style.cssText='position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:9999;background:#0f1730;border:1px solid #e8c766;color:#f4f1ea;border-radius:12px;padding:12px;font:14px -apple-system,system-ui;display:flex;gap:10px;align-items:center;justify-content:space-between';
+ b.style.cssText='position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:45;background:#0f1730;border:1px solid #e8c766;color:#f4f1ea;border-radius:12px;padding:12px;font:14px -apple-system,system-ui;display:flex;gap:10px;align-items:center;justify-content:space-between';
  b.innerHTML='<span>'+(ios?(SAF?'To install: tap the Share icon, then Add to Home Screen.':'To install: tap Share (or the ⋯ menu), then Add to Home Screen. If you do not see it, open this page in Safari.'):'Install this app on your device')+'</span><span>'+(ios?'':'<button id="vpi" style="background:#e8c766;border:0;border-radius:8px;padding:8px 12px;font-weight:700">Install</button> ')+'<button id="vpx" style="background:none;border:0;color:#a3adc6;font-size:18px">✕</button></span>';
  document.body.appendChild(b);document.getElementById('vpx').onclick=function(){b.remove();try{localStorage.vpd=1}catch(e){}};
  var i=document.getElementById('vpi');if(i)i.onclick=function(){dp.prompt();dp.userChoice.then(function(){b.remove()})}}
