@@ -16,7 +16,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:8px 6px;border-bottom:1p
 .box{max-width:520px;margin:5vh auto}#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ok);color:#06210f;padding:10px 16px;border-radius:99px;font-weight:700}
 </style></head><body><div class="w"><div id="v"><p class="m">Loading…</p></div></div><div id="toast" hidden></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="supabase-config.js"></script>
+<script src="supabase-config.js"></script><script src="velos-people-docs.js"></script>
 <script>
 var S=window.VELOS_SUPABASE,db=supabase.createClient(S.url,S.key),$=function(i){return document.getElementById(i)};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
@@ -79,7 +79,7 @@ async function dash(a){
    ;
   var myH=''+'<h2>My leads</h2><div class="c">'+(leads.length?'<table><tr><th>Customer</th><th>Interest</th><th>Status</th></tr>'+leads.map(function(l){return '<tr><td>'+esc(l.customer_name)+'<br><span class="m">'+esc(l.customer_phone)+'</span></td><td>'+esc(l.interest)+'</td><td><span class="pill">'+esc(l.status)+'</span>'+(l.admin_note?'<br><span class="m">'+esc(l.admin_note)+'</span>':'')+'</td></tr>'}).join('')+'</table>':'<p class="m">No leads yet.</p>')+'</div>'
    ;
-  VS.page([{id:'ov',icon:'📊',label:'Overview',note:'Earnings and your personal link',html:ovH},{id:'add',icon:'➕',label:'Add a lead',note:'Submit a customer for approval',html:addH},{id:'perf',icon:'📈',label:'Performance',short:'Monthly',note:'Sales and commission by month',html:perfH},{id:'leads',icon:'📋',label:'My leads',short:'Leads',note:'Status of every lead',badge:leads.filter(function(l){return l.status==='new'||l.status==='pending'}).length||'',html:myH}],{brand:'VELOS SALES AGENT',title:'Welcome, '+esc(a.full_name.split(' ')[0]),who:a.agent_code,pills:'<span class="pill">'+esc(a.agent_code)+'</span> <span class="pill">Commission '+a.commission_rate+'%</span>',signout:'out()'});
+  VS.page([{id:'ov',icon:'📊',label:'Overview',note:'Earnings and your personal link',html:ovH},{id:'add',icon:'➕',label:'Add a lead',note:'Submit a customer for approval',html:addH},{id:'perf',icon:'📈',label:'Performance',short:'Monthly',note:'Sales and commission by month',html:perfH},{id:'leads',icon:'📋',label:'My leads',short:'Leads',note:'Status of every lead',badge:leads.filter(function(l){return l.status==='new'||l.status==='pending'}).length||'',html:myH},{id:'docs',icon:'📄',label:'Documents',short:'Docs',note:'Your agreement and ID card',html:VelosPeople.panel('agent',{id:a.id,ref:a.agent_code,name:a.full_name,phone:a.phone,id_number:a.id_number,city:[a.city,a.country].filter(Boolean).join(', '),commission_pct:a.commission_rate},a.status==='active')}],{brand:'VELOS SALES AGENT',title:'Welcome, '+esc(a.full_name.split(' ')[0]),who:a.agent_code,pills:'<span class="pill">'+esc(a.agent_code)+'</span> <span class="pill">Commission '+a.commission_rate+'%</span>',signout:'out()'});
   window.AG=a;
 }
 function cp(){var e=$('lk');e.select();try{navigator.clipboard.writeText(e.value)}catch(x){document.execCommand('copy')}toast('Link copied')}

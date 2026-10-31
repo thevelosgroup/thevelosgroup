@@ -12,7 +12,7 @@ button.g,a.g{background:none;border:1px solid var(--line);color:var(--txt)}.full
 .pill{font-size:12px;padding:2px 9px;border-radius:99px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse}td,th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}th{color:var(--mut)}
 .box{max-width:480px;margin:6vh auto}#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ok);color:#06210f;padding:10px 16px;border-radius:99px;font-weight:700}
 </style></head><body><div class="w"><div id="v"><p class="m">Loading…</p></div></div><div id="toast" hidden></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-people-docs.js"></script>
 <script>
 var S=window.VELOS_SUPABASE,db=supabase.createClient(S.url,S.key),$=function(i){return document.getElementById(i)},V=function(h){$('v').innerHTML=h};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})},ugx=function(n){return 'UGX '+Number(n||0).toLocaleString('en-US')};
@@ -63,7 +63,7 @@ async function tech(t){
   var aH=''+'<h2>Active jobs</h2>'+(active.length?active.map(card).join(''):'<div class="c m">No active jobs. New assignments appear here.</div>');
   var dH=''+'<h2>Completed</h2>'+(done.length?done.map(card).join(''):'<div class="c m">Nothing completed yet.</div>')
    ;
-  VS.page([{id:'ov',icon:'📊',label:'Overview',note:'Jobs and earnings at a glance',html:ovH},{id:'a',icon:'🛠️',label:'Active jobs',short:'Active',note:'Update each job as you go',badge:active.length||'',html:aH},{id:'d',icon:'✅',label:'Completed',note:'Finished jobs and payments',html:dH}],{brand:'VELOS PARTNER',title:'Welcome, '+esc((t.full_name||'').split(' ')[0]),who:t.trade,pills:'<span class="pill">'+esc(t.trade)+'</span> <span class="pill">'+esc(t.status)+'</span>',signout:'out()'});
+  VS.page([{id:'ov',icon:'📊',label:'Overview',note:'Jobs and earnings at a glance',html:ovH},{id:'a',icon:'🛠️',label:'Active jobs',short:'Active',note:'Update each job as you go',badge:active.length||'',html:aH},{id:'d',icon:'✅',label:'Completed',note:'Finished jobs and payments',html:dH},{id:'docs',icon:'📄',label:'Documents',short:'Docs',note:'Your agreement and ID card',html:VelosPeople.panel('technician',{id:t.id,name:t.full_name,phone:t.phone,id_number:t.national_id,trade:t.trade,city:[t.city,t.area].filter(Boolean).join(', ')},t.status==='verified')}],{brand:'VELOS PARTNER',title:'Welcome, '+esc((t.full_name||'').split(' ')[0]),who:t.trade,pills:'<span class="pill">'+esc(t.trade)+'</span> <span class="pill">'+esc(t.status)+'</span>',signout:'out()'});
 }
 async function act(no,st){var r=await db.rpc('tech_update_job',{p_req_no:no,p_status:st});if(r.error)toast(r.error.message,true);else{toast('Updated');boot()}}
 boot();

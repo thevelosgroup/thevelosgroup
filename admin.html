@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><script src="velos-splash.js"></script><script src="velos-alerts.js"></script><script src="velos-push.js"></script><script src="velos-approval.js"></script><link rel="manifest" href="manifest-admin.json"><meta name="theme-color" content="#080d1f"><link rel="apple-touch-icon" href="icon-192.png"><script src="velos-pwa.js" defer></script>
+<html lang="en"><head><script src="velos-splash.js"></script><script src="velos-alerts.js"></script><script src="velos-push.js"></script><script src="velos-approval.js"></script><script src="velos-people-docs.js"></script><link rel="manifest" href="manifest-admin.json"><meta name="theme-color" content="#080d1f"><link rel="apple-touch-icon" href="icon-192.png"><script src="velos-pwa.js" defer></script>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://ptmedfjkapzqxltntynf.supabase.co; base-uri 'self'; form-action 'none'"><title>Velos Admin</title>
 <style>
@@ -462,6 +462,22 @@ async function saveRules(){
   for(const k in R){ const {error} = await db.from('settings').upsert({key:k, value:String(Number($('#'+R[k]).value))}); if(error) return toast(error.message, true); }
   toast('Rules saved');
 }
+
+/* ---- People documents: pre-signed agreements and ID cards ---- */
+const PDOC_KIND = {rider:'rider', agent:'agent', tech:'technician'};
+function pdoRow(kind, x){
+  const ok = kind==='tech' ? x.status==='verified' : x.status==='active';
+  if(!ok) return `<div class="mut">Documents unlock once ${kind==='tech'?'verified':'active'}.</div>`;
+  return `<div class="row"><button onclick="pDoc('${kind}','${x.id}')">📄 Agreement</button><button class="ghost" onclick="pDoc('${kind}','${x.id}',true)">📤 Share</button><button onclick="pCard('${kind}','${x.id}')">🪪 ID card</button><input type="file" id="pp-${x.id}" accept="image/*" style="max-width:150px" title="Optional photo for the ID card"></div>`;
+}
+function pData(kind, id){
+  const L = kind==='agent' ? window.AGD : kind==='rider' ? window.RDD : window.TD; const x = (L||[]).find(z => z.id===id); if(!x) throw Error('Reload the page and try again');
+  return kind==='agent' ? {id:x.id, ref:x.agent_code, name:x.full_name, phone:x.phone, id_number:x.id_number, city:[x.city,x.country].filter(Boolean).join(', '), commission_pct:x.commission_rate}
+    : kind==='rider' ? {id:x.id, name:x.full_name, phone:x.phone, id_number:x.id_number, vehicle:x.vehicle, plate:x.plate, city:x.city||''}
+    : {id:x.id, name:x.full_name, phone:x.phone, id_number:x.national_id, trade:x.trade, city:[x.city,x.area].filter(Boolean).join(', ')};
+}
+async function pDoc(kind, id, share){ try { toast('Preparing agreement…'); const r = await VelosPeople.agreement(PDOC_KIND[kind], pData(kind,id)); if(share) await VelosPeople.share(r); else VelosPeople.save(r); } catch(e){ toast(e.message||String(e), true); } }
+async function pCard(kind, id){ try { toast('Preparing ID card…'); const d = pData(kind,id), f = $('#pp-'+id); d.photo = await VelosPeople.photo(f && f.files && f.files[0]); const r = await VelosPeople.idCard(PDOC_KIND[kind], d); VelosPeople.save(r); } catch(e){ toast(e.message||String(e), true); } }
 async function saveRate(id){ const {error} = await db.from('agents').update({commission_rate:Number($('#cr-'+id).value)}).eq('id', id); toast(error ? error.message : 'Rate saved', !!error); }
 async function payAgent(id){
   const v = Number($('#pa-'+id).value); if(!(v > 0)) return toast('Enter the payout amount', true);
@@ -568,7 +584,7 @@ const VIEWS = {
       <div class="mut">${esc(t.country)} / ${esc(t.city)} / ${esc(t.area)}</div>
       <div><a href="${wa(t.phone)}" target="_blank">${esc(t.phone)}</a> · ${esc(t.email||'')}</div>
       <div class="mut">National ID: ${esc(t.national_id)}<br>Reference: ${esc(t.ref_name)} (${esc(t.ref_phone)})<br>${esc(t.notes||'')}</div>
-      <div class="row"><input class="sm" id="lk-${t.id}" type="email" placeholder="Their login email" style="flex:1"><button onclick="linkP('link_technician','${t.id}')">${t.user_id?'Re-link login':'Link login'}</button></div><div class="mut">${dt(t.created_at)} · ${(t.doc_paths||[]).length} document(s)</div>${(t.doc_paths||[]).length?`<button onclick="docs('${t.id}')">View documents</button><div id="d-${t.id}"></div>`:''}</div>`).join('') : '<p class="mut">No applications yet.</p>');
+      ${pdoRow('tech', t)}<div class="row"><input class="sm" id="lk-${t.id}" type="email" placeholder="Their login email" style="flex:1"><button onclick="linkP('link_technician','${t.id}')">${t.user_id?'Re-link login':'Link login'}</button></div><div class="mut">${dt(t.created_at)} · ${(t.doc_paths||[]).length} document(s)</div>${(t.doc_paths||[]).length?`<button onclick="docs('${t.id}')">View documents</button><div id="d-${t.id}"></div>`:''}</div>`).join('') : '<p class="mut">No applications yet.</p>');
   },
 
   async service(){
@@ -648,7 +664,7 @@ const VIEWS = {
 
   async agents(){
     const [a,p,s] = await Promise.all([db.from('agents').select('*').order('created_at',{ascending:false}), db.from('agent_payouts').select('agent_id,amount_ugx'), db.rpc('agent_stats',{p_agent:null})]);
-    if(a.error) throw a.error; const earn = {}, rev = {}, paid = {};
+    if(a.error) throw a.error; window.AGD = a.data; const earn = {}, rev = {}, paid = {};
     (s.data||[]).forEach(r => { earn[r.agent_id] = (earn[r.agent_id]||0) + Number(r.commission); rev[r.agent_id] = (rev[r.agent_id]||0) + Number(r.revenue); });
     (p.data||[]).forEach(x => paid[x.agent_id] = (paid[x.agent_id]||0) + Number(x.amount_ugx));
     $('#view').innerHTML = '<h2>Sales agents</h2>' + (a.data.length ? a.data.map(g => `<div class="card">
@@ -658,6 +674,7 @@ const VIEWS = {
       <div class="mut">Revenue ${ugx(rev[g.id]||0)} · Earned ${ugx(earn[g.id]||0)} · Paid ${ugx(paid[g.id]||0)} · <b class="gold">Balance ${ugx((earn[g.id]||0)-(paid[g.id]||0))}</b></div>
       <div class="row"><span class="mut">Commission %</span><input class="sm" id="cr-${g.id}" type="number" step="0.5" value="${g.commission_rate}" style="width:90px"><button onclick="saveRate('${g.id}')">Save</button></div>
       ${me.role==='admin'?`<div class="row"><input class="sm" id="pa-${g.id}" type="number" placeholder="Payout UGX" style="width:130px"><input class="sm" id="pr-${g.id}" placeholder="Reference" style="flex:1"><button onclick="payAgent('${g.id}')">Record payout</button></div>`:''}
+      ${pdoRow('agent', g)}
       <div class="mut">Joined ${dt(g.created_at)}</div></div>`).join('') : '<p class="mut">No agent applications yet.</p>');
   },
 
@@ -909,9 +926,10 @@ const VIEWS = {
 
   async friders(){
     const [r,o,p] = await Promise.all([db.from('food_riders').select('*').order('created_at',{ascending:false}), db.from('food_orders').select('rider_id,rider_pay_ugx,distance_km').eq('status','delivered').eq('rider_paid',false), db.from('food_rider_payouts').select('*, food_riders(full_name)').order('paid_at',{ascending:false}).limit(30)]);
-    if(r.error) throw r.error; const due = {}, kms = {}; (o.data||[]).forEach(x => { due[x.rider_id] = (due[x.rider_id]||0) + Number(x.rider_pay_ugx); kms[x.rider_id] = (kms[x.rider_id]||0) + Number(x.distance_km); }); const adm = me.role === 'admin';
+    if(r.error) throw r.error; window.RDD = r.data; const due = {}, kms = {}; (o.data||[]).forEach(x => { due[x.rider_id] = (due[x.rider_id]||0) + Number(x.rider_pay_ugx); kms[x.rider_id] = (kms[x.rider_id]||0) + Number(x.distance_km); }); const adm = me.role === 'admin';
     $('#view').innerHTML = '<h2>Riders</h2>' + (r.data.length ? r.data.map(x => `<div class="card"><div class="row"><b>${esc(x.full_name)}</b>${sel('food_riders',x.id,x.status,['pending','active','suspended','rejected'])}</div>
       <div class="mut">${esc(x.phone)} · ${esc(x.vehicle||'')} ${esc(x.plate||'')} · ID ${esc(x.id_number||'—')} · ${esc(x.payout_method||'')} ${esc(x.payout_number||'')}</div>
+      ${pdoRow('rider', x)}
       <div><b class="gold">Owed: ${ugx(due[x.id]||0)}</b> <span class="mut">(${(kms[x.id]||0).toFixed(1)} km of unpaid deliveries)</span></div>
       <div class="row"><input class="sm" id="rl-${x.id}" type="email" placeholder="Their login email" style="flex:1"><button onclick="linkFood('rider','${x.id}','rl-${x.id}')">${x.user_id?'Re-link login':'Link login'}</button></div>
       ${adm && (due[x.id]||0) > 0 ? `<div class="row"><input class="sm" id="rr-${x.id}" placeholder="Payment reference" style="flex:1"><button onclick="payRider('${x.id}')">Pay ${ugx(due[x.id])}</button></div>` : ''}</div>`).join('') : '<p class="mut">No riders yet.</p>')

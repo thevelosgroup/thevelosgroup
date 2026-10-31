@@ -1,4 +1,4 @@
-const V='velos-v18',IMG='velos-img-v1',SHELL=['./foods.css','./supabase-config.js','./icon-192.png','./logo.png'];
+const V='velos-v19',IMG='velos-img-v1',SHELL=['./foods.css','./supabase-config.js','./icon-192.png','./logo.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(SHELL).catch(()=>{})));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==V&&x!==IMG).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
 async function trim(n,max){const c=await caches.open(n),k=await c.keys();if(k.length>max)for(let i=0;i<k.length-max;i++)await c.delete(k[i])}
