@@ -1,4 +1,3 @@
 User-agent: *
 Allow: /
-
 Sitemap: https://thevelosgroup.com/sitemap.xml
