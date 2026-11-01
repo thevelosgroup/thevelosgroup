@@ -93,7 +93,7 @@ async function boot(){
   go('home'); startAlerts();
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['bookings','Table bookings'],['docs','Invoices & quotes'],['customers','Customers'],['phones','Phone checks'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['bundles','Combos & bundles'],['careers','Careers'],['bizset','Business profile'],['photos','Photos'],['settings','Settings'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['bookings','Table bookings'],['docs','Invoices & quotes'],['customers','Customers'],['phones','Phone checks'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['cleanup','Clean-up & fees'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['bundles','Combos & bundles'],['careers','Careers'],['bizset','Business profile'],['photos','Photos'],['settings','Settings'],['import','Import']];
 function alCopy(i){ const u = AL[i][1]; (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('Link copied'), () => { prompt('Copy this link', u); }); }
 function alShare(i){ const a = AL[i]; if(navigator.share) navigator.share({title:a[0], text:'Install the Velos '+a[0], url:a[1]}).catch(()=>{}); else alCopy(i); }
 async function savePromos(){
@@ -144,8 +144,8 @@ async function bdCreate(){
   const {error} = await db.from('products').insert({id, name:n, category_key:$('#bd_c').value, subcategory:sub, price_ugx:pr, image_url:img});
   toast(error ? error.message : 'Bundle created. Find it in Products.', !!error); if(!error) go('bundles');
 }
-const GROUPS = [['Overview','📊',['home','report','inq','messages']],['Orders','🧾',['orders','forders','bookings','payments','docs','designs','gifts','service','security']],['Food','🍽️',['fmenu','fvendors','friders','frules','supplies']],['Shop','🛍️',['products','photos','bundles','promos','import']],['People','👥',['customers','phones','agents','leads','techs','team','careers']],['System','⚙️',['bizset','applinks','export','settings']]];
-const MENU_NOTE = {home:'Overview',orders:'Shop orders',forders:'Food orders',bookings:'Restaurant table bookings, refunds, penalties',payments:'Confirm payments',fvendors:'Restaurants & Velos Foods Store',fmenu:'Menu items & prices',frules:'Delivery fees, markup, origins',phones:'Verify new customers',settings:'Site settings',team:'Staff & access'};
+const GROUPS = [['Overview','📊',['home','report','inq','messages']],['Orders','🧾',['orders','forders','bookings','payments','docs','designs','gifts','service','security']],['Food','🍽️',['fmenu','fvendors','friders','frules','supplies']],['Shop','🛍️',['products','photos','bundles','promos','import']],['People','👥',['customers','phones','agents','leads','techs','team','careers']],['System','⚙️',['cleanup','bizset','applinks','export','settings']]];
+const MENU_NOTE = {home:'Overview',orders:'Shop orders',forders:'Food orders',bookings:'Restaurant table bookings, refunds, penalties',payments:'Confirm payments',fvendors:'Restaurants & Velos Foods Store',fmenu:'Menu items & prices',frules:'Delivery fees, markup, origins',cleanup:'Delete test data, restaurant & rider fees',phones:'Verify new customers',settings:'Site settings',team:'Staff & access'};
 function navFor(k){ const lab = Object.fromEntries(TB.map(t => [t[0], t[1]])); const used = new Set(GROUPS.flatMap(g => g[2])); const G = GROUPS.map(g => [g[0], g[1], g[2].filter(x => lab[x])]).filter(g => g[2].length); const rest = TB.map(t => t[0]).filter(x => !used.has(x)); if(rest.length) G.push(['Other','📁',rest]); window.NG = G; window.MLAB = lab; window.CURK = k;
   const gi = Math.max(0, G.findIndex(g => g[2].includes(k)));
   $('#crumb').innerHTML = '<b>' + G[gi][1] + ' ' + G[gi][0] + '</b> <span class="mut">›</span> <span class="gold">' + esc(lab[k] || '') + '</span>';
@@ -213,7 +213,7 @@ async function phGo(){ const rep = $('#ph_rep').checked, todo = []; let ok = 0, 
   const worker = async () => { while(q.length){ const i = q.shift(), r = PH.rows[i], el = $('#ph-s-' + i); if(!r || !el) continue; el.style.color = ''; el.textContent = 'Uploading…'; try { await phUp(r.it, r.f); r.done = true; r.err = ''; ok++; } catch(e){ r.err = e.message || 'failed'; bad++; } phStat(i); n++; $('#ph_s').textContent = 'Uploaded ' + n + ' of ' + todo.length + '…'; } };
   await Promise.all([worker(), worker(), worker()]); $('#ph_go').disabled = false; $('#ph_m').disabled = false; phCount(); toast(ok + ' photo(s) saved' + (bad ? ', ' + bad + ' failed (see the red lines, then tap Upload again)' : '') + (skip ? ', ' + skip + ' skipped' : ''), !!bad); }
 const DOC_CO = {name:'THE VELOS GROUP', tag:'Anything. Anywhere. Precisely.', lines:['Kampala, Uganda','Tel / WhatsApp: +256 755 215 751','support@thevelosgroup.com']};
-async function docsLoadLib(){ if(window.jspdf) return; await new Promise((ok,bad) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'; s.onload = ok; s.onerror = () => bad(Error('Could not load the PDF tool. Check your internet and try again.')); document.head.appendChild(s); }); }
+async function docsLoadLib(){ if(window.jspdf) return; const U = ['https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js','https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js','https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js']; for(const u of U){ const okk = await new Promise(res => { const s = document.createElement('script'); const tm = setTimeout(() => { s.remove(); res(false); }, 12000); s.src = u; s.onload = () => { clearTimeout(tm); res(!!window.jspdf); }; s.onerror = () => { clearTimeout(tm); res(false); }; document.head.appendChild(s); }); if(okk) return; } throw Error('The document tool could not load. Check your internet connection and try again.'); }
 function docsImg(src){ return new Promise(res => { const i = new Image(); i.onload = () => { const c = document.createElement('canvas'); c.width = c.height = 256; c.getContext('2d').drawImage(i,0,0,256,256); res(c.toDataURL('image/jpeg',.92)); }; i.onerror = () => res(null); i.src = src; }); }
 let DOC_SIG = undefined;
 async function docsSig(){ if(DOC_SIG !== undefined) return DOC_SIG; try { const r = await fetch('signature.png?v=1'); if(!r.ok) throw 0; const b = await r.blob(); DOC_SIG = await new Promise((ok,bad) => { const f = new FileReader(); f.onload = () => ok(f.result); f.onerror = bad; f.readAsDataURL(b); }); } catch(e){ DOC_SIG = null; } return DOC_SIG; }
@@ -395,7 +395,7 @@ async function paidVendor(id){ const {error} = await db.from('food_vendor_payout
 async function payRider(id){ const {error} = await db.rpc('food_pay_rider', {p_rider:id, p_ref:$('#rr-'+id).value.trim()||null}); toast(error ? error.message : 'Rider paid', !!error); if(!error) go('friders'); }
 function mapPt(k){ const a = $('#fr_rule_'+k+'_origin_lat').value, b = $('#fr_rule_'+k+'_origin_lng').value; window.open('https://www.google.com/maps?q=' + encodeURIComponent(a + ',' + b), '_blank'); }
 async function applyAll(w){ if(!confirm('Apply the saved ' + w + ' percentage to ALL restaurants now? This changes customer prices.')) return; const {data, error} = await db.rpc('admin_apply_food_defaults', {p_what:w}); toast(error ? error.message : ('Updated ' + data + ' restaurants'), !!error); }
-async function saveFRules(){ const ks = ['rule_booking_commit_min','rule_delivery_per_km','rule_delivery_min_ugx','rule_shop_origin_lat','rule_shop_origin_lng','rule_fashion_origin_lat','rule_fashion_origin_lng','rule_food_free_km','rule_food_mid_km','rule_food_mid_pct','rule_food_customer_per_km','rule_food_rider_per_km','rule_food_grace_min','rule_food_penalty_pct_per_min','rule_food_cancel_after_min','rule_food_stockout_penalty_pct','rule_food_road_factor','rule_food_default_markup','rule_food_default_commission'];
+async function saveFRules(){ const ks = ['rule_booking_commit_min','rule_txid_min_len','rule_txid_max_len','site_vendor_reg_fee','fee_restaurant_monthly','fee_rider_signup','rule_pay_advance_below','rule_pay_choice_below','rule_pay_deposit_pct','rule_pay_bulk_pct','rule_delivery_per_km','rule_delivery_min_ugx','rule_shop_origin_lat','rule_shop_origin_lng','rule_fashion_origin_lat','rule_fashion_origin_lng','rule_food_free_km','rule_food_mid_km','rule_food_mid_pct','rule_food_customer_per_km','rule_food_rider_per_km','rule_food_grace_min','rule_food_penalty_pct_per_min','rule_food_cancel_after_min','rule_food_stockout_penalty_pct','rule_food_road_factor','rule_food_default_markup','rule_food_default_commission'];
   for(const k of ks){ const {error} = await db.from('settings').upsert({key:k, value:String(Number($('#fr_'+k).value))}); if(error) return toast(error.message, true); } toast('Rules saved'); }
 const SITEURL = () => location.href.replace(/admin\.html.*$/, '');
 function openMail(to, subject, body){ if(!to) return toast('This customer left no email address', true); location.href = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body); }
@@ -463,6 +463,25 @@ async function saveRules(){
   toast('Rules saved');
 }
 
+/* ---- Clean-up: delete test data, fees ---- */
+const delBtn = (kind, id) => me.role==='admin' ? `<div class="row"><button class="ghost" style="color:var(--bad)" onclick="delRec('${kind}','${id}')">🗑 Delete</button></div>` : '';
+async function delRec(kind, id){
+  const people = ['agent','rider','technician'].includes(kind);
+  if(!confirm(people ? 'Delete this person from the system for good? Their past orders and money records stay, but their profile, documents and card go.' : 'Delete this record for good? This cannot be undone.')) return;
+  const {data,error} = await db.rpc('admin_delete_records', {p_kind:kind, p_ids:[String(id)]}); if(error) return toast(error.message, true);
+  toast('Deleted'); const cur = (document.querySelector('.nav .on,.tab.on')||{}).dataset; go(kind==='agent'?'agents':kind==='rider'?'friders':kind==='technician'?'techs':kind==='shop_order'?'orders':'forders');
+}
+async function clearAll(kind, label, vendor){
+  if(!confirm('Delete ALL '+label+(vendor?' of this restaurant':'')+'? This cannot be undone.')) return;
+  const w = prompt('Type DELETE (capital letters) to confirm.'); if(w !== 'DELETE') return toast('Cancelled');
+  const {data,error} = await db.rpc('admin_clear_all', {p_kind:kind, p_vendor:vendor||null, p_confirm:w}); toast(error ? error.message : 'Deleted '+(data&&data.deleted||0)+' '+label, !!error);
+}
+async function feeRec(sk, sid, kind, amtKey, label){
+  const amt = Number($('#fee-'+kind+'-'+sid).value); const ref = prompt('Payment reference or note for '+label+' (optional)') ; if(ref===null) return;
+  const per = new Date(Date.now()+3*3600*1000).toISOString().slice(0,7);
+  const {error} = await db.rpc('admin_fee_record', {p_subject_kind:sk, p_subject_id:sid, p_kind:kind, p_amount:amt, p_period:kind==='monthly'?per:null, p_ref:ref, p_note:null});
+  toast(error ? error.message : 'Recorded', !!error); if(!error) go('cleanup');
+}
 /* ---- People documents: pre-signed agreements and ID cards ---- */
 const PDOC_KIND = {rider:'rider', agent:'agent', tech:'technician'};
 function giftTxt(t){ const u = []; const body = String(t||'').replace(/https?:\/\/\S+\/request-photos\/\S+/g, m => { u.push(m); return ''; }); return esc(body.replace(/\nPhotos:\s*$/,'')) + (u.length ? '<div class="row">' + u.map(x => `<a href="${esc(x)}" target="_blank"><img src="${esc(x)}" style="width:90px;height:90px;object-fit:cover;border-radius:8px"></a>`).join('') + '</div>' : ''); }
@@ -475,13 +494,38 @@ function pdoRow(kind, x){
   const signed = d.signed_at ? `<div>✅ Signed agreement received ${dat(d.signed_at)} <button class="ghost" onclick="pSigned('${kind}','${x.id}')">View scan</button></div>` : `<div class="mut">⏳ Signed agreement not received yet. This person cannot be approved until it is.</div>`;
   const up = `<div class="row"><input type="file" id="ps-${x.id}" accept="image/*,application/pdf" style="max-width:170px" title="Scan received by WhatsApp or email"><button class="ghost" onclick="pUp('${kind}','${x.id}','signed','ps-${x.id}')">⬆️ Upload their signed scan</button></div>`;
   const agr = `<div class="row"><button onclick="pDoc('${kind}','${x.id}')">📄 Agreement</button><button class="ghost" onclick="pDoc('${kind}','${x.id}',true)">📤 Share</button></div>`;
-  if(!ok) return agr + signed + up;
+  const review = `<div class="row"><button onclick="pReview('${kind}','${x.id}')">🔍 Review uploads &amp; approve</button></div>`;
+  if(!ok) return agr + signed + review + up;
   const mark = (v,l) => v ? `✅ ${l} ${dat(v)}` : `⏳ ${l} missing`;
-  return agr + signed + `<div class="mut">${mark(d.photo_at,'Passport photo')} · ${mark(d.sig_at,'Signature')}${d.issued_at?' · 🪪 Card issued '+dat(d.issued_at):''}</div>`
+  return agr + signed + review + `<div class="mut">${mark(d.photo_at,'Passport photo')} · ${mark(d.sig_at,'Signature')}${d.issued_at?' · 🪪 Card issued '+dat(d.issued_at):''}</div>`
     + `<div class="row"><button onclick="pCard('${kind}','${x.id}')">🪪 Generate ID card</button></div>`
     + `<details><summary class="mut">Upload photo / signature on their behalf</summary><div class="row"><input type="file" id="pp-${x.id}" accept="image/*" style="max-width:150px"><button class="ghost" onclick="pUp('${kind}','${x.id}','photo','pp-${x.id}')">⬆️ Photo</button></div><div class="row"><input type="file" id="pg-${x.id}" accept="image/*" style="max-width:150px"><button class="ghost" onclick="pUp('${kind}','${x.id}','sig','pg-${x.id}')">⬆️ Signature</button></div></details>`;
 }
-async function pUp(kind, id, field, inp){ try { const f = document.getElementById(inp).files[0]; if(!f) return toast('Choose a file first', true); toast('Uploading…'); const ext = f.type==='application/pdf' ? 'pdf' : (f.type.split('/')[1]||'jpg').replace('jpeg','jpg'); const path = `${PDOC_KIND[kind]}/${id}/${field}-${Date.now()}.${ext}`; const u = await db.storage.from('people-docs').upload(path, f, {contentType:f.type}); if(u.error) throw u.error; const r = await db.rpc('admin_people_docs_set', {p_kind:PDOC_KIND[kind], p_id:id, p_field:field, p_path:path}); if(r.error) throw r.error; toast('Saved'); go(kind==='tech'?'techs':kind==='agent'?'agents':'friders'); } catch(e){ toast(e.message||String(e), true); } }
+async function pUp(kind, id, field, inp){ try { let f = document.getElementById(inp).files[0]; if(!f) return toast('Choose a file first', true); toast('Uploading…'); if(field==='sig') f = (await VelosPeople.ink(f)).file; const ext = f.type==='application/pdf' ? 'pdf' : (f.type.split('/')[1]||'jpg').replace('jpeg','jpg'); const path = `${PDOC_KIND[kind]}/${id}/${field}-${Date.now()}.${ext}`; const u = await db.storage.from('people-docs').upload(path, f, {contentType:f.type}); if(u.error) throw u.error; const r = await db.rpc('admin_people_docs_set', {p_kind:PDOC_KIND[kind], p_id:id, p_field:field, p_path:path}); if(r.error) throw r.error; toast('Saved'); go(kind==='tech'?'techs':kind==='agent'?'agents':'friders'); } catch(e){ toast(e.message||String(e), true); } }
+const PTAB = {agent:'agents', rider:'food_riders', tech:'technician_applications'};
+async function pReview(kind, id){
+  try {
+    const d = ((window.PDS||{})[kind]||{})[id] || {}, x = pData(kind,id);
+    const url = async p => { if(!p) return null; const u = await db.storage.from('people-docs').createSignedUrl(p, 900); return u.error ? null : u.data.signedUrl; };
+    const [su, pu, gu] = await Promise.all([url(d.signed_path), url(d.photo_path), url(d.sig_path)]);
+    const isPdf = su && /\.pdf(\?|$)/i.test(d.signed_path||'');
+    const o = document.createElement('div'); o.id = 'prv'; o.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(2,8,28,.92);overflow:auto;padding:14px';
+    const stat = (kind==='tech' ? 'verified' : 'active');
+    o.innerHTML = `<div class="card" style="max-width:720px;margin:0 auto"><div class="row"><b class="gold">${esc(x.name)} · ${esc(x.phone||'')}</b><button class="ghost" onclick="document.getElementById('prv').remove()">Close ✕</button></div>
+      <div class="mut">ID ${esc(x.id_number||'—')} · ${esc(x.city||'')}</div>
+      <h3>Signed agreement</h3>${su ? (isPdf ? `<iframe src="${esc(su)}" style="width:100%;height:420px;border:0;background:#fff;border-radius:8px"></iframe><a href="${esc(su)}" target="_blank">Open in new tab</a>` : `<a href="${esc(su)}" target="_blank"><img src="${esc(su)}" style="max-width:100%;border-radius:8px;background:#fff"></a>`) + `<div class="mut">Received ${new Date(d.signed_at).toLocaleString('en-GB')}</div>` : '<div class="mut">⏳ Not received yet</div>'}
+      <h3>Passport photo</h3>${pu ? `<img src="${esc(pu)}" style="max-width:220px;border-radius:8px">` : '<div class="mut">⏳ Not uploaded yet (they upload after approval)</div>'}
+      <h3>Signature</h3>${gu ? `<img src="${esc(gu)}" style="max-width:300px;background:#fff;padding:8px;border-radius:8px">` : '<div class="mut">⏳ Not uploaded yet (they upload after approval)</div>'}
+      <div class="row" style="margin-top:14px">${d.signed_at ? `<button onclick="pApprove('${kind}','${id}','${stat}')">✅ Approve</button>` : '<span class="mut">Approve unlocks once the signed agreement is received.</span>'}<button class="ghost" onclick="pApprove('${kind}','${id}','rejected')">Reject</button></div></div>`;
+    document.body.appendChild(o);
+  } catch(e){ toast(e.message||String(e), true); }
+}
+async function pApprove(kind, id, v){
+  if(!confirm(v==='rejected' ? 'Reject this application?' : 'Approve this person now? Their account will switch on.')) return;
+  const {error} = await db.from(PTAB[kind]).update({status:v}).eq('id', id);
+  if(error) return toast(error.message, true);
+  toast(v==='rejected' ? 'Rejected' : 'Approved ✓'); const m = document.getElementById('prv'); if(m) m.remove(); go(kind==='tech'?'techs':kind==='agent'?'agents':'friders');
+}
 async function pSigned(kind, id){ try { const u = await VelosPeople.signedUrl(PDOC_KIND[kind], id); window.open(u, '_blank'); } catch(e){ toast(e.message||String(e), true); } }
 function pData(kind, id){
   const L = kind==='agent' ? window.AGD : kind==='rider' ? window.RDD : window.TD; const x = (L||[]).find(z => z.id===id); if(!x) throw Error('Reload the page and try again');
@@ -570,7 +614,7 @@ const VIEWS = {
       <div class="mut">Payment: ${esc(o.payment_method||'—')} · Total ${ugx(o.total_ugx)}${o.deposit_required_ugx?' · 30% deposit '+ugx(o.deposit_required_ugx):''} · Paid ${ugx(o.amount_paid_ugx||0)} · <b class="gold">Balance ${ugx(Math.max(0,(o.total_ugx||0)-(o.amount_paid_ugx||0)))}</b></div>
       <div class="row"><span>${['unpaid','part_paid','deposit_paid','paid','refunded'].map(x=>x===(o.payment_status||'unpaid')?`<span class="pill gold">${x}</span>`:'').join('')}</span><span><input class="sm" id="pay-${o.id}" type="number" placeholder="Total received UGX" style="width:150px"> <button onclick="recPay('${o.id}',${o.total_ugx||0},${o.deposit_required_ugx||0})">Record</button></span></div>
       <div class="mut">${o.order_items.map(i=>`${esc(i.product_name)} ×${i.qty}`).join('<br>')}</div>
-      <div class="row"><b>${ugx(o.total_ugx)}</b><span class="mut">${dt(o.created_at)}</span></div>
+      <div class="row"><b>${ugx(o.total_ugx)}</b><span class="mut">${dt(o.created_at)}</span></div>${delBtn('shop_order', o.id)}
       <div class="row"><select class="sm" id="mt-${o.id}"><option value="received">Message: order received</option><option value="payment">Message: payment received</option><option value="pickup">Message: ready for pick-up</option><option value="dispatch">Message: out for delivery</option><option value="delivered">Message: delivered or collected</option></select><button class="ghost" onclick="sendMsg('${o.id}','wa')">💬 WhatsApp</button><button class="ghost" onclick="sendMsg('${o.id}','mail')">✉ Email</button></div></div>`).join('') : '<p class="mut">No orders yet.</p>');
   },
 
@@ -598,7 +642,7 @@ const VIEWS = {
       <div class="mut">${esc(t.country)} / ${esc(t.city)} / ${esc(t.area)}</div>
       <div><a href="${wa(t.phone)}" target="_blank">${esc(t.phone)}</a> · ${esc(t.email||'')}</div>
       <div class="mut">National ID: ${esc(t.national_id)}<br>Reference: ${esc(t.ref_name)} (${esc(t.ref_phone)})<br>${esc(t.notes||'')}</div>
-      ${pdoRow('tech', t)}<div class="row"><input class="sm" id="lk-${t.id}" type="email" placeholder="Their login email" style="flex:1"><button onclick="linkP('link_technician','${t.id}')">${t.user_id?'Re-link login':'Link login'}</button></div><div class="mut">${dt(t.created_at)} · ${(t.doc_paths||[]).length} document(s)</div>${(t.doc_paths||[]).length?`<button onclick="docs('${t.id}')">View documents</button><div id="d-${t.id}"></div>`:''}</div>`).join('') : '<p class="mut">No applications yet.</p>');
+      ${pdoRow('tech', t)}${delBtn('technician', t.id)}<div class="row"><input class="sm" id="lk-${t.id}" type="email" placeholder="Their login email" style="flex:1"><button onclick="linkP('link_technician','${t.id}')">${t.user_id?'Re-link login':'Link login'}</button></div><div class="mut">${dt(t.created_at)} · ${(t.doc_paths||[]).length} document(s)</div>${(t.doc_paths||[]).length?`<button onclick="docs('${t.id}')">View documents</button><div id="d-${t.id}"></div>`:''}</div>`).join('') : '<p class="mut">No applications yet.</p>');
   },
 
   async service(){
@@ -688,7 +732,7 @@ const VIEWS = {
       <div class="mut">Revenue ${ugx(rev[g.id]||0)} · Earned ${ugx(earn[g.id]||0)} · Paid ${ugx(paid[g.id]||0)} · <b class="gold">Balance ${ugx((earn[g.id]||0)-(paid[g.id]||0))}</b></div>
       <div class="row"><span class="mut">Commission %</span><input class="sm" id="cr-${g.id}" type="number" step="0.5" value="${g.commission_rate}" style="width:90px"><button onclick="saveRate('${g.id}')">Save</button></div>
       ${me.role==='admin'?`<div class="row"><input class="sm" id="pa-${g.id}" type="number" placeholder="Payout UGX" style="width:130px"><input class="sm" id="pr-${g.id}" placeholder="Reference" style="flex:1"><button onclick="payAgent('${g.id}')">Record payout</button></div>`:''}
-      ${pdoRow('agent', g)}
+      ${pdoRow('agent', g)}${delBtn('agent', g.id)}
       <div class="mut">Joined ${dt(g.created_at)}</div></div>`).join('') : '<p class="mut">No agent applications yet.</p>');
   },
 
@@ -895,12 +939,38 @@ const VIEWS = {
     const r = await db.rpc('admin_pending_phones'); if(r.error) throw r.error; const L = r.data || [];
     $('#view').innerHTML = '<h2>Phone checks</h2><p class="muted">A customer asked to verify their number. Tap <b>Send code on WhatsApp</b>: WhatsApp opens with the code ready to send to the customer\'s own number. Press Send. The customer then types the code on their account page and is verified.</p>' + (L.length ? L.map(x => { const num = String(x.phone).replace(/\D/g,''), msg = 'Your Velos verification code is ' + x.code + '. Type it on your Velos account page to verify your phone number. Do not share this code with anyone.'; return `<div class="card"><div class="row"><b class="gold">${esc(x.phone)}</b><span>${x.sent_at ? '✅ code sent ' + dt(x.sent_at) : '⏳ not sent yet'}</span></div><div>${esc(x.name||'')} · ${esc(x.email||'')}</div>${x.typed_phone && String(x.typed_phone).replace(/\D/g,'') !== num.replace(/^256/,'0') && String(x.typed_phone).replace(/\D/g,'') !== num ? `<div class="muted">Typed on sign-up: ${esc(x.typed_phone)}</div>` : ''}<div class="muted">${dt(x.created_at)}</div><div class="row"><a class="btn" style="background:#25d366;color:#052e16;padding:10px 14px;border-radius:10px;text-decoration:none;font-weight:700" target="_blank" rel="noopener" href="https://wa.me/${num}?text=${encodeURIComponent(msg)}" onclick="phSent('${x.id}')">Send code on WhatsApp</a><button class="ghost" onclick="phDecide('${x.id}',true)">Verify without code</button><button class="ghost" onclick="phDecide('${x.id}',false)">Reject</button></div></div>`; }).join('') : '<p class="muted">No phone checks waiting.</p>');
   },
+  async cleanup(){
+    if(me.role!=='admin'){ $('#view').innerHTML = '<p class="mut">Only the admin can use this page.</p>'; return; }
+    const [v,r,fs,rs,st] = await Promise.all([db.from('food_vendors').select('id,name,status,parent_id').order('name'), db.from('food_riders').select('id,full_name,status').order('full_name'), db.rpc('admin_fee_status',{p_subject_kind:'vendor'}), db.rpc('admin_fee_status',{p_subject_kind:'rider'}), db.from('settings').select('key,value').in('key',['site_vendor_reg_fee','fee_restaurant_monthly','fee_rider_signup'])]);
+    const S = {}; (st.data||[]).forEach(x => S[x.key] = Number(x.value)); const fv = fs.data||{}, fr = rs.data||{}, per = new Date(Date.now()+3*3600*1000).toISOString().slice(0,7);
+    const su = S.site_vendor_reg_fee ?? 75000, mo = S.fee_restaurant_monthly ?? 5000, rj = S.fee_rider_signup ?? 30000;
+    $('#view').innerHTML = `<h2>Clean-up &amp; fees</h2>
+      <div class="card"><h3 class="gold">Start fresh: delete test data</h3><p class="mut">Use this once, before real sales begin. Each button asks you to type DELETE. This cannot be undone. Customers, restaurants, menus and staff are not touched.</p>
+        <div class="row" style="flex-wrap:wrap;gap:6px;justify-content:flex-start">
+        <button class="ghost" onclick="clearAll('shop_order','shop orders')">🗑 All shop orders</button>
+        <button class="ghost" onclick="clearAll('food_order','food orders')">🗑 All food orders</button>
+        <button class="ghost" onclick="clearAll('booking','table bookings')">🗑 All table bookings</button>
+        <button class="ghost" onclick="clearAll('payment','payment records')">🗑 All payment records</button>
+        <button class="ghost" onclick="clearAll('service','service requests')">🗑 Service requests</button>
+        <button class="ghost" onclick="clearAll('gift','gift and sourcing requests')">🗑 Gift &amp; sourcing requests</button>
+        <button class="ghost" onclick="clearAll('design','design requests')">🗑 Design requests</button>
+        <button class="ghost" onclick="clearAll('lead','agent leads')">🗑 Agent leads</button></div></div>
+      <div class="card"><h3 class="gold">Clear one restaurant (for example Clover)</h3>
+        <div class="row"><select id="cv" class="sm" style="flex:1">${(v.data||[]).map(x=>`<option value="${x.id}">${esc(x.name)}${x.parent_id?' (branch)':''}</option>`).join('')}</select></div>
+        <div class="row" style="justify-content:flex-start;gap:6px"><button class="ghost" onclick="clearAll('food_order','orders',$('#cv').value)">🗑 Its orders</button><button class="ghost" onclick="clearAll('booking','bookings',$('#cv').value)">🗑 Its bookings</button></div></div>
+      <div class="card"><h3 class="gold">Restaurant fees</h3><p class="mut">Registration ${ugx(su)} (once) · Monthly maintenance ${ugx(mo)}. Change the amounts in Food rules. Record a fee when you have confirmed the Mobile Money payment.</p>
+        ${(v.data||[]).map(x => { const f = fv[x.id]||{}; return `<div class="card"><div class="row"><b>${esc(x.name)}</b><span class="pill">${esc(x.status||'')}</span></div>
+          <div class="row"><span>Registration: ${f.signup_paid?'✅ paid':'<b style="color:var(--bad)">unpaid</b>'}</span>${f.signup_paid?'':`<input class="sm" id="fee-signup-${x.id}" type="number" value="${su}" style="width:110px"><button onclick="feeRec('vendor','${x.id}','signup',0,'registration')">Record payment</button>`}</div>
+          <div class="row"><span>Monthly (${per}): ${f.monthly_paid?'✅ paid':'<b style="color:var(--bad)">due</b>'}</span>${f.monthly_paid?'':`<input class="sm" id="fee-monthly-${x.id}" type="number" value="${mo}" style="width:110px"><button onclick="feeRec('vendor','${x.id}','monthly',0,'monthly fee')">Record payment</button>`}</div></div>`; }).join('')}</div>
+      <div class="card"><h3 class="gold">Rider joining fees</h3><p class="mut">Joining fee ${ugx(rj)} for the ID card and reflector jacket. Change it in Food rules (set 0 to waive it).</p>
+        ${(r.data||[]).map(x => { const f = fr[x.id]||{}; return `<div class="row"><span><b>${esc(x.full_name)}</b> <span class="mut">${esc(x.status||'')}</span></span><span>${f.signup_paid?'✅ paid':`<input class="sm" id="fee-rider_signup-${x.id}" type="number" value="${rj}" style="width:100px"><button onclick="feeRec('rider','${x.id}','rider_signup',0,'rider joining fee')">Record</button>`}</span></div>`; }).join('') || '<p class="mut">No riders yet.</p>'}</div>`;
+  },
   async forders(){
     const [o,r] = await Promise.all([db.from('food_orders').select('*, food_vendors(name), food_riders(full_name)').order('created_at',{ascending:false}).limit(80), db.from('food_riders').select('id,full_name').eq('status','active')]);
     if(o.error) throw o.error; const ropts = (r.data||[]).map(x => `<option value="${x.id}">${esc(x.full_name)}</option>`).join('');
     $('#view').innerHTML = '<h2>Food orders</h2>' + (o.data.length ? o.data.map(x => `<div class="card">
       <div class="row"><b class="gold">F${x.order_no}</b>${sel('food_orders',x.id,x.status,['awaiting_payment','placed','confirmed','preparing','ready','out_for_delivery','in_transit','delivered','collected','cancelled'])}</div>
-      <div><b>${esc(x.food_vendors?.name||'')}</b> · ${dt(x.created_at)}</div>
+      <div><b>${esc(x.food_vendors?.name||'')}</b> · ${dt(x.created_at)}</div>${delBtn('food_order', x.id)}
       <div>${esc(x.customer_name)} · <a href="${wa(x.customer_phone)}" target="_blank">${esc(x.customer_phone)}</a></div>
       <div class="mut">📍 ${esc(x.address_text)} · <a href="https://www.google.com/maps?q=${x.lat},${x.lng}" target="_blank">Map</a> · ${x.distance_km} km</div>
       <div class="mut">Subtotal ${ugx(x.subtotal_ugx)} + delivery ${ugx(x.delivery_fee_ugx)} = <b class="gold">${ugx(x.total_ugx)}</b> · restaurant value ${ugx(x.vendor_base_ugx)} · rider pay ${ugx(x.rider_pay_ugx)}</div>
@@ -944,7 +1014,7 @@ const VIEWS = {
     if(r.error) throw r.error; window.RDD = r.data; const due = {}, kms = {}; (o.data||[]).forEach(x => { due[x.rider_id] = (due[x.rider_id]||0) + Number(x.rider_pay_ugx); kms[x.rider_id] = (kms[x.rider_id]||0) + Number(x.distance_km); }); const adm = me.role === 'admin';
     $('#view').innerHTML = '<h2>Riders</h2>' + (r.data.length ? r.data.map(x => `<div class="card"><div class="row"><b>${esc(x.full_name)}</b>${sel('food_riders',x.id,x.status,['pending','active','suspended','rejected'])}</div>
       <div class="mut">${esc(x.phone)} · ${esc(x.vehicle||'')} ${esc(x.plate||'')} · ID ${esc(x.id_number||'—')} · ${esc(x.payout_method||'')} ${esc(x.payout_number||'')}</div>
-      ${pdoRow('rider', x)}
+      ${pdoRow('rider', x)}${delBtn('rider', x.id)}
       <div><b class="gold">Owed: ${ugx(due[x.id]||0)}</b> <span class="mut">(${(kms[x.id]||0).toFixed(1)} km of unpaid deliveries)</span></div>
       <div class="row"><input class="sm" id="rl-${x.id}" type="email" placeholder="Their login email" style="flex:1"><button onclick="linkFood('rider','${x.id}','rl-${x.id}')">${x.user_id?'Re-link login':'Link login'}</button></div>
       ${adm && (due[x.id]||0) > 0 ? `<div class="row"><input class="sm" id="rr-${x.id}" placeholder="Payment reference" style="flex:1"><button onclick="payRider('${x.id}')">Pay ${ugx(due[x.id])}</button></div>` : ''}</div>`).join('') : '<p class="mut">No riders yet.</p>')
@@ -953,7 +1023,7 @@ const VIEWS = {
 
   async frules(){
     const {data} = await db.from('settings').select('*').like('key','rule_food_%'), v = k => (data||[]).find(x => x.key === k)?.value ?? '';
-    const F = [['rule_booking_commit_min','Table booking: minimum commitment fee (UGX)'],['rule_delivery_per_km','Shop and other deliveries: customer rate per km (UGX)'],['rule_delivery_min_ugx','Minimum delivery fee (UGX)'],['rule_shop_origin_lat','Electronics and general shop pick-up point: latitude (Nakasero Street, Kampala Central)'],['rule_shop_origin_lng','Electronics and general shop pick-up point: longitude'],['rule_fashion_origin_lat','Fashion and beauty shop pick-up point: latitude'],['rule_fashion_origin_lng','Fashion and beauty shop pick-up point: longitude'],['rule_food_free_km','Free delivery radius (km)'],['rule_food_mid_km','Percentage-fee zone ends at (km)'],['rule_food_mid_pct','Extra % of the order between those distances'],['rule_food_customer_per_km','Customer rate per km beyond that (UGX)'],['rule_food_rider_per_km','Rider pay per km (UGX)'],['rule_food_grace_min','Late grace added automatically (minutes)'],['rule_food_penalty_pct_per_min','Restaurant penalty per late minute (% of order value)'],['rule_food_cancel_after_min','Auto-cancel after this many penalty minutes'],['rule_food_stockout_penalty_pct','Penalty for out-of-stock cancellation (%)'],['rule_food_road_factor','Straight-line to road distance factor'],['rule_food_default_markup','Platform fee added to restaurant menu prices (%): default for new restaurants. Covers running costs, taxes and service fees so customers are not charged them separately'],['rule_food_default_commission','Velos commission charged to restaurants (%): default for new restaurants']];
+    const F = [['rule_booking_commit_min','Table booking: minimum commitment fee (UGX)'],['rule_txid_min_len','Mobile Money transaction ID: minimum digits'],['rule_txid_max_len','Mobile Money transaction ID: maximum digits'],['site_vendor_reg_fee','Restaurant registration fee (UGX)'],['fee_restaurant_monthly','Restaurant monthly maintenance fee (UGX)'],['fee_rider_signup','Rider joining fee for card and jacket (UGX)'],['rule_pay_advance_below','Orders below this are paid in full in advance (UGX)'],['rule_pay_choice_below','Orders from the line above up to this: pay in advance or on delivery (UGX)'],['rule_pay_deposit_pct','Orders at or above that: deposit % to pay now'],['rule_pay_bulk_pct','Wholesale orders: deposit % to pay now'],['rule_delivery_per_km','Shop and other deliveries: customer rate per km (UGX)'],['rule_delivery_min_ugx','Minimum delivery fee (UGX)'],['rule_shop_origin_lat','Electronics and general shop pick-up point: latitude (Nakasero Street, Kampala Central)'],['rule_shop_origin_lng','Electronics and general shop pick-up point: longitude'],['rule_fashion_origin_lat','Fashion and beauty shop pick-up point: latitude'],['rule_fashion_origin_lng','Fashion and beauty shop pick-up point: longitude'],['rule_food_free_km','Free delivery radius (km)'],['rule_food_mid_km','Percentage-fee zone ends at (km)'],['rule_food_mid_pct','Extra % of the order between those distances'],['rule_food_customer_per_km','Customer rate per km beyond that (UGX)'],['rule_food_rider_per_km','Rider pay per km (UGX)'],['rule_food_grace_min','Late grace added automatically (minutes)'],['rule_food_penalty_pct_per_min','Restaurant penalty per late minute (% of order value)'],['rule_food_cancel_after_min','Auto-cancel after this many penalty minutes'],['rule_food_stockout_penalty_pct','Penalty for out-of-stock cancellation (%)'],['rule_food_road_factor','Straight-line to road distance factor'],['rule_food_default_markup','Platform fee added to restaurant menu prices (%): default for new restaurants. Covers running costs, taxes and service fees so customers are not charged them separately'],['rule_food_default_commission','Velos commission charged to restaurants (%): default for new restaurants']];
     $('#view').innerHTML = '<h2>Food delivery rules</h2><div class="card">' + F.map(f => `<label class="mut">${f[1]}</label><input id="fr_${f[0]}" type="number" step="any" value="${esc(v(f[0]))}">`).join('') + '<p class="mut">Check a point on the map: <a href="#" onclick="mapPt(\'shop\');return false">electronics point</a> · <a href="#" onclick="mapPt(\'fashion\');return false">fashion shop point</a>. To get exact numbers: open Google Maps, press and hold on the exact spot, then tap the numbers that appear and copy them here.</p><button onclick="saveFRules()">Save rules</button><div class="card" style="margin-top:10px"><b>Apply the percentages to restaurants already on Velos</b><p class="mut">New restaurants get the defaults above automatically. To change restaurants already registered, save the rules first, then tap a button. You can still set one restaurant differently in Restaurants. The Velos Foods Store is never changed.</p><button onclick="applyAll(\'markup\')">Apply markup to all restaurants</button> <button class="ghost" onclick="applyAll(\'commission\')">Apply commission to all restaurants</button></div></div>';
   },
 

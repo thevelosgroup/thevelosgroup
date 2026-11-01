@@ -8,7 +8,7 @@
  "start_url": "/",
  "scope": "/",
  "display": "standalone",
- "orientation": "portrait",
+ "orientation": "any",
  "background_color": "#03113e",
  "theme_color": "#03113e",
  "prefer_related_applications": false,
@@ -73,6 +73,39 @@
      "sizes": "192x192"
     }
    ]
+  },
+  {
+   "name": "Book a service",
+   "url": "/book-service.html",
+   "icons": [
+    {
+     "src": "/icon-192.png",
+     "sizes": "192x192"
+    }
+   ]
+  },
+  {
+   "name": "Track an order",
+   "url": "/track.html",
+   "icons": [
+    {
+     "src": "/icon-192.png",
+     "sizes": "192x192"
+    }
+   ]
   }
- ]
+ ],
+ "display_override": [
+  "standalone",
+  "minimal-ui"
+ ],
+ "launch_handler": {
+  "client_mode": [
+   "navigate-existing",
+   "auto"
+  ]
+ },
+ "edge_side_panel": {
+  "preferred_width": 420
+ }
 }

@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Secure payment | The Velos Group</title><meta name="robots" content="noindex"><link rel="stylesheet" href="foods.css">
-<script src="supabase-config.js"></script><script src="velos-money.js"></script></head><body><div class="w" style="max-width:640px">
+<script src="supabase-config.js"></script><script src="velos-txid.js"></script><script src="velos-money.js"></script></head><body><div class="w" style="max-width:640px">
 <div class="top"><h1>Payment</h1><a href="index.html">Home</a></div><div id="v"><p class="m">Loading…</p></div></div><div id="toast" hidden></div>
 <script>
 var S=window.VELOS_SUPABASE,$=function(i){return document.getElementById(i)},Q=new URLSearchParams(location.search),K=Q.get('k')==='f'?'food':'order',NO=parseInt(Q.get('o'),10),PH=Q.get('p')||'',O=null,ST={},T=null,CHOICE='';
@@ -46,7 +46,7 @@ function draw(){
 }
 function submitPay(){
   var tx=$('tx').value.trim(),am=parseInt($('am').value,10);$('er').textContent='';
-  if(tx.length<6){$('er').textContent='Please enter the transaction ID from your payment message.';return}
+  var te=VelosTx.check(tx);if(te){$('er').textContent=te;return}
   var b=$('sb');b.disabled=true;b.textContent='Submitting…';
   rpc('submit_payment',{p_kind:K,p_ref_no:NO,p_phone:PH,p_amount:am,p_method:$('pm').value,p_txn:tx,p_payer:$('pp').value.trim(),p_purpose:CHOICE}).then(function(){toast('Submitted. We are verifying your payment.');load()}).catch(function(e){b.disabled=false;b.textContent='I have paid: submit for verification';$('er').textContent=String(e.message).slice(0,200)});
 }

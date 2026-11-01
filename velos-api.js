@@ -98,8 +98,8 @@ function checkout(items, onDone){
     + '<div id="vx_map" style="height:220px;border-radius:10px;margin:8px 0;border:1px solid #2a3560"></div><input id="vx_a" placeholder="Building / landmark / directions *" value="' + esc(c.a) + '"></div>'
     + '<div id="vx_pk" class="sum" style="display:none"><b>Pick-up station</b><br>' + esc(pk.n) + '<br>' + esc(pk.a) + '<br><br>' + esc(pk.note) + '</div>'
     + '<div class="sum" id="vx_tot"></div>'
-    + '<div class="sum">Payment</div>' + [['cash', 'Pay on delivery or collection'], ['mtn', 'MTN Mobile Money'], ['airtel', 'Airtel Money']].map(function(m, i){ return '<label class="pm"><input type="radio" name="vxpm" value="' + m[0] + '"' + (i === 0 ? ' checked' : '') + '> ' + m[1] + '</label>'; }).join('')
-    + '<div class="sum">' + (dep ? 'A deposit is required for this order. After you tap Place order you will be taken to our secure payment page. Your order is confirmed once your deposit is verified.' : 'Your order is confirmed as soon as you place it. You can pay on delivery or collection, or pay online from your order page.') + ' Payments are made in Uganda Shillings.<br>By ordering you agree to our <a href="terms.html" target="_blank" style="color:#e8c766">Terms</a> and <a href="privacy.html" target="_blank" style="color:#e8c766">Privacy Policy</a>.</div>'
+    + '<div class="sum">Payment</div>' + (t.total < RULES.adv ? [['mtn', 'MTN Mobile Money'], ['airtel', 'Airtel Money']] : [['cash', 'Pay on delivery or collection'], ['mtn', 'MTN Mobile Money'], ['airtel', 'Airtel Money']]).map(function(m, i){ return '<label class="pm"><input type="radio" name="vxpm" value="' + m[0] + '"' + (i === 0 ? ' checked' : '') + '> ' + m[1] + '</label>'; }).join('')
+    + '<div class="sum">' + (t.total < RULES.adv ? 'Orders below UGX ' + RULES.adv.toLocaleString('en-US') + ' are paid in full in advance by Mobile Money. After you tap Place order you will be taken to our secure payment page, and your order is processed once your payment is verified.' : dep ? 'A deposit is required for this order. After you tap Place order you will be taken to our secure payment page. Your order is confirmed once your deposit is verified.' : 'Your order is confirmed as soon as you place it. You can pay on delivery or collection, or pay online from your order page.') + ' Payments are made in Uganda Shillings.<br>By ordering you agree to our <a href="terms.html" target="_blank" style="color:#e8c766">Terms</a> and <a href="privacy.html" target="_blank" style="color:#e8c766">Privacy Policy</a>.</div>'
     + '<textarea id="vx_o" rows="2" placeholder="Notes (optional)"></textarea>',
     '<button class="go" id="vx_go">Place order</button>');
   var goBtn = document.getElementById('vx_go'), el = function(i){ return document.getElementById(i); };
@@ -150,7 +150,7 @@ function checkout(items, onDone){
       .then(function(res){
         var no = res.order_no, f = res.delivery_fee || 0; d.remove(); try { window.velosAttachRef('order', no); localStorage.setItem('velosLast', 'O' + no); } catch(x){}
         onDone && onDone();
-        if(res.needs_payment){ location.href = 'pay.html?o=' + no + '&p=' + encodeURIComponent(p); return; }
+        if(res.needs_payment || (t.total < RULES.adv && !(res.paid))){ location.href = 'pay.html?o=' + no + '&p=' + encodeURIComponent(p); return; }
         var wa = 'Hello Velos Global Shop, I placed Order #' + no + ' on the website. ' + t.lines.join('; ') + '. Goods ' + ugxs(t.total) + ', delivery ' + ugxs(f) + '. Name: ' + n + ', phone: ' + p + '.';
         modal('Thank you for shopping with Velos ✓',
           '<div class="sum" style="font-size:15px;color:#f4f1ea">Dear ' + esc(n) + ', your Order <b>#' + no + '</b> is confirmed. Grand total: <b>' + both(t.total + f) + '</b>' + (f ? ' (delivery ' + both(f) + ', paid on delivery)' : '') + '.'
@@ -236,8 +236,8 @@ window.v_sendTechRegistration = window.sendTechRegistration = function(){
 /* ---------- 5. STOREFRONT UPGRADE ---------- */
 var SITE = {};
 window.formatUGX = function(n){ return window.velosMoney ? window.velosMoney(n) : 'UGX ' + Math.round(n || 0).toLocaleString('en-US'); };
-var RULES = {thr:1000000, single:30, bulk:70, bulkMin:5, perKm:900, minFee:0, oLat:0.3163, oLng:32.5822, fLat:0.3163, fLng:32.5822};
-api('settings?select=key,value&key=like.rule_*').then(function(r){ (r || []).forEach(function(x){ var v = Number(x.value); if(x.key === 'rule_deposit_threshold_ugx') RULES.thr = v; else if(x.key === 'rule_deposit_single_pct') RULES.single = v; else if(x.key === 'rule_deposit_bulk_pct') RULES.bulk = v; else if(x.key === 'rule_bulk_min_units') RULES.bulkMin = v; else if(x.key === 'rule_delivery_per_km') RULES.perKm = v; else if(x.key === 'rule_delivery_min_ugx') RULES.minFee = v; else if(x.key === 'rule_shop_origin_lat') RULES.oLat = v; else if(x.key === 'rule_shop_origin_lng') RULES.oLng = v; else if(x.key === 'rule_fashion_origin_lat') RULES.fLat = v; else if(x.key === 'rule_fashion_origin_lng') RULES.fLng = v; }); }).catch(function(){});
+var RULES = {adv:100000, thr:1000000, single:30, bulk:70, bulkMin:5, perKm:900, minFee:0, oLat:0.3163, oLng:32.5822, fLat:0.3163, fLng:32.5822};
+api('settings?select=key,value&key=like.rule_*').then(function(r){ (r || []).forEach(function(x){ var v = Number(x.value); if(x.key === 'rule_pay_advance_below') RULES.adv = v; else if(x.key === 'rule_deposit_threshold_ugx') RULES.thr = v; else if(x.key === 'rule_deposit_single_pct') RULES.single = v; else if(x.key === 'rule_deposit_bulk_pct') RULES.bulk = v; else if(x.key === 'rule_bulk_min_units') RULES.bulkMin = v; else if(x.key === 'rule_delivery_per_km') RULES.perKm = v; else if(x.key === 'rule_delivery_min_ugx') RULES.minFee = v; else if(x.key === 'rule_shop_origin_lat') RULES.oLat = v; else if(x.key === 'rule_shop_origin_lng') RULES.oLng = v; else if(x.key === 'rule_fashion_origin_lat') RULES.fLat = v; else if(x.key === 'rule_fashion_origin_lng') RULES.fLng = v; }); }).catch(function(){});
 var PROMO = {}, PINFO = {};
 function effPrice(p){ var d = PROMO[p.id]; return (p.price && d) ? Math.round(p.price * (100 - d) / 100) : p.price; }
 var promoP = api('promotions?select=product_id,discount_percent,starts_at,ends_at&is_active=eq.true');
@@ -315,11 +315,17 @@ function pad2(n){ return (n < 10 ? '0' : '') + n; }
 function vFlash(f, d){
   try { clearInterval(flashCountdownTimer); } catch(e){}
   window.renderFlashDeal = function(){};
-  if(!d){ f.style.display = 'none'; return; }
-  f.style.display = '';
+  var eye = document.querySelector('.fd-eyebrow'), live = !!d;
+  if(!d){
+    var pool = PRODUCTS.filter(function(x){ return x.inStock !== false && x.price && x.img; });
+    if(!pool.length){ f.style.display = 'none'; if(eye) eye.style.display = 'none'; return; }
+    var pk = pool[Math.floor(Date.now() / 14400000) % pool.length];
+    d = {p:pk, d:0, end:(Math.floor(Date.now() / 14400000) + 1) * 14400000};
+  }
+  f.style.display = ''; if(eye){ eye.style.display = ''; eye.textContent = live ? '⚡ Flash Deal — Limited Offer' : '⭐ Deal of the day — refreshes every 4 hours'; }
   var p = d.p;
-  f.innerHTML = '<div class="fd-media"><img src="' + esc(p.img) + '" alt="' + esc(p.name) + '"></div><div class="fd-text"><span class="fd-badge">⚡ FLASH DEAL · -' + d.d + '%</span><h3>' + esc(p.name) + '</h3>'
-    + '<div class="spotlight-price"><span class="was">' + fmt(p.price) + '</span><span class="now">' + fmt(effPrice(p)) + '</span></div><div class="spotlight-countdown" id="vCd"></div>'
+  f.innerHTML = '<div class="fd-media"><img src="' + esc(p.img) + '" alt="' + esc(p.name) + '"></div><div class="fd-text"><span class="fd-badge">' + (live ? '⚡ FLASH DEAL · -' + d.d + '%' : '⭐ DEAL OF THE DAY') + '</span><h3>' + esc(p.name) + '</h3>'
+    + '<div class="spotlight-price">' + (live ? '<span class="was">' + fmt(p.price) + '</span>' : '') + '<span class="now">' + fmt(live ? effPrice(p) : p.price) + '</span></div><div class="spotlight-countdown" id="vCd"></div>'
     + '<a class="btn-primary" href="shop.html?p=' + p.id + '" onclick="return vProd(\'' + p.id + '\')">Order now</a></div>';
   function tick(){
     var s = Math.max(0, Math.floor((d.end - Date.now()) / 1000)), el = document.getElementById('vCd'); if(!el) return;

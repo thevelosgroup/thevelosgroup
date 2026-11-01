@@ -27,9 +27,9 @@ body{background:radial-gradient(1200px 500px at 50% -120px,#13235f 0,var(--bg) 6
 #cats{position:sticky;top:56px;z-index:20;background:var(--bg);padding:8px 0!important;margin-top:10px!important}
 #cats button{border-radius:99px}
 #q{border-radius:99px;padding:12px 18px}
-#vview .grid{grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
-#vview .it{flex-direction:row-reverse;align-items:stretch;border-radius:16px}
-#vview .it img{width:128px;height:auto;min-height:128px;flex:none}
+#vview .grid{grid-template-columns:1fr;gap:14px}
+#vview .it{flex-direction:row;align-items:stretch;border-radius:16px;min-height:150px}
+#vview .it img{width:38%;max-width:230px;min-width:120px;height:auto;min-height:150px;flex:none;object-fit:cover}
 #vview .it .b2{padding:12px 14px;gap:4px}
 #vview .it h4{font-size:16px}
 #vview .it .row{justify-content:flex-start;gap:8px;margin-top:4px}
@@ -49,3 +49,10 @@ input,textarea,select{font-size:16px}
 button,a{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 html{-webkit-text-size-adjust:100%}
 body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+
+/* landscape menu cards: photo on the left, text on the right, two per row on big screens */
+@media(min-width:760px){#vview .grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:1500px){#vview .grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+#vview .it .b2{min-width:0}
+#vview .it h4,#vview .it .m{overflow-wrap:anywhere}
+#vview .it .row input{width:84px}
