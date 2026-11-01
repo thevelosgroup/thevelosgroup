@@ -438,7 +438,7 @@ window.chatRespond = function(text){
   if(/repair|fix|electric|plumb|solar|generator|install|clean|inspect|security|wifi|wi-fi|emergency|dispatch|technic/.test(t)) return {text:'Book a service in a minute: describe the problem, your location, when you are free and how urgent it is, and we send the nearest verified technician.', links:[['book-service.html', 'Book a service']]};
   if(/deliver|ship|how long/.test(t)) return {text:'We deliver across Uganda and arrange shipping elsewhere in East Africa. Delivery details are confirmed when we contact you about your order.', links:[]};
   if(/return|refund|warrant|guarantee/.test(t)) return {text:'Returns and warranty are agreed in writing at the time of sale, in line with Ugandan consumer law. See our Terms for details.', links:[['terms.html', 'Read the Terms']]};
-  if(/contact|whatsapp|phone|call|email|reach|office|location/.test(t)) return {text:'Our dispatch desk is on WhatsApp +256 755 215 751, or email dispatch@thevelosgroup.com (orders) or info@thevelosgroup.com (everything else). We are based in Kampala.', links:[['contact.html', 'Contact page']]};
+  if(/contact|whatsapp|phone|call|email|reach|office|location/.test(t)) return {text:'Our dispatch desk is on WhatsApp +256 755 215 751, or email support@thevelosgroup.com. We are based in Kampala.', links:[['contact.html', 'Contact page']]};
   var hits = searchCatalog(t);
   if(hits.length) return {text:'Here is what we have in stock:', products:hits};
   return {text:'I could not find that in our catalog, but we can probably source it for you. Tell us what you need and your budget and our concierge will come back with options and a quote.', links:[['sourcing-request.html?idea=' + encodeURIComponent(text), 'Request this item']]};

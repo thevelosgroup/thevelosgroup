@@ -212,7 +212,7 @@ async function phGo(){ const rep = $('#ph_rep').checked, todo = []; let ok = 0, 
   if(!todo.length) return toast('Nothing to upload. Match at least one photo to an item.', true); $('#ph_go').disabled = true; $('#ph_m').disabled = true; let n = 0, q = todo.slice();
   const worker = async () => { while(q.length){ const i = q.shift(), r = PH.rows[i], el = $('#ph-s-' + i); if(!r || !el) continue; el.style.color = ''; el.textContent = 'Uploading…'; try { await phUp(r.it, r.f); r.done = true; r.err = ''; ok++; } catch(e){ r.err = e.message || 'failed'; bad++; } phStat(i); n++; $('#ph_s').textContent = 'Uploaded ' + n + ' of ' + todo.length + '…'; } };
   await Promise.all([worker(), worker(), worker()]); $('#ph_go').disabled = false; $('#ph_m').disabled = false; phCount(); toast(ok + ' photo(s) saved' + (bad ? ', ' + bad + ' failed (see the red lines, then tap Upload again)' : '') + (skip ? ', ' + skip + ' skipped' : ''), !!bad); }
-const DOC_CO = {name:'THE VELOS GROUP', tag:'Anything. Anywhere. Precisely.', lines:['Kampala, Uganda','Tel / WhatsApp: +256 755 215 751','info@thevelosgroup.com']};
+const DOC_CO = {name:'THE VELOS GROUP', tag:'Anything. Anywhere. Precisely.', lines:['Kampala, Uganda','Tel / WhatsApp: +256 755 215 751','support@thevelosgroup.com']};
 async function docsLoadLib(){ if(window.jspdf) return; await new Promise((ok,bad) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'; s.onload = ok; s.onerror = () => bad(Error('Could not load the PDF tool. Check your internet and try again.')); document.head.appendChild(s); }); }
 function docsImg(src){ return new Promise(res => { const i = new Image(); i.onload = () => { const c = document.createElement('canvas'); c.width = c.height = 256; c.getContext('2d').drawImage(i,0,0,256,256); res(c.toDataURL('image/jpeg',.92)); }; i.onerror = () => res(null); i.src = src; }); }
 let DOC_SIG = undefined;
@@ -395,7 +395,7 @@ async function paidVendor(id){ const {error} = await db.from('food_vendor_payout
 async function payRider(id){ const {error} = await db.rpc('food_pay_rider', {p_rider:id, p_ref:$('#rr-'+id).value.trim()||null}); toast(error ? error.message : 'Rider paid', !!error); if(!error) go('friders'); }
 function mapPt(k){ const a = $('#fr_rule_'+k+'_origin_lat').value, b = $('#fr_rule_'+k+'_origin_lng').value; window.open('https://www.google.com/maps?q=' + encodeURIComponent(a + ',' + b), '_blank'); }
 async function applyAll(w){ if(!confirm('Apply the saved ' + w + ' percentage to ALL restaurants now? This changes customer prices.')) return; const {data, error} = await db.rpc('admin_apply_food_defaults', {p_what:w}); toast(error ? error.message : ('Updated ' + data + ' restaurants'), !!error); }
-async function saveFRules(){ const ks = ['rule_delivery_per_km','rule_delivery_min_ugx','rule_shop_origin_lat','rule_shop_origin_lng','rule_fashion_origin_lat','rule_fashion_origin_lng','rule_food_free_km','rule_food_mid_km','rule_food_mid_pct','rule_food_customer_per_km','rule_food_rider_per_km','rule_food_grace_min','rule_food_penalty_pct_per_min','rule_food_cancel_after_min','rule_food_stockout_penalty_pct','rule_food_road_factor','rule_food_default_markup','rule_food_default_commission'];
+async function saveFRules(){ const ks = ['rule_booking_commit_min','rule_delivery_per_km','rule_delivery_min_ugx','rule_shop_origin_lat','rule_shop_origin_lng','rule_fashion_origin_lat','rule_fashion_origin_lng','rule_food_free_km','rule_food_mid_km','rule_food_mid_pct','rule_food_customer_per_km','rule_food_rider_per_km','rule_food_grace_min','rule_food_penalty_pct_per_min','rule_food_cancel_after_min','rule_food_stockout_penalty_pct','rule_food_road_factor','rule_food_default_markup','rule_food_default_commission'];
   for(const k of ks){ const {error} = await db.from('settings').upsert({key:k, value:String(Number($('#fr_'+k).value))}); if(error) return toast(error.message, true); } toast('Rules saved'); }
 const SITEURL = () => location.href.replace(/admin\.html.*$/, '');
 function openMail(to, subject, body){ if(!to) return toast('This customer left no email address', true); location.href = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body); }
@@ -465,11 +465,24 @@ async function saveRules(){
 
 /* ---- People documents: pre-signed agreements and ID cards ---- */
 const PDOC_KIND = {rider:'rider', agent:'agent', tech:'technician'};
+function giftTxt(t){ const u = []; const body = String(t||'').replace(/https?:\/\/\S+\/request-photos\/\S+/g, m => { u.push(m); return ''; }); return esc(body.replace(/\nPhotos:\s*$/,'')) + (u.length ? '<div class="row">' + u.map(x => `<a href="${esc(x)}" target="_blank"><img src="${esc(x)}" style="width:90px;height:90px;object-fit:cover;border-radius:8px"></a>`).join('') + '</div>' : ''); }
+window.PDS = {};
+async function loadPD(kind){ try { const r = await db.rpc('admin_people_docs', {p_kind: PDOC_KIND[kind]}); window.PDS[kind] = {}; (r.data||[]).forEach(d => window.PDS[kind][d.person_id] = d); } catch(e){ window.PDS[kind] = {}; } }
 function pdoRow(kind, x){
   const ok = kind==='tech' ? x.status==='verified' : x.status==='active';
-  if(!ok) return `<div class="mut">Documents unlock once ${kind==='tech'?'verified':'active'}.</div>`;
-  return `<div class="row"><button onclick="pDoc('${kind}','${x.id}')">📄 Agreement</button><button class="ghost" onclick="pDoc('${kind}','${x.id}',true)">📤 Share</button><button onclick="pCard('${kind}','${x.id}')">🪪 ID card</button><input type="file" id="pp-${x.id}" accept="image/*" style="max-width:150px" title="Optional photo for the ID card"></div>`;
+  const d = ((window.PDS||{})[kind]||{})[x.id] || {};
+  const dat = v => v ? new Date(v).toLocaleDateString('en-GB') : '';
+  const signed = d.signed_at ? `<div>✅ Signed agreement received ${dat(d.signed_at)} <button class="ghost" onclick="pSigned('${kind}','${x.id}')">View scan</button></div>` : `<div class="mut">⏳ Signed agreement not received yet. This person cannot be approved until it is.</div>`;
+  const up = `<div class="row"><input type="file" id="ps-${x.id}" accept="image/*,application/pdf" style="max-width:170px" title="Scan received by WhatsApp or email"><button class="ghost" onclick="pUp('${kind}','${x.id}','signed','ps-${x.id}')">⬆️ Upload their signed scan</button></div>`;
+  const agr = `<div class="row"><button onclick="pDoc('${kind}','${x.id}')">📄 Agreement</button><button class="ghost" onclick="pDoc('${kind}','${x.id}',true)">📤 Share</button></div>`;
+  if(!ok) return agr + signed + up;
+  const mark = (v,l) => v ? `✅ ${l} ${dat(v)}` : `⏳ ${l} missing`;
+  return agr + signed + `<div class="mut">${mark(d.photo_at,'Passport photo')} · ${mark(d.sig_at,'Signature')}${d.issued_at?' · 🪪 Card issued '+dat(d.issued_at):''}</div>`
+    + `<div class="row"><button onclick="pCard('${kind}','${x.id}')">🪪 Generate ID card</button></div>`
+    + `<details><summary class="mut">Upload photo / signature on their behalf</summary><div class="row"><input type="file" id="pp-${x.id}" accept="image/*" style="max-width:150px"><button class="ghost" onclick="pUp('${kind}','${x.id}','photo','pp-${x.id}')">⬆️ Photo</button></div><div class="row"><input type="file" id="pg-${x.id}" accept="image/*" style="max-width:150px"><button class="ghost" onclick="pUp('${kind}','${x.id}','sig','pg-${x.id}')">⬆️ Signature</button></div></details>`;
 }
+async function pUp(kind, id, field, inp){ try { const f = document.getElementById(inp).files[0]; if(!f) return toast('Choose a file first', true); toast('Uploading…'); const ext = f.type==='application/pdf' ? 'pdf' : (f.type.split('/')[1]||'jpg').replace('jpeg','jpg'); const path = `${PDOC_KIND[kind]}/${id}/${field}-${Date.now()}.${ext}`; const u = await db.storage.from('people-docs').upload(path, f, {contentType:f.type}); if(u.error) throw u.error; const r = await db.rpc('admin_people_docs_set', {p_kind:PDOC_KIND[kind], p_id:id, p_field:field, p_path:path}); if(r.error) throw r.error; toast('Saved'); go(kind==='tech'?'techs':kind==='agent'?'agents':'friders'); } catch(e){ toast(e.message||String(e), true); } }
+async function pSigned(kind, id){ try { const u = await VelosPeople.signedUrl(PDOC_KIND[kind], id); window.open(u, '_blank'); } catch(e){ toast(e.message||String(e), true); } }
 function pData(kind, id){
   const L = kind==='agent' ? window.AGD : kind==='rider' ? window.RDD : window.TD; const x = (L||[]).find(z => z.id===id); if(!x) throw Error('Reload the page and try again');
   return kind==='agent' ? {id:x.id, ref:x.agent_code, name:x.full_name, phone:x.phone, id_number:x.id_number, city:[x.city,x.country].filter(Boolean).join(', '), commission_pct:x.commission_rate}
@@ -477,7 +490,8 @@ function pData(kind, id){
     : {id:x.id, name:x.full_name, phone:x.phone, id_number:x.national_id, trade:x.trade, city:[x.city,x.area].filter(Boolean).join(', ')};
 }
 async function pDoc(kind, id, share){ try { toast('Preparing agreement…'); const r = await VelosPeople.agreement(PDOC_KIND[kind], pData(kind,id)); if(share) await VelosPeople.share(r); else VelosPeople.save(r); } catch(e){ toast(e.message||String(e), true); } }
-async function pCard(kind, id){ try { toast('Preparing ID card…'); const d = pData(kind,id), f = $('#pp-'+id); d.photo = await VelosPeople.photo(f && f.files && f.files[0]); const r = await VelosPeople.idCard(PDOC_KIND[kind], d); VelosPeople.save(r); } catch(e){ toast(e.message||String(e), true); } }
+async function pCard(kind, id){ try { toast('Preparing ID card…'); const d = pData(kind,id); const t = await VelosPeople.pull(PDOC_KIND[kind], id); d.photo = t.photo; d.signature = t.signature; if(!d.photo || !d.signature) { if(!confirm('This person has not uploaded '+(!d.photo?'a passport photo':'')+(!d.photo&&!d.signature?' and ':'')+(!d.signature?'a signature':'')+' yet. Generate the card anyway?')) return; } const r = await VelosPeople.idCard(PDOC_KIND[kind], d); VelosPeople.save(r); if(d.photo && d.signature){ await db.rpc('admin_people_docs_set', {p_kind:PDOC_KIND[kind], p_id:id, p_field:'issued', p_path:null}); go(kind==='tech'?'techs':kind==='agent'?'agents':'friders'); } } catch(e){ toast(e.message||String(e), true); } }
+async function commitSettle(id){ if(!confirm('Mark all earned commitments for this restaurant as paid out?')) return; const {error} = await db.rpc('admin_commit_settle', {p_vendor:id}); toast(error ? error.message : 'Marked as paid out', !!error); if(!error) go('bookings'); }
 async function saveRate(id){ const {error} = await db.from('agents').update({commission_rate:Number($('#cr-'+id).value)}).eq('id', id); toast(error ? error.message : 'Rate saved', !!error); }
 async function payAgent(id){
   const v = Number($('#pa-'+id).value); if(!(v > 0)) return toast('Enter the payout amount', true);
@@ -576,7 +590,7 @@ const VIEWS = {
   },
 
   async techs(){
-    const {data,error} = await db.from('technician_applications').select('*').order('created_at',{ascending:false});
+    await loadPD('tech'); const {data,error} = await db.from('technician_applications').select('*').order('created_at',{ascending:false});
     if(error) throw error;
     window.TD = data; $('#view').innerHTML = '<h2>Technician applications</h2>' + (data.length ? data.map(t => `<div class="card">${pdfBtns('technician_applications',t.id)}
       <div class="row"><b>${esc(t.full_name)}</b>${sel('technician_applications',t.id,t.status,['pending','verified','rejected','suspended'])}</div>
@@ -641,7 +655,7 @@ const VIEWS = {
     $('#view').innerHTML = '<h2>Gift requests</h2>' + (data.length ? data.map(g => `<div class="card">${pdfBtns('gift_requests',g.id)}
       <div class="row"><b class="gold">G${g.req_no}</b>${sel('gift_requests',g.id,g.status,['new','sourcing','quote_sent','approved','delivered','cancelled'])}</div>
       <div><b>${esc(g.occasion)}</b> for ${esc(g.recipient||'—')} · <span class="mut">${esc(g.mode)}</span></div>
-      <div class="mut">Budget: ${esc(g.budget_label||'')}${g.budget_ugx?' ('+ugx(g.budget_ugx)+')':''}</div><div>${esc(g.gift_idea||'')}</div><div class="mut">${esc(g.interests||'')}</div>
+      <div class="mut">Budget: ${esc(g.budget_label||'')}${g.budget_ugx?' ('+ugx(g.budget_ugx)+')':''}</div><div>${giftTxt(g.gift_idea)}</div><div class="mut">${esc(g.interests||'')}</div>
       <div>${esc(g.customer_name)} · <a href="${wa(g.customer_phone)}" target="_blank">${esc(g.customer_phone)}</a></div>
       <div class="mut">📍 ${esc([g.address,g.town,g.country].filter(Boolean).join(', '))} · Needed by ${esc(g.deadline||'flexible')}</div>
       <div class="row"><input class="sm" id="q-${g.id}" type="number" placeholder="Quote UGX" value="${g.quote_ugx??''}" style="width:150px"><button onclick="saveQuote('${g.id}')">Save quote</button></div>
@@ -663,7 +677,7 @@ const VIEWS = {
   },
 
   async agents(){
-    const [a,p,s] = await Promise.all([db.from('agents').select('*').order('created_at',{ascending:false}), db.from('agent_payouts').select('agent_id,amount_ugx'), db.rpc('agent_stats',{p_agent:null})]);
+    await loadPD('agent'); const [a,p,s] = await Promise.all([db.from('agents').select('*').order('created_at',{ascending:false}), db.from('agent_payouts').select('agent_id,amount_ugx'), db.rpc('agent_stats',{p_agent:null})]);
     if(a.error) throw a.error; window.AGD = a.data; const earn = {}, rev = {}, paid = {};
     (s.data||[]).forEach(r => { earn[r.agent_id] = (earn[r.agent_id]||0) + Number(r.commission); rev[r.agent_id] = (rev[r.agent_id]||0) + Number(r.revenue); });
     (p.data||[]).forEach(x => paid[x.agent_id] = (paid[x.agent_id]||0) + Number(x.amount_ugx));
@@ -700,16 +714,17 @@ const VIEWS = {
 
 
   async bookings(){
-    const {data, error} = await db.rpc('admin_bookings'); if(error) throw error; const B = data || [];
+    const {data, error} = await db.rpc('admin_bookings'); if(error) throw error; const B = data || []; let due = []; if(me.role === 'admin'){ const dd = await db.rpc('admin_commit_due'); due = dd.data || []; }
     const fm = n => 'UGX ' + Math.round(n).toLocaleString('en-US'), when = d => new Date(d).toLocaleString('en-GB', {weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit', timeZone:'Africa/Kampala'});
     const chk = B.filter(x => x.pay_status === 'submitted'), ref = B.filter(x => x.pay_status === 'refund_due'), rest = B.filter(x => !['submitted','refund_due'].includes(x.pay_status));
     const card = x => `<div class="card"><div class="row"><b class="gold">B${x.booking_no} · ${esc(x.restaurant)}</b><span class="pill">${esc(x.status.replace('_',' '))}</span></div>
       <div>${when(x.booking_at)} · ${esc(x.meal)} · ${x.party_size} people</div><div>${esc(x.customer)} · <a href="tel:${esc(x.phone)}">${esc(x.phone)}</a></div>${x.notes ? `<div class="mut">📝 ${esc(x.notes)}</div>` : ''}
       ${x.items && x.items.length ? `<div class="mut">${x.items.map(i => i.qty + '× ' + esc(i.name)).join(', ')}</div>` : ''}
-      <div class="mut">${x.pay_mode === 'advance' ? 'Paid in advance through Velos: ' + fm(x.items_total) + ' · ' + esc(x.pay_status.replace('_',' ')) + (x.pay_ref ? ' · ' + esc(x.pay_method || '') + ' ' + esc(x.pay_ref) : '') : 'Pays at the premises · no Velos charge'}</div>
+      <div class="mut">${x.commit_ugx > 0 ? 'Commitment ' + fm(x.commit_ugx) + ' (counts toward bill; no Velos commission) · ' + esc(x.pay_status.replace('_',' ')) + (x.pay_ref ? ' · ' + esc(x.pay_method || '') + ' ' + esc(x.pay_ref) : '') + (x.commit_settled_at ? ' · paid out to restaurant' : '') : (x.pay_mode === 'advance' ? 'Paid in advance through Velos: ' + fm(x.items_total) + ' · ' + esc(x.pay_status.replace('_',' ')) : 'Pays at the premises')}${x.items_total > 0 ? ' · order total ' + fm(x.items_total) : ''}</div>${x.occasion ? `<div class="mut">🎉 ${esc(x.occasion)}</div>` : ''}
       ${x.penalty_ugx > 0 ? `<div style="color:var(--bad)">Penalty to restaurant: ${fm(x.penalty_ugx)}. Deduct it from their next payout.</div>` : ''}${x.status_note ? `<div class="mut">${esc(x.status_note)}</div>` : ''}
       <div class="row" style="gap:6px;margin-top:6px;justify-content:flex-start">${x.pay_status === 'submitted' ? `<button onclick="bkMoney(${x.booking_no},'paid')">✅ Payment received</button><button class="ghost" onclick="bkMoney(${x.booking_no},'reject')">Not found</button>` : ''}${x.pay_status === 'refund_due' ? `<button onclick="bkMoney(${x.booking_no},'refunded')">Refund sent to customer</button>` : ''}${x.pay_status === 'paid' && ['requested','confirmed'].includes(x.status) ? `<button class="ghost" onclick="bkMoney(${x.booking_no},'refund_due',true)">Refund: restaurant failed (penalty)</button><button class="ghost" onclick="bkMoney(${x.booking_no},'refund_due')">Refund: no penalty</button>` : ''}</div></div>`;
-    $('#view').innerHTML = '<h2>Table bookings</h2><p class="mut">Eating at the premises carries no Velos charge. Advance payments are refundable. If a restaurant declines or fails a paid booking, the refund becomes a penalty to that restaurant.</p>'
+    $('#view').innerHTML = '<h2>Table bookings</h2><p class="mut">Every booking needs a commitment of at least UGX 50,000 (set in Food rules), paid before the booking is placed. It counts toward the guest\'s bill and goes to the restaurant\'s earnings with no Velos commission. It is refundable if the restaurant declines or fails the booking, and then the refund becomes a penalty to that restaurant.</p>'
+      + (due.length ? `<h3 class="gold">Commitments owed to restaurants</h3>` + due.map(d => `<div class="card row"><span><b>${esc(d.restaurant)}</b> · ${d.bookings} booking(s)</span><span><b>${fm(d.amount)}</b> <button onclick="commitSettle('${d.vendor_id}')">Mark paid out</button></span></div>`).join('') : '')
       + `<h3 class="gold">Payments to check (${chk.length})</h3>` + (chk.map(card).join('') || '<p class="mut">None.</p>') + `<h3 class="gold">Refunds to send (${ref.length})</h3>` + (ref.map(card).join('') || '<p class="mut">None.</p>') + '<h3 class="gold">All bookings</h3>' + (rest.map(card).join('') || '<p class="mut">No bookings yet.</p>');
   },
   async payments(){
@@ -796,7 +811,7 @@ const VIEWS = {
     const {data} = await db.from('settings').select('value').eq('key','site_biz').maybeSingle(); let b = {}; try { b = JSON.parse((data && data.value) || '{}'); } catch(e){}
     const f = (k, ph, v) => `<input id="bz_${k}" placeholder="${ph}" value="${esc(v || '')}">`;
     $('#view').innerHTML = `<h2>Business profile</h2><p class="mut">These details appear at the top of every invoice, quotation and receipt you create.</p>
-      <div class="card">${f('name','Business name','' + (b.name || 'THE VELOS GROUP'))}${f('tag','Slogan', b.tag || 'Anything. Anywhere. Precisely.')}${f('addr','Address', b.addr || 'Kampala, Uganda')}${f('phone','Phone / WhatsApp', b.phone || '+256 755 215 751')}${f('email','Email', b.email || 'info@thevelosgroup.com')}${f('tin','TIN / registration number (add once registered)', b.tin)}${f('bank','Bank details (optional)', b.bank)}${f('foot','Footer message', b.foot || 'Thank you for choosing The Velos Group')}<button onclick="bizSave()">Save business profile</button></div>`;
+      <div class="card">${f('name','Business name','' + (b.name || 'THE VELOS GROUP'))}${f('tag','Slogan', b.tag || 'Anything. Anywhere. Precisely.')}${f('addr','Address', b.addr || 'Kampala, Uganda')}${f('phone','Phone / WhatsApp', b.phone || '+256 755 215 751')}${f('email','Email', b.email || 'support@thevelosgroup.com')}${f('tin','TIN / registration number (add once registered)', b.tin)}${f('bank','Bank details (optional)', b.bank)}${f('foot','Footer message', b.foot || 'Thank you for choosing The Velos Group')}<button onclick="bizSave()">Save business profile</button></div>`;
   },
 
   async promos(){
@@ -925,7 +940,7 @@ const VIEWS = {
   },
 
   async friders(){
-    const [r,o,p] = await Promise.all([db.from('food_riders').select('*').order('created_at',{ascending:false}), db.from('food_orders').select('rider_id,rider_pay_ugx,distance_km').eq('status','delivered').eq('rider_paid',false), db.from('food_rider_payouts').select('*, food_riders(full_name)').order('paid_at',{ascending:false}).limit(30)]);
+    await loadPD('rider'); const [r,o,p] = await Promise.all([db.from('food_riders').select('*').order('created_at',{ascending:false}), db.from('food_orders').select('rider_id,rider_pay_ugx,distance_km').eq('status','delivered').eq('rider_paid',false), db.from('food_rider_payouts').select('*, food_riders(full_name)').order('paid_at',{ascending:false}).limit(30)]);
     if(r.error) throw r.error; window.RDD = r.data; const due = {}, kms = {}; (o.data||[]).forEach(x => { due[x.rider_id] = (due[x.rider_id]||0) + Number(x.rider_pay_ugx); kms[x.rider_id] = (kms[x.rider_id]||0) + Number(x.distance_km); }); const adm = me.role === 'admin';
     $('#view').innerHTML = '<h2>Riders</h2>' + (r.data.length ? r.data.map(x => `<div class="card"><div class="row"><b>${esc(x.full_name)}</b>${sel('food_riders',x.id,x.status,['pending','active','suspended','rejected'])}</div>
       <div class="mut">${esc(x.phone)} · ${esc(x.vehicle||'')} ${esc(x.plate||'')} · ID ${esc(x.id_number||'—')} · ${esc(x.payout_method||'')} ${esc(x.payout_number||'')}</div>
@@ -938,7 +953,7 @@ const VIEWS = {
 
   async frules(){
     const {data} = await db.from('settings').select('*').like('key','rule_food_%'), v = k => (data||[]).find(x => x.key === k)?.value ?? '';
-    const F = [['rule_delivery_per_km','Shop and other deliveries: customer rate per km (UGX)'],['rule_delivery_min_ugx','Minimum delivery fee (UGX)'],['rule_shop_origin_lat','Electronics and general shop pick-up point: latitude (Nakasero Street, Kampala Central)'],['rule_shop_origin_lng','Electronics and general shop pick-up point: longitude'],['rule_fashion_origin_lat','Fashion and beauty shop pick-up point: latitude'],['rule_fashion_origin_lng','Fashion and beauty shop pick-up point: longitude'],['rule_food_free_km','Free delivery radius (km)'],['rule_food_mid_km','Percentage-fee zone ends at (km)'],['rule_food_mid_pct','Extra % of the order between those distances'],['rule_food_customer_per_km','Customer rate per km beyond that (UGX)'],['rule_food_rider_per_km','Rider pay per km (UGX)'],['rule_food_grace_min','Late grace added automatically (minutes)'],['rule_food_penalty_pct_per_min','Restaurant penalty per late minute (% of order value)'],['rule_food_cancel_after_min','Auto-cancel after this many penalty minutes'],['rule_food_stockout_penalty_pct','Penalty for out-of-stock cancellation (%)'],['rule_food_road_factor','Straight-line to road distance factor'],['rule_food_default_markup','Platform fee added to restaurant menu prices (%): default for new restaurants. Covers running costs, taxes and service fees so customers are not charged them separately'],['rule_food_default_commission','Velos commission charged to restaurants (%): default for new restaurants']];
+    const F = [['rule_booking_commit_min','Table booking: minimum commitment fee (UGX)'],['rule_delivery_per_km','Shop and other deliveries: customer rate per km (UGX)'],['rule_delivery_min_ugx','Minimum delivery fee (UGX)'],['rule_shop_origin_lat','Electronics and general shop pick-up point: latitude (Nakasero Street, Kampala Central)'],['rule_shop_origin_lng','Electronics and general shop pick-up point: longitude'],['rule_fashion_origin_lat','Fashion and beauty shop pick-up point: latitude'],['rule_fashion_origin_lng','Fashion and beauty shop pick-up point: longitude'],['rule_food_free_km','Free delivery radius (km)'],['rule_food_mid_km','Percentage-fee zone ends at (km)'],['rule_food_mid_pct','Extra % of the order between those distances'],['rule_food_customer_per_km','Customer rate per km beyond that (UGX)'],['rule_food_rider_per_km','Rider pay per km (UGX)'],['rule_food_grace_min','Late grace added automatically (minutes)'],['rule_food_penalty_pct_per_min','Restaurant penalty per late minute (% of order value)'],['rule_food_cancel_after_min','Auto-cancel after this many penalty minutes'],['rule_food_stockout_penalty_pct','Penalty for out-of-stock cancellation (%)'],['rule_food_road_factor','Straight-line to road distance factor'],['rule_food_default_markup','Platform fee added to restaurant menu prices (%): default for new restaurants. Covers running costs, taxes and service fees so customers are not charged them separately'],['rule_food_default_commission','Velos commission charged to restaurants (%): default for new restaurants']];
     $('#view').innerHTML = '<h2>Food delivery rules</h2><div class="card">' + F.map(f => `<label class="mut">${f[1]}</label><input id="fr_${f[0]}" type="number" step="any" value="${esc(v(f[0]))}">`).join('') + '<p class="mut">Check a point on the map: <a href="#" onclick="mapPt(\'shop\');return false">electronics point</a> · <a href="#" onclick="mapPt(\'fashion\');return false">fashion shop point</a>. To get exact numbers: open Google Maps, press and hold on the exact spot, then tap the numbers that appear and copy them here.</p><button onclick="saveFRules()">Save rules</button><div class="card" style="margin-top:10px"><b>Apply the percentages to restaurants already on Velos</b><p class="mut">New restaurants get the defaults above automatically. To change restaurants already registered, save the rules first, then tap a button. You can still set one restaurant differently in Restaurants. The Velos Foods Store is never changed.</p><button onclick="applyAll(\'markup\')">Apply markup to all restaurants</button> <button class="ghost" onclick="applyAll(\'commission\')">Apply commission to all restaurants</button></div></div>';
   },
 
@@ -1049,4 +1064,5 @@ async function importCatalog(){
 
 document.addEventListener('keydown', e => { if(e.key === 'Enter' && !$('#login').hidden) signIn(); });
 boot();
-</script></body></html>
+</script><script src="velos-pw.js"></script>
+</body></html>

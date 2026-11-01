@@ -1,0 +1,18 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Reset password · The Velos Group</title>
+<link rel="icon" href="logo-mark.svg" type="image/svg+xml">
+<style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#03113e;color:#fff;font:16px system-ui,sans-serif;padding:16px}.c{width:100%;max-width:420px;background:#0a1d57;border:1px solid rgba(212,175,55,.35);border-radius:16px;padding:24px}img{width:56px;height:56px}h1{font-size:22px;margin:10px 0 6px}p{opacity:.85;font-size:14px;line-height:1.5}input{width:100%;padding:13px;margin:8px 0;border-radius:10px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);color:#fff;font-size:16px}button.go{width:100%;padding:14px;border:0;border-radius:10px;background:#d4af37;color:#03113e;font-weight:700;font-size:16px;margin-top:6px;cursor:pointer}#m{min-height:20px;font-size:14px;margin-top:10px}.bad{color:#ff9b93}.ok{color:#7ee2a8}a{color:#e8c766}</style></head>
+<body><div class="c"><img src="logo-mark.svg" alt="The Velos Group"><h1>Choose a new password</h1><p>Enter a new password for your Velos account (at least 8 characters).</p>
+<input id="p1" type="password" placeholder="New password" autocomplete="new-password"><input id="p2" type="password" placeholder="Repeat new password" autocomplete="new-password">
+<button class="go" onclick="save()">Save new password</button><div id="m"></div><p><a href="/">← Back to Velos</a></p></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script>
+<script>
+var S=window.VELOS_SUPABASE,db=supabase.createClient(S.url,S.key),ready=false;
+db.auth.onAuthStateChange(function(e){if(e==='PASSWORD_RECOVERY'||e==='SIGNED_IN')ready=true});
+db.auth.getSession().then(function(r){if(r.data.session)ready=true});
+function say(t,c){var m=document.getElementById('m');m.textContent=t;m.className=c||''}
+async function save(){var a=document.getElementById('p1').value,b=document.getElementById('p2').value;
+ if(a.length<8)return say('Use at least 8 characters.','bad');if(a!==b)return say('The two passwords do not match.','bad');
+ var s=await db.auth.getSession();if(!s.data.session)return say('This reset link has expired or was already used. Go back and tap "Forgot password?" again.','bad');
+ var r=await db.auth.updateUser({password:a});if(r.error)return say(r.error.message,'bad');
+ say('Password changed ✓ You can now sign in with your new password.','ok');setTimeout(function(){location.href='/'},2500)}
+</script><script src="velos-pw.js"></script></body></html>

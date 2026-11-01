@@ -129,11 +129,50 @@
     doc.setFillColor(NV[0], NV[1], NV[2]); doc.rect(0, 0, 85.6, 54, 'F'); doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 0, 85.6, 1.4, 'F');
     doc.setTextColor(232, 199, 102); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.text('VERIFIED VELOS TEAM MEMBER', 6, 9);
     doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'normal'); doc.setFontSize(5.8);
-    ['This card is the property of The Velos Group and must', 'be shown on request. It is not transferable.', 'If found, please call or WhatsApp ' + PHONE + '.', 'Report misuse to info@thevelosgroup.com.'].forEach(function (l, i) { doc.text(l, 6, 15 + i * 3.8); });
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(232, 199, 102); doc.text(SITE.replace('https://', ''), 6, 36);
-    doc.setDrawColor(190, 200, 225); doc.setLineWidth(.25); doc.line(6, 46.5, 40, 46.5); doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(190, 200, 225); doc.text('Holder signature', 6, 49.2);
+    ['This card is the property of The Velos Group and must', 'be shown on request. It is not transferable.', 'If found, please call or WhatsApp ' + PHONE + '.', 'Report misuse to support@thevelosgroup.com.'].forEach(function (l, i) { doc.text(l, 6, 15 + i * 3.8); });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(232, 199, 102); doc.text(SITE.replace('https://', ''), 6, 31.5);
+    var hs = p.signature || null, as = await img('signature.png', 'png');
     var q = hasQr ? qrData(SITE + '/?ref=' + encodeURIComponent(no)) : null;
-    if (q) { doc.setFillColor(255, 255, 255); doc.roundedRect(52, 11, 28, 28, 1.5, 1.5, 'F'); pic(doc, q, 53, 12, 26, 26); doc.setFontSize(5); doc.setTextColor(190, 200, 225); doc.text('Scan to open Velos', 66, 43, { align: 'center' }); }
+    if (q) { doc.setFillColor(255, 255, 255); doc.roundedRect(60, 9, 21, 21, 1.5, 1.5, 'F'); pic(doc, q, 60.8, 9.8, 19.4, 19.4); doc.setFont('helvetica', 'normal'); doc.setFontSize(4.6); doc.setTextColor(190, 200, 225); doc.text('Scan to open Velos', 70.5, 32.6, { align: 'center' }); }
+    /* signature panels: holder (left) and Velos authorised signatory (right) */
+    doc.setFillColor(255, 255, 255); doc.roundedRect(5, 37, 36, 10, 1, 1, 'F'); doc.roundedRect(46, 37, 36, 10, 1, 1, 'F');
+    if (hs) pic(doc, hs, 7, 37.6, 32, 8.8);
+    if (as) pic(doc, as, 48, 37.6, 32, 8.8);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(4.6); doc.setTextColor(190, 200, 225); doc.text('Holder signature', 5, 49.6); doc.text('Authorised signature - The Velos Group', 46, 49.6);
+    var fname = ('Velos-' + ROLE[kind].replace(/ /g, '') + '-Agreement-' + no + '-' + name).replace(/[^\w-]+/g, '-').replace(/-+/g, '-') + '.pdf';
+    return { doc: doc, no: no, file: new File([doc.output('blob')], fname, { type: 'application/pdf' }), name: fname };
+  }
+
+  /* ---------------- ID card (85.6 x 54 mm, front and back) ---------------- */
+  async function idCard(kind, p) {
+    await lib(); var hasQr = await qrlib();
+    var J = W.jspdf.jsPDF, doc = new J({ unit: 'mm', format: [85.6, 54], orientation: 'landscape' });
+    var logo = await img('icon-512.png', 'jpeg', 256);
+    var no = ref(kind, p), name = clean(p.name) || ROLE[kind], issued = new Date(p.issued_at || Date.now()), until = new Date(issued); until.setFullYear(until.getFullYear() + 1);
+    var mm = function (d) { return ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear(); };
+    /* front */
+    doc.setFillColor(255, 255, 255); doc.rect(0, 0, 85.6, 54, 'F');
+    doc.setFillColor(NV[0], NV[1], NV[2]); doc.rect(0, 0, 85.6, 14, 'F'); doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 14, 85.6, .9, 'F');
+    if (logo) pic(doc, logo, 3.5, 2, 10, 10);
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.text('THE VELOS GROUP', 16, 7.2);
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(5.8); doc.setTextColor(232, 199, 102); doc.text('Anything. Anywhere. Precisely.', 16, 10.8);
+    doc.setFillColor(GD[0], GD[1], GD[2]); doc.roundedRect(61, 4.2, 21, 5.6, 1.2, 1.2, 'F'); doc.setTextColor(NV[0], NV[1], NV[2]); doc.setFont('helvetica', 'bold'); doc.setFontSize(5.8); doc.text(CARDROLE[kind], 71.5, 8.1, { align: 'center' });
+    var px = 5, py = 19, pw = 24, ph = 28;
+    doc.setFillColor(LT[0], LT[1], LT[2]); doc.setDrawColor(GD[0], GD[1], GD[2]); doc.setLineWidth(.4); doc.rect(px, py, pw, ph, 'FD');
+    if (!(p.photo && pic(doc, p.photo, px, py, pw, ph))) { var ini = name.split(/\s+/).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join(''); doc.setTextColor(GR[0], GR[1], GR[2]); doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text(ini, px + pw / 2, py + ph / 2 + 2, { align: 'center' }); doc.setFontSize(4.5); doc.setFont('helvetica', 'normal'); doc.text('PHOTO', px + pw / 2, py + ph - 2, { align: 'center' }); }
+    doc.setTextColor(TX[0], TX[1], TX[2]); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.splitTextToSize(name, 50).slice(0, 2).forEach(function (l, i) { doc.text(l, 33, 23.5 + i * 4.6); });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.2); doc.setTextColor(GR[0], GR[1], GR[2]);
+    var info = [['ID No', no], ['Role', ROLE[kind] + (kind === 'technician' && p.trade ? ' - ' + clean(p.trade) : '')], ['Issued', mm(issued)], ['Valid until', mm(until)]];
+    info.forEach(function (r, i) { var yy = 33 + i * 4.4; doc.setFont('helvetica', 'normal'); doc.setTextColor(GR[0], GR[1], GR[2]); doc.text(r[0], 33, yy); doc.setFont('helvetica', 'bold'); doc.setTextColor(TX[0], TX[1], TX[2]); doc.text(doc.splitTextToSize(r[1], 40)[0], 47, yy); });
+    doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 52.6, 85.6, 1.4, 'F');
+    /* back */
+    doc.addPage([85.6, 54], 'landscape');
+    doc.setFillColor(NV[0], NV[1], NV[2]); doc.rect(0, 0, 85.6, 54, 'F'); doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 0, 85.6, 1.4, 'F');
+    doc.setTextColor(232, 199, 102); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.text('VERIFIED VELOS TEAM MEMBER', 6, 9);
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'normal'); doc.setFontSize(5.8);
+    ['This card is the property of The Velos Group and must', 'be shown on request. It is not transferable.', 'If found, please call or WhatsApp ' + PHONE + '.', 'Report misuse to support@thevelosgroup.com.'].forEach(function (l, i) { doc.text(l, 6, 15 + i * 3.8); });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(232, 199, 102); doc.text(SITE.replace('https://', ''), 6, 31.5);
+    doc.setDrawColor(190, 200, 225); doc.setLineWidth(.25); doc.line(6, 46.5, 40, 46.5); doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(190, 200, 225); doc.text('Holder signature', 6, 49.2);
     var fname = ('Velos-ID-Card-' + no + '-' + name).replace(/[^\w-]+/g, '-').replace(/-+/g, '-') + '.pdf';
     return { doc: doc, no: no, file: new File([doc.output('blob')], fname, { type: 'application/pdf' }), name: fname };
   }
@@ -143,15 +182,65 @@
   function photo(file) { return new Promise(function (ok) { if (!file) return ok(null); var fr = new FileReader(); fr.onload = function () { img(fr.result, 'jpeg').then(ok); }; fr.onerror = function () { ok(null); }; fr.readAsDataURL(file); }); }
 
 
-  /* Self-service panel for the rider, agent and partner apps */
-  var ME = null;
-  function panel(kind, p, active) {
-    ME = { kind: kind, p: p };
-    if (!p || !active) return '<h2>Documents</h2><div class="c"><p>Your agreement and ID card will appear here once Velos has approved you.</p></div>';
-    return '<h2>Documents</h2><div class="c"><p><b>Your agreement.</b> Velos has already signed it. Read it, sign it, and send a copy back to Velos on WhatsApp.</p><button class="full" onclick="VelosPeople.mine(\'agreement\')">📄 Open my agreement</button></div>' +
-      '<div class="c"><p><b>Your ID card.</b> Show it on every job. Velos prints the physical card for you; this is your digital copy.</p><button class="full" onclick="VelosPeople.mine(\'card\')">🪪 Open my ID card</button></div>';
+  /* ---------------- Uploads and onboarding steps ---------------- */
+  var ME = null, BUCKET = 'people-docs'; function DB() { return typeof db !== 'undefined' ? db : W.db; }
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function shrink(file) { return new Promise(function (ok) { if (!file || !/^image\//.test(file.type) || /heic|heif/.test(file.type)) return ok(file); var fr = new FileReader(); fr.onload = function () { var i = new Image(); i.onload = function () { var m = 1600, k = Math.min(1, m / Math.max(i.naturalWidth, i.naturalHeight)), c = document.createElement('canvas'); c.width = Math.round(i.naturalWidth * k); c.height = Math.round(i.naturalHeight * k); var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(i, 0, 0, c.width, c.height); c.toBlob(function (b) { ok(b ? new File([b], 'scan.jpg', { type: 'image/jpeg' }) : file); }, 'image/jpeg', .85); }; i.onerror = function () { ok(file); }; i.src = fr.result; }; fr.onerror = function () { ok(file); }; fr.readAsDataURL(file); }); }
+  async function upload(kind, field, inputId) {
+    try {
+      var el = document.getElementById(inputId), f = el && el.files && el.files[0]; if (!f) return W.toast && W.toast('Choose a file first', true);
+      if (f.size > 12 * 1024 * 1024) return W.toast && W.toast('That file is too large. Use a photo under 8 MB.', true);
+      W.toast && W.toast('Uploading…'); var me = await DB().rpc('people_docs_me', { p_kind: kind }); if (me.error || !me.data) throw Error((me.error && me.error.message) || 'Your login is not linked to a profile yet. Please tell Velos.');
+      f = await shrink(f); var ext = f.type === 'application/pdf' ? 'pdf' : (f.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg'), path = kind + '/' + me.data.person_id + '/' + field + '-' + Date.now() + '.' + ext;
+      var u = await DB().storage.from(BUCKET).upload(path, f, { contentType: f.type, upsert: false }); if (u.error) throw u.error;
+      var r = await DB().rpc('people_docs_set', { p_kind: kind, p_field: field, p_path: path }); if (r.error) throw r.error;
+      W.toast && W.toast('Received ✓'); fill();
+    } catch (e) { W.toast && W.toast(e.message || String(e), true); }
   }
-  async function mine(what) { try { if (!ME) return; var r = what === 'card' ? await idCard(ME.kind, ME.p) : await agreement(ME.kind, ME.p); if (W.toast) W.toast('Ready'); try { await share(r); } catch (e) { save(r); } } catch (e) { if (W.toast) W.toast(e.message || String(e), true); } }
+  function ok(t) { return '<span style="color:#7ee2a8">✓ ' + t + '</span>'; }
+  function dt(x) { try { return new Date(x).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch (e) { return ''; } }
+  async function fill() {
+    var box = document.getElementById('vpd'); if (!box || !ME) return;
+    var k = ME.kind, d = { data: null }; try { d = await DB().rpc('people_docs_me', { p_kind: k }); } catch (e) {}
+    d = (d && d.data) || {};
+    var inp = 'display:block;width:100%;margin:8px 0;padding:10px;border:1px dashed rgba(212,175,55,.5);border-radius:10px;background:rgba(255,255,255,.04);color:inherit';
+    var h = '';
+    if (!ME.active) {
+      h = '<h2>Complete your application</h2>' +
+        '<div class="c"><p><b>Step 1 · Download your agreement.</b> Velos has already signed it. Read it carefully and sign it by hand.</p><button class="full" onclick="VelosPeople.mine(\'agreement\')">📄 Download my agreement</button></div>' +
+        '<div class="c"><p><b>Step 2 · Send the signed copy back.</b> Take a clear photo or scan of every signed page and upload it here (photo or PDF).</p>' +
+        (d.signed_at ? '<p>' + ok('Signed agreement received on ' + dt(d.signed_at)) + '. Velos is reviewing your application. You can upload again to replace it.</p>' : '<p class="m">Your account stays <b>pending</b> until this is received.</p>') +
+        '<input id="vpd-s" type="file" accept="image/*,application/pdf" style="' + inp + '"><button class="full" onclick="VelosPeople.up(\'signed\',\'vpd-s\')">⬆️ Upload signed agreement</button></div>' +
+        '<div class="c"><p><b>Step 3 · After approval.</b> You will upload your passport-size photo and your signature here, and Velos will prepare your ID card.</p></div>';
+    } else {
+      var done = d.photo_at && d.sig_at;
+      h = '<h2>Documents</h2>' +
+        '<div class="c"><p><b>Your agreement.</b> Velos has already signed it. You can open your copy at any time.</p><button class="full" onclick="VelosPeople.mine(\'agreement\')">📄 Open my agreement</button></div>' +
+        '<div class="c"><p><b>Your ID card.</b> ' + (d.issued_at ? ok('Issued on ' + dt(d.issued_at)) + ' Show it on every job. This is your digital copy; Velos prints the physical card.' : done ? 'Photo and signature received ✓. Velos is preparing your card. It will appear here once issued.' : 'To get your card, upload the two items below.') + '</p>' +
+        (d.issued_at ? '<button class="full" onclick="VelosPeople.mine(\'card\')">🪪 Open my ID card</button>' : '') + '</div>' +
+        '<div class="c"><p><b>Passport-size photo.</b> Plain light background, face clearly visible, no hat or sunglasses. ' + (d.photo_at ? ok('Received') : '') + '</p><input id="vpd-p" type="file" accept="image/*" style="' + inp + '"><button class="full" onclick="VelosPeople.up(\'photo\',\'vpd-p\')">⬆️ Upload photo</button></div>' +
+        '<div class="c"><p><b>Your signature.</b> Sign your name in dark ink on plain white paper, then photograph or scan it flat and well lit. ' + (d.sig_at ? ok('Received') : '') + '</p><input id="vpd-g" type="file" accept="image/*" style="' + inp + '"><button class="full" onclick="VelosPeople.up(\'sig\',\'vpd-g\')">⬆️ Upload signature</button></div>';
+    }
+    box.innerHTML = h;
+  }
+  /* panel(kind, p, active): HTML for the Documents page. p needs the person's details (see top). Works before and after approval. */
+  function panel(kind, p, active) { ME = { kind: kind, p: p, active: !!active }; setTimeout(fill, 30); return '<div id="vpd"><div class="c"><p>Loading…</p></div></div>'; }
+  async function mine(what) {
+    try {
+      if (!ME) return; var p = ME.p;
+      if (what === 'card') { var me = await DB().rpc('people_docs_me', { p_kind: ME.kind }); if (!me.data || !me.data.issued_at) throw Error('Your card has not been issued yet.'); var tok = await pull(ME.kind, me.data.person_id); p = Object.assign({}, p, tok); }
+      var r = what === 'card' ? await idCard(ME.kind, p) : await agreement(ME.kind, p); if (W.toast) W.toast('Ready'); try { await share(r); } catch (e) { save(r); }
+    } catch (e) { if (W.toast) W.toast(e.message || String(e), true); }
+  }
+  /* staff: fetch the stored photo and signature as images for the card */
+  async function pull(kind, id) {
+    var row = null, out = {};
+    try { var r = await DB().rpc('admin_people_docs', { p_kind: kind }); row = ((r.data || []).filter(function (x) { return String(x.person_id) === String(id); }))[0]; } catch (e) {}
+    async function get(path) { if (!path) return null; var d = await DB().storage.from(BUCKET).download(path); if (d.error || !d.data) return null; return new Promise(function (res) { var fr = new FileReader(); fr.onload = function () { img(fr.result, 'jpeg').then(res); }; fr.onerror = function () { res(null); }; fr.readAsDataURL(d.data); }); }
+    if (row) { out.photo = await get(row.photo_path); out.signature = await get(row.sig_path); }
+    return out;
+  }
+  async function signedUrl(kind, id) { var r = await DB().rpc('admin_people_docs', { p_kind: kind }); var row = ((r.data || []).filter(function (x) { return String(x.person_id) === String(id); }))[0]; if (!row || !row.signed_path) throw Error('No signed agreement uploaded yet'); var u = await DB().storage.from(BUCKET).createSignedUrl(row.signed_path, 600); if (u.error) throw u.error; return u.data.signedUrl; }
 
-  W.VelosPeople = { panel: panel, mine: mine, agreement: agreement, idCard: idCard, save: save, share: share, photo: photo };
+  W.VelosPeople = { panel: panel, mine: mine, up: function (f, id) { return upload(ME && ME.kind, f, id); }, pull: pull, signedUrl: signedUrl, agreement: agreement, idCard: idCard, save: save, share: share, photo: photo };
 })(window);

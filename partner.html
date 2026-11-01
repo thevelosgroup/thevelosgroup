@@ -50,7 +50,7 @@ async function tech(t){
   var r=await db.rpc('my_jobs'),J=r.data||[],owed=0,paid=0;
   J.forEach(function(j){if(j.pay){if(j.paid_at)paid+=Number(j.pay);else if(j.status==='completed')owed+=Number(j.pay)}});
   var head='<div class="row"><div><h1>Welcome, '+esc((t.full_name||'').split(' ')[0])+'</h1><span class="pill">'+esc(t.trade)+'</span> <span class="pill">'+esc(t.status)+'</span></div><button class="g" onclick="out()">Sign out</button></div>';
-  if(t.status!=='verified'){V(head+'<div class="c"><p>Your application is <b>'+esc(t.status)+'</b>. Jobs appear here once Velos verifies you.</p></div>');return}
+  if(t.status!=='verified'){V(head+'<div class="c"><p>Your application is <b>'+esc(t.status)+'</b>. Jobs appear here once Velos verifies you. Approval needs your signed agreement.</p></div>'+(t.status==='pending'?VelosPeople.panel('technician',{id:t.id,name:t.full_name,phone:t.phone,id_number:t.national_id,trade:t.trade,city:[t.city,t.area].filter(Boolean).join(', ')},false):''));return}
   var NEXT={assigned:['on_the_way','I am on my way'],on_the_way:['in_progress','Start work'],in_progress:['completed','Mark completed']};
   var active=J.filter(function(j){return j.status!=='completed'&&j.status!=='cancelled'}),done=J.filter(function(j){return j.status==='completed'});
   function card(j){var map=j.lat?'https://www.google.com/maps?q='+j.lat+','+j.lng:'https://www.google.com/maps/search/'+encodeURIComponent([j.address,j.town,j.region,j.country].filter(Boolean).join(', '));var n=NEXT[j.status];
@@ -67,4 +67,5 @@ async function tech(t){
 }
 async function act(no,st){var r=await db.rpc('tech_update_job',{p_req_no:no,p_status:st});if(r.error)toast(r.error.message,true);else{toast('Updated');boot()}}
 boot();
-</script></body></html>
+</script><script src="velos-pw.js"></script>
+</body></html>

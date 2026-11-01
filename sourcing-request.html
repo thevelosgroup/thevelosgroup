@@ -14,7 +14,7 @@ a.g{background:none;border:1px solid var(--line);color:var(--txt)}.m{color:var(-
 <h1>Request a sourcing quote</h1><div class="m">Not in our catalog? Tell us exactly what you need. We find it, locally or abroad, and send you a clear quote. You pay nothing until you approve.</div>
 <div id="f">
 <div class="c"><b>What do you need? *</b><input id="it" placeholder="Item name, e.g. 55-inch Samsung QLED TV, 5 kVA generator, office chairs"><textarea id="sp" placeholder="Brand, model, size, colour, specifications, or anything that matters"></textarea>
-<input id="lk" placeholder="Link to a photo or product page (optional)"></div>
+<label class="m" style="display:block;margin:10px 0 4px">Add photos of what you want (optional, up to 3)</label><input id="ph3" type="file" accept="image/*" multiple><div id="pv" class="m"></div><input id="lk" placeholder="Or a link to a product page (optional)"></div>
 <div class="c"><b>Quantity and condition</b><div class="g2"><input id="qt" type="number" min="1" value="1" placeholder="Quantity"><select id="cd"><option>Brand new</option><option>New or refurbished is fine</option><option>Used is fine</option></select></div>
 <select id="sh"><option>Deliver within Uganda</option><option>Ship to another East African country</option></select></div>
 <div class="c"><b>Budget and timing</b><div class="g2"><select id="bl"><option>Not sure yet</option><option>Under UGX 500,000</option><option>UGX 500,000 – 2,000,000</option><option>UGX 2,000,000 – 10,000,000</option><option>Above UGX 10,000,000</option></select><input id="bu" type="number" placeholder="Exact budget UGX (optional)"></div><input id="dl" type="date"><div class="m">Date you need it by (optional)</div></div>
@@ -31,7 +31,15 @@ var $=function(i){return document.getElementById(i)};
 try{var c=JSON.parse(localStorage.getItem('velosContact')||'{}');$('nm').value=c.n||'';$('ph').value=c.p||'';$('em').value=c.e||'';}catch(e){}
 $('dl').min=new Date().toISOString().slice(0,10);
 var Q=new URLSearchParams(location.search);if(Q.get('idea'))$('it').value=Q.get('idea');
-$('go').onclick=function(){
+
+function shrink(f){return new Promise(function(ok){var fr=new FileReader();fr.onload=function(){var i=new Image();i.onload=function(){var k=Math.min(1,1400/Math.max(i.naturalWidth,i.naturalHeight)),c=document.createElement('canvas');c.width=Math.round(i.naturalWidth*k);c.height=Math.round(i.naturalHeight*k);c.getContext('2d').drawImage(i,0,0,c.width,c.height);c.toBlob(function(b){ok(b||f)},'image/jpeg',.82)};i.onerror=function(){ok(f)};i.src=fr.result};fr.onerror=function(){ok(f)};fr.readAsDataURL(f)})}
+$('ph3').onchange=function(){var n=Math.min(3,this.files.length);$('pv').textContent=this.files.length?(n+' photo'+(n>1?'s':'')+' selected'+(this.files.length>3?' (only the first 3 are sent)':'')):''};
+async function upPhotos(){var S=window.VELOS_SUPABASE,out=[],fl=Array.prototype.slice.call($('ph3').files,0,3);
+  for(var k=0;k<fl.length;k++){var b=await shrink(fl[k]),name='r'+Date.now().toString(36)+Math.random().toString(36).slice(2,8)+'.jpg';
+    var r=await fetch(S.url+'/storage/v1/object/request-photos/'+name,{method:'POST',headers:{apikey:S.key,Authorization:'Bearer '+S.key,'Content-Type':'image/jpeg'},body:b});
+    if(!r.ok)throw new Error('A photo could not be uploaded. Try a smaller photo or remove it.');out.push(S.url+'/storage/v1/object/public/request-photos/'+name)}
+  return out}
+$('go').onclick=async function(){
   $('e').textContent='';if($('hp').value)return;
   var it=$('it').value.trim(),sp=$('sp').value.trim(),lk=$('lk').value.trim();
   var d={p_mode:'sourcing',p_occasion:'Custom sourcing',p_recipient:'Qty '+($('qt').value||1)+' · '+$('cd').value+' · '+$('sh').value,p_interests:sp,p_budget_label:$('bl').value,
@@ -41,6 +49,7 @@ $('go').onclick=function(){
   if(!d.p_town){$('e').textContent='Please enter the delivery town or area.';return;}
   if(d.p_name.length<2||d.p_phone.length<7){$('e').textContent='Please enter your name and phone number.';return;}
   var b=this;b.disabled=true;b.textContent='Sending…';var S=window.VELOS_SUPABASE;
+  try{var ph=await upPhotos();if(ph.length)d.p_gift_idea+='\nPhotos: '+ph.join(' ')}catch(x){$('e').textContent=x.message;b.disabled=false;b.textContent='Send my request';return}
   fetch(S.url+'/rest/v1/rpc/submit_gift_request',{method:'POST',headers:{apikey:S.key,'Content-Type':'application/json'},body:JSON.stringify(d)})
   .then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.message||'Could not send');return j})})
   .then(function(no){

@@ -27,10 +27,13 @@ async function boot(){
   var r=await db.auth.getSession(),s=r.data.session;if(!s)return authView();
   var a=await db.from('agents').select('*').eq('id',s.user.id).maybeSingle();
   if(!a.data)return profileView(s.user.email);
-  if(a.data.status==='pending')return note('Application received ✓','Thank you, '+esc(a.data.full_name)+'. Our team is reviewing your application and will approve your account shortly. Come back and sign in again to check.');
+  if(a.data.status==='pending')return pend(a.data);
   if(a.data.status!=='active')return note('Account '+esc(a.data.status),'Please contact the Velos team about your account.');
   dash(a.data);
 }
+function pend(a){
+  var p={id:a.id,ref:a.agent_code,name:a.full_name,phone:a.phone,id_number:a.id_number,city:[a.city,a.country].filter(Boolean).join(', '),commission_pct:a.commission_rate};
+  V('<div class="box"><h1>Welcome, '+esc(a.full_name)+'</h1><p class="m">Your application is received. Your account stays <b>pending</b> until Velos receives your signed agreement. Then our team approves you.</p>'+VelosPeople.panel('agent',p,false)+'<button class="g" onclick="out()">Sign out</button></div>')}
 function note(t,p){V('<div class="box"><div class="c"><h1>'+t+'</h1><p>'+p+'</p><button class="g" onclick="out()">Sign out</button></div></div>')}
 function authView(){
   V('<div class="auth"><h1>Velos Sales Agents</h1><p class="m">Sell Velos products and services. Earn commission on every completed sale. Track your performance in real time.</p>'
@@ -64,7 +67,7 @@ async function dash(a){
   var M={},tr=0,tc=0,mr=0,mc=0,paid=0;
   rows.forEach(function(r){var m=M[r.month]=M[r.month]||{n:0,rev:0,com:0};m.n+=Number(r.n);m.rev+=Number(r.revenue);m.com+=Number(r.commission);tr+=Number(r.revenue);tc+=Number(r.commission);if(r.month===cm){mr+=Number(r.revenue);mc+=Number(r.commission)}});
   pay.forEach(function(p){paid+=Number(p.amount_ugx)});
-  var base=location.href.replace(/agent\.html.*$/,''),link=base+'index.html?ref='+a.agent_code;
+  var base=location.href.replace(/agent\.html.*$/,''),link=base+'?ref='+a.agent_code;
   var msg='Shop electronics, home appliances and book verified technicians with Velos: '+link;
   var months=Object.keys(M).sort().reverse();
   var ovH=''+'<div class="stats" style="margin-top:12px"><div class="c stat"><b>'+ugx(mr)+'</b><span class="m">Sales this month</span></div><div class="c stat"><b>'+ugx(mc)+'</b><span class="m">Commission this month</span></div>'
@@ -90,4 +93,5 @@ async function addLead(){
   if(r.error)toast(r.error.message,true);else{toast('Submitted for approval');boot()}
 }
 boot();
-</script></body></html>
+</script><script src="velos-pw.js"></script>
+</body></html>

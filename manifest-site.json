@@ -1,25 +1,78 @@
 {
- "id": "velos-site",
+ "id": "/",
  "name": "The Velos Group",
  "short_name": "Velos",
- "description": "Anything. Anywhere. Precisely.",
- "start_url": "./index.html",
- "scope": "./",
+ "description": "Order food, shop, book services and get things sourced across East Africa.",
+ "lang": "en",
+ "dir": "ltr",
+ "start_url": "/",
+ "scope": "/",
  "display": "standalone",
+ "orientation": "portrait",
  "background_color": "#03113e",
  "theme_color": "#03113e",
+ "prefer_related_applications": false,
+ "categories": [
+  "business",
+  "shopping",
+  "food"
+ ],
  "icons": [
   {
-   "src": "icon-192.png",
+   "src": "/icon-192.png",
    "sizes": "192x192",
    "type": "image/png",
-   "purpose": "any maskable"
+   "purpose": "any"
   },
   {
-   "src": "icon-512.png",
+   "src": "/icon-512.png",
    "sizes": "512x512",
    "type": "image/png",
-   "purpose": "any maskable"
+   "purpose": "any"
+  },
+  {
+   "src": "/icon-maskable-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "maskable"
+  },
+  {
+   "src": "/icon-maskable-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ],
+ "shortcuts": [
+  {
+   "name": "Order food",
+   "url": "/foods.html",
+   "icons": [
+    {
+     "src": "/icon-192.png",
+     "sizes": "192x192"
+    }
+   ]
+  },
+  {
+   "name": "Shop",
+   "url": "/shop.html",
+   "icons": [
+    {
+     "src": "/icon-192.png",
+     "sizes": "192x192"
+    }
+   ]
+  },
+  {
+   "name": "Services",
+   "url": "/services.html",
+   "icons": [
+    {
+     "src": "/icon-192.png",
+     "sizes": "192x192"
+    }
+   ]
   }
  ]
 }
