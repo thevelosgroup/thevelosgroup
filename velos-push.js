@@ -25,7 +25,7 @@
         db.rpc('is_manager').then(function(r){ if(r.data === true && !snoozed()) chip('One-time setup: turn on background alerts for Velos.', function(){ init(db); }); });
         return; }
       if(Notification.permission === 'granted'){ subscribe(key).then(function(s){ var x = parts(s); return db.rpc('push_subscribe', {p_endpoint:x.e, p_p256dh:x.p, p_auth:x.a, p_ua:UA.slice(0, 150)}); }).catch(function(){}); return; }
-      if(Notification.permission === 'denied'){ return; }
+      if(Notification.permission === 'denied'){ chip('Alerts are blocked. Tap the padlock next to the website address, set Notifications to Allow, then reload.'); return; }
       if(snoozed()) return;
       chip('Get alerts even when the app is closed.', function(){ enable(db, key); }); });
   }
@@ -33,6 +33,15 @@
     Notification.requestPermission().then(function(p){
       if(p !== 'granted'){ chip('Alerts are blocked. Open your phone or browser settings for this app and allow notifications.'); return; }
       return subscribe(key).then(function(s){ var x = parts(s); return db.rpc('push_subscribe', {p_endpoint:x.e, p_p256dh:x.p, p_auth:x.a, p_ua:UA.slice(0, 150)}); }).then(function(r){ if(r.error) throw r.error; chip(''); say('Background alerts are ON ✓'); try { VelosPWA.notify('Velos alerts are on', 'You will now get alerts even when the app is closed.'); } catch(e){} }); }).catch(function(e){ say(e.message || 'Could not turn on alerts', true); }); }
+  /* Settings button: ask for permission and connect, whatever the earlier state */
+  function turnOn(db){
+    if(!supported()) return Promise.reject(new Error('This browser cannot show notifications. Use Chrome or Edge.'));
+    return getKey().then(function(key){
+      var go = function(k){ return Notification.requestPermission().then(function(p){ if(p !== 'granted') throw new Error('Not allowed. Allow notifications for this site in your browser settings.'); return subscribe(k).then(function(s){ var x = parts(s); return db.rpc('push_subscribe', {p_endpoint:x.e, p_p256dh:x.p, p_auth:x.a, p_ua:UA.slice(0, 150)}); }).then(function(r){ if(r.error) throw r.error; try { localStorage.removeItem('vpushNo'); } catch(e){} chip(''); say('Alerts are ON ✓'); }); }); };
+      if(key) return go(key);
+      return db.auth.getSession().then(function(r){ var tok = r.data.session && r.data.session.access_token; if(!tok) throw new Error('Please sign in again.');
+        return fetch(SB().url + '/functions/v1/velos-push?init=1', {method:'POST', headers:{Authorization:'Bearer ' + tok, apikey:SB().key}}).then(function(x){ if(!x.ok) throw new Error('Phone and computer popups are not switched on at the server yet. Sound alerts still work while this page is open.'); return getKey(); }).then(function(k2){ if(!k2) throw new Error('Server setup is incomplete. Sound alerts still work while this page is open.'); return go(k2); }); }); });
+  }
   function init(db){
     db.auth.getSession().then(function(r){ var tok = r.data.session && r.data.session.access_token; if(!tok) return say('Please sign in again.', true);
       fetch(SB().url + '/functions/v1/velos-push?init=1', {method:'POST', headers:{Authorization:'Bearer ' + tok, apikey:SB().key}}).then(function(x){ return x.json().then(function(j){ if(!x.ok) throw new Error(j.error || 'The velos-push function is not deployed yet.'); return j; }); })
@@ -48,5 +57,5 @@
   function custBtn(phone, kind, no, cls){ return '<button class="' + (cls || 'g full') + '" id="vpc" onclick="VelosPush.cust(\'' + String(phone).replace(/[^0-9+]/g, '') + '\',\'' + kind + '\',' + Number(no) + ')">🔔 Get updates on this phone</button>'; }
   function cust(phone, kind, no){ var b = D.getElementById('vpc'); if(b){ b.disabled = true; b.textContent = 'Turning on…'; }
     enableCustomer(phone, kind, no).then(function(){ if(b){ b.textContent = '🔔 Updates are ON ✓'; } }).catch(function(e){ if(b){ b.disabled = false; b.textContent = '🔔 Get updates on this phone'; } alert(e.message); }); }
-  W.VelosPush = {supported:supported, mount:mount, enableCustomer:enableCustomer, custBtn:custBtn, cust:cust};
+  W.VelosPush = {turnOn:turnOn, supported:supported, mount:mount, enableCustomer:enableCustomer, custBtn:custBtn, cust:cust};
 })();

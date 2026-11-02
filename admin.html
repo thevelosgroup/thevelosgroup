@@ -45,7 +45,7 @@ main{padding:12px;max-width:900px;margin:auto}
 
 <div id="app" hidden>
   <header>
-    <div class="top"><span class="tl"><button id="mbtn" onclick="menuOpen()" aria-label="Open menu">☰ Menu</button><b class="gold">VELOS ADMIN</b></span><span><span id="who" class="mut"></span> <button class="ghost" onclick="signOut()">Sign out</button></span></div>
+    <div class="top"><span class="tl"><button id="mbtn" onclick="menuOpen()" aria-label="Open menu">☰ Menu</button><b class="gold">VELOS ADMIN</b></span><span><span id="who" class="mut"></span> <button class="ghost" onclick="VelosAlerts.settings(db)" title="Notifications and alert sound">🔔 Alerts</button> <button class="ghost" onclick="signOut()">Sign out</button></span></div>
     <div id="crumb"></div><nav id="nav2"></nav>
   </header>
   <div id="mscrim" onclick="menuClose()" hidden></div><aside id="drawer" hidden><div class="dh"><b class="gold">Velos back office</b><button class="ghost" onclick="menuClose()">✕</button></div><input id="mq" type="search" placeholder="Search a page…" oninput="menuFilter()"><div id="mlist"></div></aside>
