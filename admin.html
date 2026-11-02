@@ -93,7 +93,7 @@ async function boot(){
   go('home'); startAlerts();
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['bookings','Table bookings'],['docs','Invoices & quotes'],['customers','Customers'],['phones','Phone checks'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['cleanup','Clean-up & fees'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['bundles','Combos & bundles'],['careers','Careers'],['bizset','Business profile'],['photos','Photos'],['settings','Settings'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['bookings','Table bookings'],['docs','Invoices & quotes'],['customers','Customers'],['phones','Phone checks'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['cleanup','Clean-up & fees'],['proof','Proof photos'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['bundles','Combos & bundles'],['careers','Careers'],['bizset','Business profile'],['photos','Photos'],['settings','Settings'],['import','Import']];
 function alCopy(i){ const u = AL[i][1]; (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('Link copied'), () => { prompt('Copy this link', u); }); }
 function alShare(i){ const a = AL[i]; if(navigator.share) navigator.share({title:a[0], text:'Install the Velos '+a[0], url:a[1]}).catch(()=>{}); else alCopy(i); }
 async function savePromos(){
@@ -144,7 +144,7 @@ async function bdCreate(){
   const {error} = await db.from('products').insert({id, name:n, category_key:$('#bd_c').value, subcategory:sub, price_ugx:pr, image_url:img});
   toast(error ? error.message : 'Bundle created. Find it in Products.', !!error); if(!error) go('bundles');
 }
-const GROUPS = [['Overview','📊',['home','report','inq','messages']],['Orders','🧾',['orders','forders','bookings','payments','docs','designs','gifts','service','security']],['Food','🍽️',['fmenu','fvendors','friders','frules','supplies']],['Shop','🛍️',['products','photos','bundles','promos','import']],['People','👥',['customers','phones','agents','leads','techs','team','careers']],['System','⚙️',['cleanup','bizset','applinks','export','settings']]];
+const GROUPS = [['Overview','📊',['home','report','inq','messages']],['Orders','🧾',['orders','forders','proof','bookings','payments','docs','designs','gifts','service','security']],['Food','🍽️',['fmenu','fvendors','friders','frules','supplies']],['Shop','🛍️',['products','photos','bundles','promos','import']],['People','👥',['customers','phones','agents','leads','techs','team','careers']],['System','⚙️',['cleanup','bizset','applinks','export','settings']]];
 const MENU_NOTE = {home:'Overview',orders:'Shop orders',forders:'Food orders',bookings:'Restaurant table bookings, refunds, penalties',payments:'Confirm payments',fvendors:'Restaurants & Velos Foods Store',fmenu:'Menu items & prices',frules:'Delivery fees, markup, origins',cleanup:'Delete test data, restaurant & rider fees',phones:'Verify new customers',settings:'Site settings',team:'Staff & access'};
 function navFor(k){ const lab = Object.fromEntries(TB.map(t => [t[0], t[1]])); const used = new Set(GROUPS.flatMap(g => g[2])); const G = GROUPS.map(g => [g[0], g[1], g[2].filter(x => lab[x])]).filter(g => g[2].length); const rest = TB.map(t => t[0]).filter(x => !used.has(x)); if(rest.length) G.push(['Other','📁',rest]); window.NG = G; window.MLAB = lab; window.CURK = k;
   const gi = Math.max(0, G.findIndex(g => g[2].includes(k)));
@@ -583,6 +583,7 @@ async function recPay(id, total, dep){
 async function stf(table, id, f, v){ const {error} = await db.from(table).update({[f]:v}).eq('id', id); toast(error ? error.message : 'Saved', !!error); }
 const sel = (table, id, cur, opts) => `<select class="sm" onchange="st('${table}','${id}',this.value)">${opts.map(o=>`<option ${o===cur?'selected':''}>${o}</option>`).join('')}</select>`;
 
+async function pfSet(id, st){ let n = null; if(st === 'flagged'){ n = prompt('What looks wrong? (optional)'); if(n === null) return; } const {error} = await db.rpc('admin_proof_review', {p_id:id, p_status:st, p_note:n}); toast(error ? error.message : 'Saved', !!error); if(!error) go('proof'); }
 const VIEWS = {
   async home(){
     await VIEWS.home0();
@@ -938,6 +939,23 @@ const VIEWS = {
   async phones(){
     const r = await db.rpc('admin_pending_phones'); if(r.error) throw r.error; const L = r.data || [];
     $('#view').innerHTML = '<h2>Phone checks</h2><p class="muted">A customer asked to verify their number. Tap <b>Send code on WhatsApp</b>: WhatsApp opens with the code ready to send to the customer\'s own number. Press Send. The customer then types the code on their account page and is verified.</p>' + (L.length ? L.map(x => { const num = String(x.phone).replace(/\D/g,''), msg = 'Your Velos verification code is ' + x.code + '. Type it on your Velos account page to verify your phone number. Do not share this code with anyone.'; return `<div class="card"><div class="row"><b class="gold">${esc(x.phone)}</b><span>${x.sent_at ? '✅ code sent ' + dt(x.sent_at) : '⏳ not sent yet'}</span></div><div>${esc(x.name||'')} · ${esc(x.email||'')}</div>${x.typed_phone && String(x.typed_phone).replace(/\D/g,'') !== num.replace(/^256/,'0') && String(x.typed_phone).replace(/\D/g,'') !== num ? `<div class="muted">Typed on sign-up: ${esc(x.typed_phone)}</div>` : ''}<div class="muted">${dt(x.created_at)}</div><div class="row"><a class="btn" style="background:#25d366;color:#052e16;padding:10px 14px;border-radius:10px;text-decoration:none;font-weight:700" target="_blank" rel="noopener" href="https://wa.me/${num}?text=${encodeURIComponent(msg)}" onclick="phSent('${x.id}')">Send code on WhatsApp</a><button class="ghost" onclick="phDecide('${x.id}',true)">Verify without code</button><button class="ghost" onclick="phDecide('${x.id}',false)">Reject</button></div></div>`; }).join('') : '<p class="muted">No phone checks waiting.</p>');
+  },
+  async proof(){
+    const stg = (window.PF_STAGE === undefined ? '' : window.PF_STAGE) || null;
+    const [l, m] = await Promise.all([db.rpc('admin_proof_list', {p_stage:stg, p_limit:120}), db.rpc('admin_proof_missing')]);
+    if(l.error){ $('#view').innerHTML = `<h2>Proof photos</h2><p class="bad">${esc(/function|schema cache/i.test(l.error.message) ? 'Run velos-upgrade-38.sql in Supabase first.' : l.error.message)}</p>`; return; }
+    const rows = l.data || [], paths = rows.map(x => x.path), urls = {};
+    if(paths.length){ const s = await db.storage.from('proof-photos').createSignedUrls(paths, 3600); (s.data || []).forEach(x => { if(x.path) urls[x.path] = x.signedUrl; }); }
+    const ST = {pickup:'Rider pick-up', dropoff:'Rider hand-over', before:'Technician: before', after:'Technician: after'}, miss = m.data || [];
+    $('#view').innerHTML = `<h2>Proof photos</h2><p class="mut">Every rider pick-up and technician job is photographed. Check each photo matches the order, then tap Verified, or Flag if something looks wrong.</p>
+      <div class="row" style="flex-wrap:wrap;gap:6px;justify-content:flex-start;margin:8px 0">${[['','All'],['pickup','Pick-ups'],['dropoff','Hand-overs'],['before','Before work'],['after','After work']].map(x => `<button class="${(stg||'') === x[0] ? '' : 'ghost'}" onclick="window.PF_STAGE='${x[0]}';go('proof')">${x[1]}</button>`).join('')}</div>
+      ${miss.length ? `<div class="card" style="border-color:#e6493f"><h3 style="color:#ff8a80">⚠ Moved on without a photo (last 14 days)</h3>${miss.map(x => `<div class="row"><span>${esc(x.kind)} · <b>#${esc(x.ref)}</b></span><span class="mut">${esc(x.status)}</span></div>`).join('')}</div>` : ''}
+      ${rows.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px">${rows.map(x => `<div class="card" style="padding:10px"><a href="${esc(urls[x.path] || '#')}" target="_blank" rel="noopener"><img src="${esc(urls[x.path] || '')}" alt="" style="width:100%;height:170px;object-fit:cover;border-radius:8px;background:#0b1229"></a>
+        <div style="margin-top:6px"><b class="gold">${esc(ST[x.stage] || x.stage)}</b> · ${x.ref_type === 'service_request' ? 'Job' : 'Order'} <b>#${esc(x.ref_no)}</b></div>
+        <div class="mut">${esc(x.actor_name || x.actor_kind)} · ${new Date(x.created_at).toLocaleString('en-GB')}</div>
+        ${x.lat ? `<a href="https://www.google.com/maps?q=${x.lat},${x.lng}" target="_blank" rel="noopener">📍 Where it was taken</a>` : '<div class="mut">Location not shared</div>'}
+        ${x.note ? `<div class="mut">“${esc(x.note)}”</div>` : ''}
+        <div class="row" style="margin-top:6px;gap:6px"><b style="color:${x.status === 'verified' ? '#4ade80' : x.status === 'flagged' ? '#ff8a80' : '#e8c766'}">${x.status === 'verified' ? '✓ Verified' : x.status === 'flagged' ? '⚑ Flagged' : 'Pending'}</b><span><button onclick="pfSet('${x.id}','verified')">Verified</button> <button class="ghost" onclick="pfSet('${x.id}','flagged')">Flag</button></span></div></div>`).join('')}</div>` : '<p class="mut">No photos yet. They appear here as riders and technicians work.</p>'}`;
   },
   async cleanup(){
     if(me.role!=='admin'){ $('#view').innerHTML = '<p class="mut">Only the admin can use this page.</p>'; return; }
