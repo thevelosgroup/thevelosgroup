@@ -40,8 +40,10 @@
       var go = function(k){ return Notification.requestPermission().then(function(p){ if(p !== 'granted') throw new Error('Not allowed. Allow notifications for this site in your browser settings.'); return subscribe(k).then(function(s){ var x = parts(s); return db.rpc('push_subscribe', {p_endpoint:x.e, p_p256dh:x.p, p_auth:x.a, p_ua:UA.slice(0, 150)}); }).then(function(r){ if(r.error) throw r.error; try { localStorage.removeItem('vpushNo'); } catch(e){} chip(''); say('Alerts are ON ✓'); }); }); };
       if(key) return go(key);
       return db.auth.getSession().then(function(r){ var tok = r.data.session && r.data.session.access_token; if(!tok) throw new Error('Please sign in again.');
-        return fetch(SB().url + '/functions/v1/velos-push?init=1', {method:'POST', headers:{Authorization:'Bearer ' + tok, apikey:SB().key}}).then(function(x){ if(!x.ok) throw new Error('Phone and computer popups are not switched on at the server yet. Sound alerts still work while this page is open.'); return getKey(); }).then(function(k2){ if(!k2) throw new Error('Server setup is incomplete. Sound alerts still work while this page is open.'); return go(k2); }); }); });
+        return fetch(SB().url + '/functions/v1/velos-push?init=1', {method:'POST', headers:{Authorization:'Bearer ' + tok, apikey:SB().key}}).catch(function(){ throw new Error('The background-alerts function (velos-push) is not deployed in Supabase yet, so it cannot be reached. Deploy it once (Supabase > Edge Functions), then try again. Sound alerts still work while this page is open.'); }).then(function(x){ if(!x.ok) throw new Error('Phone and computer popups are not switched on at the server yet. Sound alerts still work while this page is open.'); return getKey(); }).then(function(k2){ if(!k2) throw new Error('Server setup is incomplete. Sound alerts still work while this page is open.'); return go(k2); }); }); });
   }
+  /* Is the background-alerts server function deployed and reachable? */
+  function ping(){ return fetch(SB().url + '/functions/v1/velos-push', {method:'OPTIONS', headers:{apikey:SB().key}}).then(function(r){ return {ok:true, status:r.status}; }, function(){ return {ok:false, status:0}; }); }
   function init(db){
     db.auth.getSession().then(function(r){ var tok = r.data.session && r.data.session.access_token; if(!tok) return say('Please sign in again.', true);
       fetch(SB().url + '/functions/v1/velos-push?init=1', {method:'POST', headers:{Authorization:'Bearer ' + tok, apikey:SB().key}}).then(function(x){ return x.json().then(function(j){ if(!x.ok) throw new Error(j.error || 'The velos-push function is not deployed yet.'); return j; }); })
@@ -57,5 +59,5 @@
   function custBtn(phone, kind, no, cls){ return '<button class="' + (cls || 'g full') + '" id="vpc" onclick="VelosPush.cust(\'' + String(phone).replace(/[^0-9+]/g, '') + '\',\'' + kind + '\',' + Number(no) + ')">🔔 Get updates on this phone</button>'; }
   function cust(phone, kind, no){ var b = D.getElementById('vpc'); if(b){ b.disabled = true; b.textContent = 'Turning on…'; }
     enableCustomer(phone, kind, no).then(function(){ if(b){ b.textContent = '🔔 Updates are ON ✓'; } }).catch(function(e){ if(b){ b.disabled = false; b.textContent = '🔔 Get updates on this phone'; } alert(e.message); }); }
-  W.VelosPush = {turnOn:turnOn, supported:supported, mount:mount, enableCustomer:enableCustomer, custBtn:custBtn, cust:cust};
+  W.VelosPush = {ping:ping, turnOn:turnOn, supported:supported, mount:mount, enableCustomer:enableCustomer, custBtn:custBtn, cust:cust};
 })();
