@@ -54,7 +54,7 @@ main{padding:12px;max-width:900px;margin:auto}
 <div id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="supabase-config.js"></script>
+<script src="supabase-config.js"></script><script src="velos-vendor-cats.js"></script>
 <script>
 const db = supabase.createClient(VELOS_SUPABASE.url, VELOS_SUPABASE.key);
 const $ = s => document.querySelector(s);
@@ -93,7 +93,7 @@ async function boot(){
   go('home'); startAlerts();
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['bookings','Table bookings'],['docs','Invoices & quotes'],['customers','Customers'],['phones','Phone checks'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['cleanup','Clean-up & fees'],['proof','Proof photos'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['bundles','Combos & bundles'],['careers','Careers'],['bizset','Business profile'],['photos','Photos'],['settings','Settings'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['bookings','Table bookings'],['docs','Invoices & quotes'],['customers','Customers'],['phones','Phone checks'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['cleanup','Clean-up & fees'],['proof','Proof photos'],['partners','Partners'],['pporders','Partner orders'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['bundles','Combos & bundles'],['careers','Careers'],['bizset','Business profile'],['photos','Photos'],['settings','Settings'],['import','Import']];
 function alCopy(i){ const u = AL[i][1]; (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('Link copied'), () => { prompt('Copy this link', u); }); }
 function alShare(i){ const a = AL[i]; if(navigator.share) navigator.share({title:a[0], text:'Install the Velos '+a[0], url:a[1]}).catch(()=>{}); else alCopy(i); }
 async function savePromos(){
@@ -144,7 +144,7 @@ async function bdCreate(){
   const {error} = await db.from('products').insert({id, name:n, category_key:$('#bd_c').value, subcategory:sub, price_ugx:pr, image_url:img});
   toast(error ? error.message : 'Bundle created. Find it in Products.', !!error); if(!error) go('bundles');
 }
-const GROUPS = [['Overview','📊',['home','report','inq','messages']],['Orders','🧾',['orders','forders','proof','bookings','payments','docs','designs','gifts','service','security']],['Food','🍽️',['fmenu','fvendors','friders','frules','supplies']],['Shop','🛍️',['products','photos','bundles','promos','import']],['People','👥',['customers','phones','agents','leads','techs','team','careers']],['System','⚙️',['cleanup','bizset','applinks','export','settings']]];
+const GROUPS = [['Overview','📊',['home','report','inq','messages']],['Orders','🧾',['orders','forders','proof','bookings','payments','docs','designs','gifts','service','security']],['Food','🍽️',['fmenu','fvendors','friders','frules','supplies']],['Partners','🤝',['partners','pporders']],['Shop','🛍️',['products','photos','bundles','promos','import']],['People','👥',['customers','phones','agents','leads','techs','team','careers']],['System','⚙️',['cleanup','bizset','applinks','export','settings']]];
 const MENU_NOTE = {home:'Overview',orders:'Shop orders',forders:'Food orders',bookings:'Restaurant table bookings, refunds, penalties',payments:'Confirm payments',fvendors:'Restaurants & Velos Foods Store',fmenu:'Menu items & prices',frules:'Delivery fees, markup, origins',cleanup:'Delete test data, restaurant & rider fees',phones:'Verify new customers',settings:'Site settings',team:'Staff & access'};
 function navFor(k){ const lab = Object.fromEntries(TB.map(t => [t[0], t[1]])); const used = new Set(GROUPS.flatMap(g => g[2])); const G = GROUPS.map(g => [g[0], g[1], g[2].filter(x => lab[x])]).filter(g => g[2].length); const rest = TB.map(t => t[0]).filter(x => !used.has(x)); if(rest.length) G.push(['Other','📁',rest]); window.NG = G; window.MLAB = lab; window.CURK = k;
   const gi = Math.max(0, G.findIndex(g => g[2].includes(k)));
@@ -595,7 +595,110 @@ async function stf(table, id, f, v){ const {error} = await db.from(table).update
 const sel = (table, id, cur, opts) => `<select class="sm" onchange="st('${table}','${id}',this.value)">${opts.map(o=>`<option ${o===cur?'selected':''}>${o}</option>`).join('')}</select>`;
 
 async function pfSet(id, st){ let n = null; if(st === 'flagged'){ n = prompt('What looks wrong? (optional)'); if(n === null) return; } const {error} = await db.rpc('admin_proof_review', {p_id:id, p_status:st, p_note:n}); toast(error ? error.message : 'Saved', !!error); if(!error) go('proof'); }
+/* ---------- Partner (vendor) marketplace admin ---------- */
+const PSTAT = {pending:['Waiting','#e8c766'], active:['Active','#4ade80'], suspended:['Suspended','#ff8a80'], rejected:['Not approved','#ff8a80']};
+async function ptSet(id, st, extra){
+  const g = k => { const e = document.getElementById(k + id); return e ? e.value : null; };
+  const com = g('pc_'), note = g('pn_');
+  const {error} = await db.rpc('admin_partner_set', {p_id:id, p_status:st || '', p_commission:com === '' || com === null ? null : Number(com), p_fee_status:extra || '', p_notes:note});
+  if(error) return toast(error.message, true);
+  toast('Saved ✓'); VIEWS.partners();
+}
+async function ptAgreement(path){
+  const u = await db.storage.from('partner-docs').createSignedUrl(path, 600);
+  if(u.error) return toast(u.error.message, true); window.open(u.data.signedUrl, '_blank');
+}
+async function ptPay(id){
+  const ref = prompt('Mobile money / bank reference for this payout (optional):'); if(ref === null) return;
+  const {data, error} = await db.rpc('admin_partner_pay', {p_partner:id, p_ref:ref}); if(error) return toast(error.message, true);
+  toast('Recorded payout of ' + ugx(data.amount_ugx) + ' ✓'); VIEWS.partners();
+}
+async function ptProducts(id, name){
+  window.PTP = {id, name}; const r = await db.rpc('admin_partner_products', {p_partner:id}); if(r.error) return toast(r.error.message, true);
+  const rows = r.data || [];
+  $('#view').innerHTML = `<button class="ghost" onclick="VIEWS.partners()">← All partners</button><h2>${esc(name)} · products</h2>
+    <p class="mut">Velos does the first upload. After that the vendor edits, hides or deletes their own products.</p>
+    <div class="card"><h3>Add many at once</h3><p class="mut">One product per line: <b>name, price, unit, category, retail or wholesale, minimum quantity</b>. Example: <i>Blender 1.5L, 120000, piece, blenders, retail, 1</i></p>
+      <textarea id="pt_bulk" rows="6" style="width:100%" placeholder="Blender 1.5L, 120000, piece, blenders, retail, 1"></textarea><button onclick="ptBulk()">Add these products</button></div>
+    <div class="card"><h3>Add one product</h3><div class="grid2"><input id="pe_n" placeholder="Name"><input id="pe_p" type="number" placeholder="Price UGX"></div>
+      <div class="grid2"><input id="pe_u" placeholder="Unit (piece, kg, bag…)" value="piece"><input id="pe_c" placeholder="Category"></div>
+      <div class="grid2"><select id="pe_m"><option value="retail">Retail</option><option value="wholesale">Wholesale</option></select><input id="pe_q" type="number" placeholder="Minimum quantity" value="1"></div>
+      <input id="pe_f" type="file" accept="image/*"><button onclick="ptOne()">Save product</button></div>
+    ${rows.map(x => `<div class="card" style="display:flex;gap:10px;align-items:center">${x.image_url ? `<img src="${esc(x.image_url)}" style="width:56px;height:56px;object-fit:cover;border-radius:8px">` : ''}<div style="flex:1"><b>${esc(x.name)}</b><div class="mut">${ugx(x.price_ugx)} / ${esc(x.unit)} · ${esc(x.sale_mode)}${x.sale_mode === 'wholesale' ? ' · min ' + x.min_qty : ''} · ${x.active ? (x.in_stock ? 'on sale' : 'out of stock') : 'hidden'}</div></div>
+      <button class="ghost" onclick="ptEdit('${x.id}')">Edit</button><button class="ghost" onclick="ptDel('${x.id}')">Delete</button></div>`).join('') || '<p class="mut">No products yet.</p>'}`;
+  window.PTR = rows;
+}
+async function ptBulk(){
+  const rows = ($('#pt_bulk').value || '').split('\n').map(l => l.trim()).filter(Boolean).map(l => { const p = l.split(',').map(s => s.trim()); return {name:p[0], price:(p[1] || '').replace(/[^\d.]/g, ''), unit:p[2] || 'piece', category:p[3] || '', mode:/whole/i.test(p[4] || '') ? 'wholesale' : 'retail', min_qty:p[5] || 1}; });
+  if(!rows.length) return toast('Paste at least one line', true);
+  const {data, error} = await db.rpc('admin_partner_products_bulk', {p_partner:PTP.id, p_rows:rows}); if(error) return toast(error.message, true);
+  toast(data + ' products added ✓'); ptProducts(PTP.id, PTP.name);
+}
+async function ptUpload(f, pid){
+  if(!f) return null; const ext = (f.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, ''), path = `partners-admin/${pid}/${Date.now()}.${ext}`;
+  const up = await db.storage.from('product-images').upload(path, f, {upsert:false, contentType:f.type}); if(up.error) throw up.error;
+  return db.storage.from('product-images').getPublicUrl(path).data.publicUrl;
+}
+async function ptOne(id){
+  try{
+    const img = await ptUpload($('#pe_f').files[0], PTP.id), g = k => $('#' + k).value;
+    const {error} = await db.rpc('admin_partner_product_save', {p_partner:PTP.id, p_id:id || null, p_name:g('pe_n'), p_desc:'', p_category:g('pe_c'), p_unit:g('pe_u'), p_price:Number(g('pe_p')), p_min_qty:Number(g('pe_q')) || 1, p_mode:g('pe_m'), p_image:img, p_in_stock:true, p_active:true});
+    if(error) return toast(error.message, true); toast('Saved ✓'); ptProducts(PTP.id, PTP.name);
+  }catch(e){ toast(e.message || String(e), true); }
+}
+function ptEdit(id){
+  const x = (window.PTR || []).find(r => r.id === id); if(!x) return;
+  const nm = prompt('Name', x.name); if(nm === null) return; const pr = prompt('Price (UGX)', x.price_ugx); if(pr === null) return;
+  const st = prompt('Type 1 = on sale, 2 = out of stock, 3 = hidden', x.active ? (x.in_stock ? '1' : '2') : '3'); if(st === null) return;
+  db.rpc('admin_partner_product_save', {p_partner:PTP.id, p_id:id, p_name:nm, p_desc:x.description || '', p_category:x.category || '', p_unit:x.unit, p_price:Number(pr), p_min_qty:x.min_qty, p_mode:x.sale_mode, p_image:null, p_in_stock:st !== '2', p_active:st !== '3'})
+    .then(r => { if(r.error) toast(r.error.message, true); else { toast('Saved ✓'); ptProducts(PTP.id, PTP.name); } });
+}
+async function ptDel(id){ if(!confirm('Delete this product?')) return; const {error} = await db.rpc('admin_partner_product_delete', {p_id:id}); if(error) return toast(error.message, true); ptProducts(PTP.id, PTP.name); }
+async function ppoSet(no, st, pay){
+  let paid = null;
+  if(pay === 'confirmed'){ const v = prompt('Amount received from the customer (UGX):'); if(v === null) return; paid = Number(v.replace(/[^\d.]/g, '')); }
+  let fee = null; if(st === 'dispatched'){ const v = prompt('Delivery fee charged to the customer (UGX), 0 if none:', '0'); if(v === null) return; fee = Number(v) || 0; }
+  const {error} = await db.rpc('admin_partner_order_set', {p_no:no, p_status:st || '', p_payment_status:pay || '', p_amount_paid:paid, p_delivery_fee:fee});
+  if(error) return toast(error.message, true); toast('Updated ✓'); VIEWS.pporders();
+}
+
 const VIEWS = {
+  async partners(){
+    const r = await db.rpc('admin_partner_list'); if(r.error){ $('#view').innerHTML = `<h2>Partners</h2><p class="bad">${esc(/function|schema cache/i.test(r.error.message) ? 'Run velos-upgrade-41.sql in Supabase first.' : r.error.message)}</p>`; return; }
+    const o = await db.rpc('admin_partner_orders'), orders = o.data || [], owed = {};
+    orders.forEach(x => { if(x.status === 'delivered' && !x.payout_id) owed[x.partner_id] = (owed[x.partner_id] || 0) + Number(x.subtotal_ugx) - Number(x.commission_ugx); });
+    const rows = r.data || [];
+    $('#view').innerHTML = `<h2>Partners (vendors)</h2><p class="mut">Check the fee and the signed agreement, then approve. Commission defaults: retail 8%, wholesale 4%, hotels and venues 10% (change in Settings, or set one vendor below).</p>
+    ${rows.map(p => { const s = PSTAT[p.status] || ['', '#fff'], c = vcat ? vcat(p.category) : {l:p.category};
+      return `<div class="card"><div class="row"><b>${esc(p.business_name)}</b><b style="color:${s[1]}">${s[0]}</b></div>
+      <div class="mut">${esc(c.l || p.category)} · ${esc(p.sale_mode)} · ${esc(p.city || '')}, ${esc(p.country)} · ${esc(p.agreement_no || '')}</div>
+      <div class="mut">Owner: ${esc(p.owner_name || '')} · ☎ ${esc(p.phone || '')} · ${esc(p.email || '')}</div>
+      <div class="mut">TIN: <b>${esc(p.tin || '—')}</b> · Payout: ${esc(p.payout_method || '')} ${esc(p.payout_bank || '')} <b>${esc(p.payout_account || '')}</b> (${esc(p.payout_name || '')})</div>
+      <div class="mut">Registration fee: <b>${esc(p.fee_status)}</b>${p.fee_ref ? ' · ref ' + esc(p.fee_ref) : ''} · Signed agreement: ${p.agreement_signed_path ? `<a href="#" onclick="ptAgreement('${esc(p.agreement_signed_path)}');return false">view copy</a>` : '<b class="bad">not uploaded</b>'}</div>
+      <div class="grid2" style="margin-top:6px"><input id="pc_${p.id}" type="number" step="0.5" placeholder="Commission % (blank = default)" value="${p.commission_pct == null ? '' : p.commission_pct}"><input id="pn_${p.id}" placeholder="Private notes" value="${esc(p.admin_notes || '')}"></div>
+      <div class="row" style="flex-wrap:wrap;gap:6px;justify-content:flex-start;margin-top:6px">
+        ${p.fee_status !== 'paid' ? `<button onclick="ptSet('${p.id}','','paid')">Mark fee paid</button>` : ''}
+        ${p.status !== 'active' ? `<button onclick="ptSet('${p.id}','active')">Approve & activate</button>` : `<button class="ghost" onclick="ptSet('${p.id}','suspended')">Suspend</button>`}
+        ${p.status === 'pending' ? `<button class="ghost" onclick="ptSet('${p.id}','rejected')">Reject</button>` : ''}
+        <button class="ghost" onclick="ptSet('${p.id}','')">Save changes</button>
+        <button class="ghost" onclick="ptProducts('${p.id}','${esc(p.business_name).replace(/'/g, '')}')">Products</button>
+        ${owed[p.id] ? `<button onclick="ptPay('${p.id}')">Pay vendor ${ugx(owed[p.id])}</button>` : ''}</div></div>`; }).join('') || '<p class="mut">No partner applications yet.</p>'}`;
+  },
+  async pporders(){
+    const r = await db.rpc('admin_partner_orders'); if(r.error){ $('#view').innerHTML = `<h2>Partner orders</h2><p class="bad">${esc(/function|schema cache/i.test(r.error.message) ? 'Run velos-upgrade-41.sql in Supabase first.' : r.error.message)}</p>`; return; }
+    const rows = r.data || [], NEXT = {placed:'confirmed', confirmed:'packed', packed:'dispatched', dispatched:'delivered'};
+    $('#view').innerHTML = `<h2>Partner orders</h2><p class="mut">Customer pays Velos. When a vendor has packed, assign a rider (use Food riders), then mark dispatched and delivered. Pay vendors from the Partners page.</p>
+    ${rows.map(x => `<div class="card"><div class="row"><b>#${x.order_no} · ${esc(x.store)}</b><span class="mut">${new Date(x.created_at).toLocaleString('en-GB')}</span></div>
+      <div>${(x.items || []).map(i => `${i.qty} × ${esc(i.name)}`).join(', ')}</div>
+      <div class="mut">${esc(x.customer_name)} · ☎ ${esc(x.customer_phone)} · ${esc(x.address || '')}</div>
+      <div class="mut">Items ${ugx(x.subtotal_ugx)} · Velos commission ${ugx(x.commission_ugx)} · Vendor gets ${ugx(x.subtotal_ugx - x.commission_ugx)} · Deposit needed ${ugx(x.deposit_required_ugx)}</div>
+      <div class="mut">Payment: <b>${esc(x.payment_status)}</b>${x.pay_ref ? ' · ref ' + esc(x.pay_ref) : ''} · Status: <b>${esc(x.status)}</b></div>
+      <div class="row" style="flex-wrap:wrap;gap:6px;justify-content:flex-start;margin-top:6px">
+        ${x.payment_status !== 'confirmed' ? `<button onclick="ppoSet(${x.order_no},'','confirmed')">Confirm payment</button>` : ''}
+        ${NEXT[x.status] && x.payment_status === 'confirmed' ? `<button onclick="ppoSet(${x.order_no},'${NEXT[x.status]}')">Mark ${NEXT[x.status]}</button>` : ''}
+        ${x.status !== 'cancelled' && x.status !== 'delivered' ? `<button class="ghost" onclick="if(confirm('Cancel this order?'))ppoSet(${x.order_no},'cancelled')">Cancel</button>` : ''}</div></div>`).join('') || '<p class="mut">No partner orders yet.</p>'}`;
+  },
+
   async home(){
     await VIEWS.home0();
     if(me.role === 'staff') return;

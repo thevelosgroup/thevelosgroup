@@ -1,0 +1,91 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Velos Marketplace | Shops, Wholesale, Hotels & Venues in East Africa</title><meta name="description" content="Browse trusted shops, wholesalers, hotels and venues on The Velos Group. Order online. Pay Velos. We deliver.">
+<link rel="icon" href="favicon.png"><link rel="stylesheet" href="foods.css">
+<style>
+.hd{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0}.hd a{color:var(--gold);text-decoration:none;font-weight:700}.hd img{height:38px;vertical-align:middle;margin-right:8px}
+.sb{position:relative;margin:6px 0 14px}.sb input{padding:15px 16px;border-radius:99px;font-size:17px;margin:0;border-color:var(--gold)}
+.mode{display:flex;gap:8px;margin:8px 0}.mode button{flex:1;background:none;border:1px solid var(--line);color:var(--mut)}.mode button.on{background:var(--gold);color:#080d1f}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}.tile{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 6px;text-align:center;cursor:pointer;color:var(--txt);font-size:14px}.tile span{display:block;font-size:30px;margin-bottom:4px}.tile.on{border-color:var(--gold)}
+.vg{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}.vc{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer}.vc .cv{height:110px;background:linear-gradient(135deg,#14265f,#080d1f);background-size:cover;background-position:center}.vc .bd{padding:12px;display:flex;gap:10px;align-items:center}.vc .lg{width:48px;height:48px;border-radius:50%;background:#fff center/cover;border:2px solid var(--gold);flex:none;display:flex;align-items:center;justify-content:center;font-size:22px}
+.pg{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}.pc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:4px}.pc img,.pc .ph{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:#0b1226;display:flex;align-items:center;justify-content:center;font-size:32px}.pc b{font-size:14px}.pc .pr{color:var(--ok);font-weight:700}
+.qty{display:flex;align-items:center;gap:8px}.qty button{padding:6px 12px}
+.cb{position:fixed;right:14px;bottom:14px;z-index:40;box-shadow:0 6px 24px rgba(0,0,0,.5);padding:14px 18px}
+.sh{position:fixed;inset:0;background:rgba(4,8,20,.85);z-index:50;display:flex;align-items:flex-end;justify-content:center}.sh .bx{background:var(--card);width:100%;max-width:560px;max-height:92vh;overflow:auto;padding:18px;border-radius:18px 18px 0 0;border:1px solid var(--line)}@media(min-width:900px){.sh{align-items:center}.sh .bx{border-radius:18px}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-txid.js"></script><script src="velos-vendor-cats.js"></script></head>
+<body><div class="w"><div class="hd"><a href="index.html"><img src="logo-mark.png" alt="The Velos Group">Velos</a><div><a href="foods.html">Foods</a> &nbsp; <a href="#/track">Track order</a> &nbsp; <a href="vendor.html">Sell on Velos</a></div></div><div id="v"></div></div><div id="toast" hidden></div><div id="sheet"></div>
+<script>
+var S = window.VELOS_SUPABASE, db = supabase.createClient(S.url, S.key), $ = function(i){ return document.getElementById(i); }, V = function(h){ $('v').innerHTML = h; };
+var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }, ugx = function(n){ return 'UGX ' + Math.round(n || 0).toLocaleString('en-US'); };
+function toast(m, b){ var t = $('toast'); t.textContent = m; t.style.background = b ? '#b3261e' : ''; t.style.color = b ? '#fff' : ''; t.hidden = false; setTimeout(function(){ t.hidden = true; }, 2800); }
+var MODE = 'retail', CAT = '', CART = {}, STORE = null, CAT_DATA = null, RET = null;
+function lsGet(k){ try{ return JSON.parse(localStorage.getItem(k) || 'null'); }catch(e){ return null; } } function lsSet(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+
+function route(){
+  var h = location.hash.replace(/^#\/?/, ''), p = h.split('/');
+  if(p[0] === 's' && p[1]) return store(p[1]); if(p[0] === 'q') return search(decodeURIComponent(p[1] || '')); if(p[0] === 'track') return track(); if(p[0] === 'c') CAT = p[1] || ''; else CAT = '';
+  if(p[0] === 'm') MODE = p[1] === 'wholesale' ? 'wholesale' : 'retail';
+  home();
+}
+async function home(){
+  var cats = VCATS;
+  V('<div class="sb"><input id="q" placeholder="Search products, shops, hotels, venues…" onkeydown="if(event.key===\'Enter\')go()"></div>'
+    + '<div class="mode"><button id="mr" class="' + (MODE === 'retail' ? 'on' : '') + '" onclick="setMode(\'retail\')">🛍️ Retail · single items</button><button id="mw" class="' + (MODE === 'wholesale' ? 'on' : '') + '" onclick="setMode(\'wholesale\')">📦 Wholesale · bulk</button></div>'
+    + '<div class="tiles">' + cats.map(function(c){ return '<button class="tile ' + (CAT === c.k ? 'on' : '') + '" onclick="setCat(\'' + c.k + '\')"><span>' + c.i + '</span>' + esc(c.l) + '</button>'; }).join('') + '</div>'
+    + '<h2 id="ttl">' + (CAT ? esc(vcat(CAT).l) : 'All stores') + '</h2><div id="vl" class="vg"><p class="m">Loading…</p></div>');
+  var r = await db.rpc('public_partners', {p_category:CAT || null, p_mode:(vcat(CAT).kind === 'goods' || !CAT) ? MODE : null, p_q:null}), L = r.data || [];
+  $('vl').innerHTML = L.length ? L.map(vcard).join('') : '<div class="c" style="grid-column:1/-1"><p>No stores here yet.</p><p class="m">New partners are joining every week. <a class="gold" href="vendor.html">Open your own store on Velos</a>.</p></div>';
+}
+function vcard(p){ var c = vcat(p.category); return '<div class="vc" onclick="location.hash=\'#/s/' + p.id + '\'"><div class="cv" style="' + (p.cover_url ? 'background-image:url(' + esc(p.cover_url) + ')' : '') + '"></div><div class="bd"><div class="lg" style="' + (p.logo_url ? 'background-image:url(' + esc(p.logo_url) + ')' : '') + '">' + (p.logo_url ? '' : c.i) + '</div><div><b>' + esc(p.business_name) + '</b><div class="m">' + esc(c.l) + ' · ' + esc(p.city || '') + (p.country && p.country !== 'Uganda' ? ', ' + esc(p.country) : '') + '</div><div class="m">' + p.products + ' items' + (p.sale_mode === 'wholesale' ? ' · wholesale' : p.sale_mode === 'both' ? ' · retail & wholesale' : '') + '</div></div></div></div>'; }
+function setMode(m){ location.hash = '#/m/' + m; }
+function setCat(k){ location.hash = '#/c/' + (CAT === k ? '' : k); }
+function go(){ var q = $('q').value.trim(); if(q.length >= 2) location.hash = '#/q/' + encodeURIComponent(q); }
+
+async function search(q){
+  V('<div class="sb"><input id="q" value="' + esc(q) + '" onkeydown="if(event.key===\'Enter\')go()"></div><p><a class="gold" href="#/">← All stores</a></p><h2>Results for “' + esc(q) + '”</h2><div id="sr"><p class="m">Searching…</p></div>');
+  var a = await db.rpc('public_product_search', {p_q:q}), b = await db.rpc('public_partners', {p_category:null, p_mode:null, p_q:q}), P = a.data || [], L = b.data || [];
+  $('sr').innerHTML = (L.length ? '<h3>Stores</h3><div class="vg">' + L.map(vcard).join('') + '</div>' : '') + (P.length ? '<h3>Products</h3><div class="pg">' + P.map(function(p){ return '<div class="pc" onclick="location.hash=\'#/s/' + p.partner_id + '\'" style="cursor:pointer">' + (p.image_url ? '<img src="' + esc(p.image_url) + '" alt="" loading="lazy">' : '<div class="ph">📦</div>') + '<b>' + esc(p.name) + '</b><span class="pr">' + ugx(p.price_ugx) + ' / ' + esc(p.unit) + '</span><span class="m">from ' + esc(p.partner) + '</span></div>'; }).join('') + '</div>' : '') + (!L.length && !P.length ? '<div class="c"><p>Nothing found for that yet.</p><p class="m">Try another word, or <a class="gold" href="sourcing-request.html">ask Velos to source it for you</a>.</p></div>' : '');
+}
+
+/* ---------- a store ---------- */
+async function store(id){
+  V('<p class="m">Loading…</p>'); var r = await db.rpc('public_partner_catalog', {p_partner:id}); if(!r.data){ V('<div class="c"><p>This store is not open right now.</p><a class="b" href="#/">Back to all stores</a></div>'); return; }
+  STORE = r.data; CART = lsGet('velos_cart_' + id) || {}; var p = STORE.partner, c = vcat(p.category), hotel = p.kind !== 'goods', P = STORE.products, cats = {};
+  P.forEach(function(x){ var k = x.category || 'Items'; (cats[k] = cats[k] || []).push(x); });
+  V('<p><a class="gold" href="#/">← All stores</a></p><div class="c" style="padding:0;overflow:hidden"><div style="height:140px;background:' + (p.cover_url ? 'url(' + esc(p.cover_url) + ') center/cover' : 'linear-gradient(135deg,#14265f,#080d1f)') + '"></div><div style="padding:14px"><h1>' + esc(p.business_name) + '</h1><div class="m">' + esc(c.l) + ' · ' + esc(p.city || '') + ', ' + esc(p.country) + '</div>' + (p.description ? '<p>' + esc(p.description) + '</p>' : '') + '</div></div>'
+    + (hotel ? '<p class="m">Choose a room or venue, then Velos confirms your booking after your payment.</p>' : '') + (P.length ? Object.keys(cats).map(function(k){ return '<h2>' + esc(k) + '</h2><div class="pg">' + cats[k].map(function(x){ return pcard(x); }).join('') + '</div>'; }).join('') : '<div class="c"><p class="m">This store is adding its products. Check back soon.</p></div>') + '<button class="cb" id="cb" onclick="cart()" hidden></button>');
+  cartBtn();
+}
+function pcard(x){ var n = CART[x.id] ? CART[x.id].q : 0; return '<div class="pc">' + (x.image_url ? '<img src="' + esc(x.image_url) + '" alt="" loading="lazy">' : '<div class="ph">📦</div>') + '<b>' + esc(x.name) + '</b>' + (x.description ? '<span class="m">' + esc(x.description).slice(0, 70) + '</span>' : '') + '<span class="pr">' + ugx(x.price_ugx) + ' / ' + esc(x.unit) + '</span>' + (x.sale_mode === 'wholesale' ? '<span class="pill">Wholesale · min ' + x.min_qty + '</span>' : '') + (x.in_stock ? '<div class="qty" id="q-' + x.id + '">' + qtyHtml(x, n) + '</div>' : '<span class="pill bad">Out of stock</span>') + '</div>'; }
+function qtyHtml(x, n){ return n ? '<button class="g" onclick="chg(\'' + x.id + '\',-1)">−</button><b>' + n + '</b><button onclick="chg(\'' + x.id + '\',1)">+</button>' : '<button class="full" style="margin:0" onclick="chg(\'' + x.id + '\',1)">Add</button>'; }
+function chg(id, d){ var x = STORE.products.filter(function(p){ return p.id === id; })[0], cur = CART[id] ? CART[id].q : 0, wh = x.sale_mode === 'wholesale', q;
+  if(d > 0) q = (cur === 0 && wh) ? x.min_qty : cur + 1; else { q = cur - 1; if(wh && q < x.min_qty) q = 0; }
+  if(q <= 0) delete CART[id]; else CART[id] = {q:q}; lsSet('velos_cart_' + STORE.partner.id, CART); var el = $('q-' + id); if(el) el.innerHTML = qtyHtml(x, CART[id] ? CART[id].q : 0); cartBtn(); }
+function lines(){ return Object.keys(CART).map(function(id){ var x = STORE.products.filter(function(p){ return p.id === id; })[0]; return x ? {x:x, q:CART[id].q} : null; }).filter(Boolean); }
+function total(){ return lines().reduce(function(s, l){ return s + l.x.price_ugx * l.q; }, 0); }
+function cartBtn(){ var b = $('cb'); if(!b) return; var n = lines().reduce(function(s, l){ return s + l.q; }, 0); b.hidden = !n; b.textContent = '🛒 ' + n + ' item' + (n > 1 ? 's' : '') + ' · ' + ugx(total()); }
+function cart(){
+  var L = lines(), t = total(), saved = lsGet('velos_cust') || {}, hotel = STORE.partner.kind !== 'goods';
+  $('sheet').innerHTML = '<div class="sh" onclick="if(event.target===this)closeSh()"><div class="bx"><div class="row"><h2 style="margin:0">Your order</h2><button class="g" onclick="closeSh()">✕</button></div>' + L.map(function(l){ return '<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>' + l.q + ' × ' + esc(l.x.name) + '</span><b>' + ugx(l.x.price_ugx * l.q) + '</b></div>'; }).join('') + '<div class="row" style="padding:10px 0"><b>Items total</b><b class="gold">' + ugx(t) + '</b></div><p class="m">Delivery is confirmed by Velos and added before you pay the balance.</p>'
+    + '<input id="cn" placeholder="Your name *" value="' + esc(saved.n || '') + '"><input id="cp" type="tel" placeholder="Phone / WhatsApp *" value="' + esc(saved.p || '') + '"><input id="ce" type="email" placeholder="Email (optional)" value="' + esc(saved.e || '') + '"><input id="ca" placeholder="' + (hotel ? 'Dates and number of guests *' : 'Delivery address and landmark *') + '"><textarea id="cm" placeholder="Note to the store (optional)"></textarea><button class="full" onclick="place()">Place order</button><p id="ce2" class="m bad"></p></div></div>';
+}
+function closeSh(){ $('sheet').innerHTML = ''; }
+async function place(){
+  var g = function(i){ return $(i).value.trim(); }; if(g('cn').length < 2 || g('cp').length < 7 || !g('ca')){ $('ce2').textContent = 'Please fill in your name, phone and ' + (STORE.partner.kind !== 'goods' ? 'dates' : 'address') + '.'; return; }
+  var items = lines().map(function(l){ return {id:l.x.id, qty:l.q}; });
+  var r = await db.rpc('partner_place_order', {p_partner:STORE.partner.id, p_items:items, p_name:g('cn'), p_phone:g('cp'), p_email:g('ce'), p_address:g('ca'), p_note:g('cm')});
+  if(r.error){ $('ce2').textContent = r.error.message; return; } lsSet('velos_cust', {n:g('cn'), p:g('cp'), e:g('ce')}); CART = {}; lsSet('velos_cart_' + STORE.partner.id, CART); cartBtn(); payScreen(r.data, g('cp'));
+}
+async function payScreen(o, phone){
+  var q = await db.from('settings').select('key,value').like('key', 'site_pay_%'), P = {}; (q.data || []).forEach(function(x){ P[x.key] = x.value; });
+  $('sheet').innerHTML = '<div class="sh"><div class="bx"><h2>Order #' + o.order_no + ' placed ✓</h2><p>' + esc(o.store) + '</p><div class="c"><p>Total: <b class="gold">' + ugx(o.total_ugx) + '</b></p><p>Pay now to confirm: <b class="gold">' + ugx(o.deposit_required_ugx) + '</b>' + (o.deposit_required_ugx < o.total_ugx ? ' <span class="m">(deposit, balance on delivery)</span>' : '') + '</p><p class="m">Pay to Velos by mobile money. Velos pays the store after delivery.</p><div>MTN: <b>' + esc(P.site_pay_mtn_number || '') + '</b> · ' + esc(P.site_pay_mtn_name || '') + '</div><div>Airtel: <b>' + esc(P.site_pay_airtel_number || '') + '</b> · ' + esc(P.site_pay_airtel_name || '') + '</div></div><select id="pm"><option value="mtn">Paid with MTN</option><option value="airtel">Paid with Airtel</option></select><input id="pr" placeholder="Transaction ID *"><button class="full" onclick="paid(' + o.order_no + ',\'' + esc(phone) + '\')">I have paid. Submit</button><p id="pe" class="m"></p><p class="m">Save your order number: <b>' + o.order_no + '</b>. Track it any time with your phone number.</p></div></div>';
+}
+async function paid(no, phone){ var te = VelosTx.check($('pr').value); if(te){ $('pe').className = 'm bad'; $('pe').textContent = te; return; } var r = await db.rpc('partner_order_pay', {p_no:no, p_phone:phone, p_method:$('pm').value, p_ref:$('pr').value.trim()}); if(r.error){ $('pe').className = 'm bad'; $('pe').textContent = r.error.message; return; } $('sheet').innerHTML = '<div class="sh"><div class="bx"><h2>Thank you ✓</h2><p>Velos is confirming your payment. We will then tell the store to prepare order #' + no + ' and send a rider.</p><a class="b full" href="#/track" onclick="closeSh()">Track my order</a> <button class="g full" onclick="closeSh();location.hash=\'#/\'">Keep shopping</button></div></div>'; }
+
+function track(){
+  var s = lsGet('velos_cust') || {}; V('<p><a class="gold" href="#/">← All stores</a></p><h2>Track an order</h2><div class="c"><input id="tn" type="number" placeholder="Order number"><input id="tp" type="tel" placeholder="Phone number used on the order" value="' + esc(s.p || '') + '"><button class="full" onclick="doTrack()">Track</button></div><div id="tr"></div>');
+}
+async function doTrack(){ var r = await db.rpc('partner_order_track', {p_no:Number($('tn').value), p_phone:$('tp').value}); var o = r.data; if(!o){ $('tr').innerHTML = '<div class="c"><p class="bad">We could not find that order with that phone number.</p></div>'; return; }
+  var steps = [['placed', 'Order placed'], ['confirmed', 'Payment confirmed, store preparing'], ['packed', 'Packed, waiting for rider'], ['dispatched', 'On the way'], ['delivered', 'Delivered']], idx = o.payment_status !== 'confirmed' ? 0 : Math.max(1, steps.map(function(x){ return x[0]; }).indexOf(o.status));
+  $('tr').innerHTML = '<div class="c"><b>Order #' + o.order_no + ' · ' + esc(o.store) + '</b><p class="m">Total ' + ugx(o.total_ugx) + ' · paid ' + ugx(o.amount_paid_ugx) + '</p>' + (o.status === 'cancelled' ? '<p class="bad">This order was cancelled.</p>' : steps.map(function(s, i){ return '<div class="st ' + (i <= idx ? 'on' : '') + '"><div class="dot"></div><div>' + s[1] + '</div></div>'; }).join('')) + (o.payment_status === 'unpaid' ? '<p class="m">Waiting for your payment.</p>' : o.payment_status === 'submitted' ? '<p class="m">Payment received. Velos is confirming it.</p>' : '') + '</div>'; }
+window.addEventListener('hashchange', route); route();
+</script></body></html>

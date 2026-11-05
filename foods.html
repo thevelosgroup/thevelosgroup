@@ -38,8 +38,9 @@ function vcard(v){var st=v.kind==='store',pm=v.promos&&v.promos[0];
 function renderHome(){if(!M)return;var q=($('hq').value||'').trim().toLowerCase(),vs=M.vendors,h='';
  if(q){var mv=vs.filter(function(v){return (v.name+' '+(v.description||'')).toLowerCase().indexOf(q)>-1}),its=[];
   vs.forEach(function(v){v.categories.forEach(function(c){c.items.forEach(function(i){if((i.name+' '+(i.description||'')).toLowerCase().indexOf(q)>-1&&its.length<30)its.push({v:v,i:i})})})});
+  its.sort(function(a,b){return (a.i.price||1e12)-(b.i.price||1e12)});
   if(mv.length)h+='<h2>Restaurants and stores</h2><div class="rg">'+mv.map(vcard).join('')+'</div>';
-  if(its.length)h+='<h2>Dishes and items</h2><div class="hl">'+its.map(function(x){return '<div class="hi" onclick="openV(\''+x.v.id+'\',\''+esc(x.i.name).replace(/\\/g,'').replace(/'/g,'')+'\')"><img src="'+esc(x.i.image)+'" alt="" loading="lazy" onerror="ie(this)"><div><b>'+esc(x.i.name)+'</b><div class="m">'+esc(x.v.name)+'</div><div class="pr">'+(x.i.price?ugx(x.i.price):'')+'</div></div></div>'}).join('')+'</div>';
+  if(its.length)h+='<h2>Dishes and items: choose where to order</h2><div class="hl">'+its.map(function(x){return '<div class="hi" onclick="openV(\''+x.v.id+'\',\''+esc(x.i.name).replace(/\\/g,'').replace(/'/g,'')+'\')"><img src="'+esc(x.i.image)+'" alt="" loading="lazy" onerror="ie(this)"><div><b>'+esc(x.i.name)+'</b><div class="m">Order from <b>'+esc(x.v.name)+'</b></div><div class="pr">'+(x.i.price?ugx(x.i.price):'')+'</div></div></div>'}).join('')+'</div>';
   $('hbody').innerHTML=h||'<p class="m">Nothing found. Try another word.</p>';return}
  var stores=vs.filter(function(v){return v.kind==='store'}),rests=vs.filter(function(v){return v.kind!=='store'}),pr=[];
  vs.forEach(function(v){(v.promos||[]).forEach(function(p){pr.push({v:v,p:p})})});
