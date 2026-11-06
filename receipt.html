@@ -1,7 +1,7 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment receipt | The Velos Group</title><meta name="robots" content="noindex">
 <style>body{margin:0;background:#eef0f6;color:#14192d;font:15px/1.5 Inter,system-ui,sans-serif}.w{max-width:640px;margin:0 auto;padding:18px}.r{background:#fff;border-radius:12px;padding:24px;box-shadow:0 4px 24px rgba(0,0,0,.08)}h1{font-family:Georgia,serif;margin:0;color:#14192d}.g{color:#b8912f}.row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid #e6e8f0}.m{color:#5b6378;font-size:13px}.big{font-size:22px;font-weight:700}
 button{padding:11px 16px;border:0;border-radius:8px;background:#14192d;color:#fff;font-weight:700;cursor:pointer;margin:12px 6px 0 0}input{width:100%;padding:12px;margin:6px 0;border:1px solid #c9cedd;border-radius:8px;font:inherit}@media print{button,.np{display:none!important}body{background:#fff}.r{box-shadow:none}}</style>
-<script src="supabase-config.js"></script></head><body><div class="w"><div id="v"></div></div>
+<script src="supabase-config.js"></script><script src="velos-stamp.js"></script></head><body><div class="w"><div id="v"></div></div>
 <script>
 var S=window.VELOS_SUPABASE,$=function(i){return document.getElementById(i)},Q=new URLSearchParams(location.search),K=Q.get('k')==='f'?'food':'order',NO=parseInt(Q.get('o'),10),R=parseInt(Q.get('r'),10),PH='';
 try{PH=JSON.parse(localStorage.getItem('velosContact')||'{}').p||''}catch(e){}
@@ -20,8 +20,9 @@ function draw(o){
    +'<div class="row"><span>Total paid to date</span><b>'+U(paid)+'</b></div><div class="row"><span>Balance remaining</span><b>'+(bal>0?U(bal):'Nil (fully paid)')+'</b></div>'
    +(bal>0?'<p class="m">The balance is payable on '+(o.fulfilment==='pickup'?'collection':'delivery')+'.</p>':'')
    +(o.fulfilment==='pickup'?'<p class="m"><b>Collection:</b> please bring your National ID or another valid identification document. The name must match the person who placed the order.</p>':'')
-   +'<div style="margin-top:18px"><img src="signature.png" alt="" style="height:64px;display:block" onerror="this.style.display=\'none\'"><div style="border-top:1px solid #c9cedd;width:200px;padding-top:4px" class="m">Authorised signature · The Velos Group</div></div>'
+   +'<div style="margin-top:18px;position:relative"><span id="stp" style="position:absolute;left:170px;top:-34px"></span><img src="signature.png" alt="" style="height:64px;display:block" onerror="this.style.display=\'none\'"><div style="border-top:1px solid #c9cedd;width:200px;padding-top:4px" class="m">Authorised signature · The Velos Group</div></div>'
    +'<p class="m">Thank you for shopping with Velos. Questions? Contact us via WhatsApp or our contact page. Keep this receipt for your records.</p><button onclick="window.print()">Print or save as PDF</button><a class="np" href="'+(K==='food'?'food-track.html':'track.html')+'?o='+o.order_no+'">Track order</a></div>';
+  try{if(window.VelosStamp&&$('stp'))VelosStamp.html({label:'PAID',date:p.approved_at||p.created_at||p.paid_at},110).then(function(h){if($('stp'))$('stp').innerHTML=h})}catch(e){}
 }
 if(!NO||!R)$('v').innerHTML='<div class="r">Invalid receipt link.</div>';else go();
 </script></body></html>

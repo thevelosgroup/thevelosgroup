@@ -37,6 +37,7 @@
     doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(GR[0],GR[1],GR[2]);doc.splitTextToSize('By signing below, the restaurant representative confirms that the details above are correct and agrees to these terms. Please sign, and send a signed copy to The Velos Group on WhatsApp or email.',180).forEach(function(l){doc.text(l,15,y);y+=4.2});
     var sy=y+30;if(sy>262){foot(page);doc.addPage();page++;sy=60}
     if(sig){try{doc.addImage(sig,'PNG',20,sy-25,36,24.2)}catch(e){}}
+    try{if(W.VelosStamp)await W.VelosStamp.place(doc,60,sy-33,32,{label:'OFFICIAL'})}catch(e){}
     doc.setDrawColor(GR[0],GR[1],GR[2]);doc.setLineWidth(.3);doc.line(15,sy,75,sy);doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(TX[0],TX[1],TX[2]);doc.text(CO.name,15,sy+4.5);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(GR[0],GR[1],GR[2]);doc.text('Authorised signature',15,sy+8.8);doc.text('Date: '+(d.approved_at?dmy(d.approved_at):dmy(new Date())),15,sy+13.5);
     doc.line(135,sy,195,sy);doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(TX[0],TX[1],TX[2]);doc.text(owner+' ('+name+')',135,sy+4.5);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(GR[0],GR[1],GR[2]);doc.text('Restaurant representative signature',135,sy+8.8);doc.text('Date: ........ / ........ / ............',135,sy+13.5);
     foot(page);

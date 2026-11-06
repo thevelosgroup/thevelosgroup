@@ -54,7 +54,7 @@ main{padding:12px;max-width:900px;margin:auto}
 <div id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="supabase-config.js"></script><script src="velos-vendor-cats.js"></script>
+<script src="supabase-config.js"></script><script src="velos-stamp.js"></script><script src="velos-receipts.js"></script><script src="velos-vendor-cats.js"></script>
 <script>
 const db = supabase.createClient(VELOS_SUPABASE.url, VELOS_SUPABASE.key);
 const $ = s => document.querySelector(s);
@@ -86,14 +86,15 @@ async function boot(){
   if(!session) return show(false);
   const {data:p, error:pe} = await db.from('profiles').select('full_name,role').eq('id', session.user.id).maybeSingle();
   if(!p){ await db.auth.signOut(); show(false); $('#err').textContent = pe ? 'Database error: ' + pe.message : 'This account is not authorised as staff. (login id ' + session.user.id + ')'; return; }
+  if(!['admin','manager','staff'].includes(p.role)){ location.href = 'team.html'; return; }
   me = p; $('#who').textContent = p.full_name || p.role; show(true); try { VelosPush.mount(db); } catch(e){}
   const {data} = await db.from('categories').select('*').order('sort_order'); cats = data || [];
-  const hide = ({manager:['team','settings','frules'], staff:['report','products','agents','leads','team','import','export','security','applinks','promos','bundles','photos','docs','careers','bizset','settings','fmenu','supplies','fvendors','friders','frules']})[p.role] || [];
+  const hide = ({manager:['team','settings','frules'], staff:['emails','report','products','agents','leads','team','import','export','security','applinks','promos','bundles','photos','docs','careers','bizset','settings','fmenu','supplies','fvendors','friders','frules']})[p.role] || [];
   window.TB = TABS.filter(t => !hide.includes(t[0]));
   go('home'); startAlerts();
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['bookings','Table bookings'],['docs','Invoices & quotes'],['customers','Customers'],['phones','Phone checks'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['cleanup','Clean-up & fees'],['proof','Proof photos'],['partners','Partners'],['pporders','Partner orders'],['inq','Inquiries'],['team','Team'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['bundles','Combos & bundles'],['careers','Careers'],['bizset','Business profile'],['photos','Photos'],['settings','Settings'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['bookings','Table bookings'],['docs','Invoices & quotes'],['customers','Customers'],['phones','Phone checks'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['cleanup','Clean-up & fees'],['proof','Proof photos'],['partners','Partners'],['pporders','Partner orders'],['inq','Inquiries'],['team','Team'],['emails','Emails'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['bundles','Combos & bundles'],['careers','Careers'],['bizset','Business profile'],['photos','Photos'],['settings','Settings'],['import','Import']];
 function alCopy(i){ const u = AL[i][1]; (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('Link copied'), () => { prompt('Copy this link', u); }); }
 function alShare(i){ const a = AL[i]; if(navigator.share) navigator.share({title:a[0], text:'Install the Velos '+a[0], url:a[1]}).catch(()=>{}); else alCopy(i); }
 async function savePromos(){
@@ -144,8 +145,8 @@ async function bdCreate(){
   const {error} = await db.from('products').insert({id, name:n, category_key:$('#bd_c').value, subcategory:sub, price_ugx:pr, image_url:img});
   toast(error ? error.message : 'Bundle created. Find it in Products.', !!error); if(!error) go('bundles');
 }
-const GROUPS = [['Overview','📊',['home','report','inq','messages']],['Orders','🧾',['orders','forders','proof','bookings','payments','docs','designs','gifts','service','security']],['Food','🍽️',['fmenu','fvendors','friders','frules','supplies']],['Partners','🤝',['partners','pporders']],['Shop','🛍️',['products','photos','bundles','promos','import']],['People','👥',['customers','phones','agents','leads','techs','team','careers']],['System','⚙️',['cleanup','bizset','applinks','export','settings']]];
-const MENU_NOTE = {home:'Overview',orders:'Shop orders',forders:'Food orders',bookings:'Restaurant table bookings, refunds, penalties',payments:'Confirm payments',fvendors:'Restaurants & Velos Foods Store',fmenu:'Menu items & prices',frules:'Delivery fees, markup, origins',cleanup:'Delete test data, restaurant & rider fees',phones:'Verify new customers',settings:'Site settings',team:'Staff & access'};
+const GROUPS = [['Overview','📊',['home','report','inq','messages']],['Orders','🧾',['orders','forders','proof','bookings','payments','docs','designs','gifts','service','security']],['Food','🍽️',['fmenu','fvendors','friders','frules','supplies']],['Partners','🤝',['partners','pporders']],['Shop','🛍️',['products','photos','bundles','promos','import']],['People','👥',['customers','phones','agents','leads','techs','team','emails','careers']],['System','⚙️',['cleanup','bizset','applinks','export','settings']]];
+const MENU_NOTE = {emails:'Automatic emails: queue, receipts, resend',home:'Overview',orders:'Shop orders',forders:'Food orders',bookings:'Restaurant table bookings, refunds, penalties',payments:'Confirm payments',fvendors:'Restaurants & Velos Foods Store',fmenu:'Menu items & prices',frules:'Delivery fees, markup, origins',cleanup:'Delete test data, restaurant & rider fees',phones:'Verify new customers',settings:'Site settings',team:'Staff & access'};
 function navFor(k){ const lab = Object.fromEntries(TB.map(t => [t[0], t[1]])); const used = new Set(GROUPS.flatMap(g => g[2])); const G = GROUPS.map(g => [g[0], g[1], g[2].filter(x => lab[x])]).filter(g => g[2].length); const rest = TB.map(t => t[0]).filter(x => !used.has(x)); if(rest.length) G.push(['Other','📁',rest]); window.NG = G; window.MLAB = lab; window.CURK = k;
   const gi = Math.max(0, G.findIndex(g => g[2].includes(k)));
   $('#crumb').innerHTML = '<b>' + G[gi][1] + ' ' + G[gi][0] + '</b> <span class="mut">›</span> <span class="gold">' + esc(lab[k] || '') + '</span>';
@@ -246,7 +247,7 @@ async function docsPdf(d, no){ await docsLoadLib(); const {jsPDF} = window.jspdf
   if(d.type !== 'receipt' && CO.bank){ ny += 2; doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...GR); doc.text('BANK DETAILS', 15, ny); ny += 5; doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...TX); doc.splitTextToSize(CO.bank, 95).forEach(l => { doc.text(l, 15, ny); ny += 4.6; }); }
   let sy = Math.max(ty, ny) + 32; if(sy > 262){ foot(page); doc.addPage(); page++; sy = 60; }
   const needCs = d.csign === undefined ? d.type !== 'receipt' : !!d.csign, sig = await docsSig();
-  if(sig){ try { doc.addImage(sig, 'PNG', 20, sy - 25, 36, 24.2); } catch(e){} }
+  if(sig){ try { doc.addImage(sig, 'PNG', 20, sy - 25, 36, 24.2); } catch(e){} } try { await VelosStamp.place(doc, 60, sy - 33, 32, {label: d.type === 'receipt' ? 'PAID' : 'OFFICIAL'}); } catch(e){}
   doc.setDrawColor(...GR); doc.setLineWidth(.3); doc.line(15,sy,75,sy); doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...TX); doc.text(CO.name, 15, sy+4.5); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...GR); doc.text('Authorised signature', 15, sy+8.8);
   if(needCs){ doc.line(135,sy,195,sy); doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...TX); doc.text(d.name || '-', 135, sy+4.5); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...GR); doc.text('Customer signature' + (d.type === 'quotation' ? ' (acceptance)' : ''), 135, sy+8.8); }
   else { doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...TX); doc.text(d.name || '-', 135, sy+4.5); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...GR); doc.text('Customer (payment received from)', 135, sy+8.8); }
@@ -300,7 +301,7 @@ async function recDoc(c, row){ await docsLoadLib(); const {jsPDF} = window.jspdf
   y += 8; if(y > 215){ foot(page); doc.addPage(); page++; y = 22; }
   const consent = 'By signing below, the signatory confirms that the information on this form is correct and agrees to proceed on these details and The Velos Group published Terms of Service.'; doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...GR); doc.splitTextToSize(consent, 180).forEach(l => { doc.text(l, 15, y); y += 4.2; });
   let sy = y + 30; if(sy > 262){ foot(page); doc.addPage(); page++; sy = 60; }
-  if(sig){ try { doc.addImage(sig, 'PNG', 20, sy - 25, 36, 24.2); } catch(e){} }
+  if(sig){ try { doc.addImage(sig, 'PNG', 20, sy - 25, 36, 24.2); } catch(e){} } try { await VelosStamp.place(doc, 60, sy - 33, 32, {label:'OFFICIAL'}); } catch(e){}
   doc.setDrawColor(...GR); doc.setLineWidth(.3); doc.line(15,sy,75,sy); doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...TX); doc.text(CO.name, 15, sy + 4.5); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...GR); doc.text('Authorised signature', 15, sy + 8.8); doc.text('Date: ........ / ........ / ............', 15, sy + 14);
   doc.line(135,sy,195,sy); doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...TX); doc.text(String(who), 135, sy + 4.5); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...GR); doc.text(c.who + ' signature', 135, sy + 8.8); doc.text('Date: ........ / ........ / ............', 135, sy + 14);
   foot(page); return {doc, no:num, who}; }
@@ -491,8 +492,10 @@ async function feeRec(sk, sid, kind, amtKey, label){
   const amt = Number($('#fee-'+kind+'-'+sid).value); const ref = prompt('Payment reference or note for '+label+' (optional)') ; if(ref===null) return;
   const per = new Date(Date.now()+3*3600*1000).toISOString().slice(0,7);
   const {error} = await db.rpc('admin_fee_record', {p_subject_kind:sk, p_subject_id:sid, p_kind:kind, p_amount:amt, p_period:kind==='monthly'?per:null, p_ref:ref, p_note:null});
-  toast(error ? error.message : 'Recorded', !!error); if(!error) go('cleanup');
+  toast(error ? error.message : 'Recorded', !!error);
+  if(!error){ try { if(confirm('Recorded. Download the stamped receipt for ' + label + ' now? (The same receipt is also emailed automatically if they have an email on file.)')){ const l = await db.rpc('admin_fee_list', {p_subject_kind:sk, p_subject_id:sid}); const row = (l.data||[])[0]; if(row){ row.name = label; row.subject_kind = sk; VelosReceipt.save(await VelosReceipt.fee(row)); } } } catch(e){ toast(e.message||String(e), true); } go('cleanup'); }
 }
+async function feeReceipt(sk, sid, label, rid){ try { const l = await db.rpc('admin_fee_list', {p_subject_kind:sk, p_subject_id:sid}); const row = (l.data||[]).find(x => x.id === rid); if(!row) return toast('Receipt not found', true); row.name = label; row.subject_kind = sk; VelosReceipt.save(await VelosReceipt.fee(row)); } catch(e){ toast(e.message||String(e), true); } }
 /* ---- People documents: pre-signed agreements and ID cards ---- */
 const PDOC_KIND = {rider:'rider', agent:'agent', tech:'technician'};
 function giftTxt(t){ const u = []; const body = String(t||'').replace(/https?:\/\/\S+\/request-photos\/\S+/g, m => { u.push(m); return ''; }); return esc(body.replace(/\nPhotos:\s*$/,'')) + (u.length ? '<div class="row">' + u.map(x => `<a href="${esc(x)}" target="_blank"><img src="${esc(x)}" style="width:90px;height:90px;object-fit:cover;border-radius:8px"></a>`).join('') + '</div>' : ''); }
@@ -505,7 +508,7 @@ function pdoRow(kind, x){
   const signed = d.signed_at ? `<div>✅ Signed agreement received ${dat(d.signed_at)} <button class="ghost" onclick="pSigned('${kind}','${x.id}')">View scan</button></div>` : `<div class="mut">⏳ Signed agreement not received yet. This person cannot be approved until it is.</div>`;
   const up = `<div class="row"><input type="file" id="ps-${x.id}" accept="image/*,application/pdf" style="max-width:170px" title="Scan received by WhatsApp or email"><button class="ghost" onclick="pUp('${kind}','${x.id}','signed','ps-${x.id}')">⬆️ Upload their signed scan</button></div>`;
   const agr = `<div class="row"><button onclick="pDoc('${kind}','${x.id}')">📄 Agreement</button><button class="ghost" onclick="pDoc('${kind}','${x.id}',true)">📤 Share</button></div>`;
-  const review = `<div class="row"><button onclick="pReview('${kind}','${x.id}')">🔍 Review uploads &amp; approve</button></div>`;
+  const aplUid = kind==='agent' ? x.id : (x.user_id || x.id), review = `<div class="row"><button onclick="pReview('${kind}','${x.id}')">🔍 Review uploads &amp; approve</button><button class="ghost" onclick="aplOpen('${kind==='tech'?'technician':kind}','${aplUid}','${esc(x.full_name||x.name||'').replace(/'/g,'')}')">📋 Requirement documents</button></div>`;
   if(!ok) return agr + signed + review + up;
   const mark = (v,l) => v ? `✅ ${l} ${dat(v)}` : `⏳ ${l} missing`;
   return agr + signed + review + `<div class="mut">${mark(d.photo_at,'Passport photo')} · ${mark(d.sig_at,'Signature')}${d.issued_at?' · 🪪 Card issued '+dat(d.issued_at):''}</div>`
@@ -514,6 +517,20 @@ function pdoRow(kind, x){
 }
 async function pUp(kind, id, field, inp){ try { let f = document.getElementById(inp).files[0]; if(!f) return toast('Choose a file first', true); toast('Uploading…'); if(field==='sig') f = (await VelosPeople.ink(f)).file; const ext = f.type==='application/pdf' ? 'pdf' : (f.type.split('/')[1]||'jpg').replace('jpeg','jpg'); const path = `${PDOC_KIND[kind]}/${id}/${field}-${Date.now()}.${ext}`; const u = await db.storage.from('people-docs').upload(path, f, {contentType:f.type}); if(u.error) throw u.error; const r = await db.rpc('admin_people_docs_set', {p_kind:PDOC_KIND[kind], p_id:id, p_field:field, p_path:path}); if(r.error) throw r.error; toast('Saved'); go(kind==='tech'?'techs':kind==='agent'?'agents':'friders'); } catch(e){ toast(e.message||String(e), true); } }
 const PTAB = {agent:'agents', rider:'food_riders', tech:'technician_applications'};
+async function aplOpen(kind, uid, label){
+  try {
+    const r = await db.rpc('admin_apply_view', {p_kind:kind, p_uid:uid}); if(r.error) return toast(r.error.message, true);
+    const d = r.data, sp = d.spec, det = d.details || {}, files = d.files || [], last = k => { const L = files.filter(f => f.req_key === k); return L[L.length-1]; };
+    const rows = await Promise.all((sp.files||[]).map(async f => { const x = last(f.key); let link = ''; if(x){ const u = await db.storage.from('people-docs').createSignedUrl(x.path, 900); if(!u.error){ const pdf = /\.pdf(\?|$)/i.test(x.path); link = pdf ? `<a href="${esc(u.data.signedUrl)}" target="_blank">Open PDF</a>` : `<a href="${esc(u.data.signedUrl)}" target="_blank"><img src="${esc(u.data.signedUrl)}" style="max-width:150px;max-height:110px;border-radius:6px"></a>`; } }
+      return `<div class="card"><div class="row"><b>${esc(f.label)}${f.required?' *':''}</b>${x ? `<span class="pill ${x.status==='verified'?'gold':''}">${esc(x.status)}</span>` : '<span class="pill" style="color:var(--bad)">missing</span>'}</div>${link}${x ? `<div class="row"><input id="ar-${x.id}" placeholder="Note to the applicant (optional)" value="${esc(x.note||'')}" style="flex:1"><button onclick="aplRev('${x.id}','verified','${kind}','${uid}','${esc(label).replace(/'/g,'')}')">✓ Verify</button><button class="ghost" onclick="aplRev('${x.id}','rejected','${kind}','${uid}','${esc(label).replace(/'/g,'')}')">Ask to re-upload</button></div>` : ''}</div>`; }));
+    const dets = (sp.fields||[]).map(f => `<div class="row"><span class="mut">${esc(f.label)}</span><b>${esc(det[f.key]||'—')}</b></div>`).join('');
+    const o = document.createElement('div'); o.id = 'aplm'; o.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(2,8,28,.92);overflow:auto;padding:14px';
+    o.innerHTML = `<div style="max-width:720px;margin:0 auto"><div class="card"><div class="row"><b class="gold">${esc(label)} · ${esc(sp.title)}</b><button class="ghost" onclick="document.getElementById('aplm').remove()">Close ✕</button></div>
+      <div class="mut">Country: ${esc(det.country||'not set')}${det.variant?' · '+esc(det.variant)+' business':''}</div><p>${d.have >= d.required ? '✅' : '⚠️'} <b>${d.have} of ${d.required}</b> required documents uploaded.${d.have < d.required ? ' Do not approve until the missing items arrive.' : ''}</p>${dets}</div>${rows.join('')}</div>`;
+    document.body.appendChild(o);
+  } catch(e){ toast(e.message||String(e), true); }
+}
+async function aplRev(id, st, kind, uid, label){ const n = $('#ar-'+id); const {error} = await db.rpc('admin_apply_review', {p_id:id, p_status:st, p_note:n ? n.value : ''}); toast(error ? error.message : 'Saved ✓', !!error); if(!error){ const m = $('#aplm'); if(m) m.remove(); aplOpen(kind, uid, label); } }
 async function pReview(kind, id){
   try {
     const d = ((window.PDS||{})[kind]||{})[id] || {}, x = pData(kind,id);
@@ -559,6 +576,18 @@ async function saveMember(){
   const {error} = await db.rpc('set_staff_member', {p_email:v('te'), p_name:v('tn'), p_phone:v('tp'), p_title:v('tj'), p_role:JT[v('tj')]});
   toast(error ? error.message : 'Employee saved', !!error); if(!error) go('team');
 }
+function tmPreset(){ const p = JT[$('#tj').value]; document.querySelectorAll('.tp').forEach(c => c.checked = p[1].includes(c.value)); }
+async function tmSave(){
+  const p = JT[$('#tj').value], perms = [...document.querySelectorAll('.tp')].filter(c => c.checked).map(c => c.value); const em = $('#te').value.trim(); if(!em) return toast('Enter their login email', true);
+  const {error} = await db.rpc('admin_set_staff_access', {p_email:em, p_role:p[0], p_perms:perms, p_title:$('#tj').value, p_name:$('#tn').value.trim()||null});
+  toast(error ? error.message : 'Access saved ✓', !!error); if(!error) go('team');
+}
+function tmEdit(email, name, role, perms, title){ $('#te').value = email; $('#tn').value = name; const k = Object.keys(JT).find(x => x === title) || Object.keys(JT).find(x => JT[x][0] === role) || Object.keys(JT)[0]; $('#tj').value = k; document.querySelectorAll('.tp').forEach(c => c.checked = perms.split(',').includes(c.value)); window.scrollTo(0,0); }
+async function tmRemove(id, name){ if(!confirm('Remove all team access for ' + (name||'this person') + '? They can still sign in as a normal user, but not as team.')) return; const {error} = await db.rpc('admin_staff_remove', {p_id:id}); toast(error ? error.message : 'Access removed', !!error); if(!error) go('team'); }
+async function tmNotice(){ const {error} = await db.rpc('admin_notice_save', {p_title:$('#nn_t').value, p_body:$('#nn_b').value}); toast(error ? error.message : 'Posted ✓', !!error); if(!error) go('team'); }
+async function tmNoticeDel(id){ if(!confirm('Delete this notice?')) return; await db.rpc('admin_notice_delete', {p_id:id}); go('team'); }
+async function emSend(){ const {error} = await db.rpc('admin_email_payment', {p_role:$('#em_r').value, p_email:$('#em_e').value.trim(), p_name:$('#em_n').value.trim(), p_amount:Number($('#em_a').value), p_reference:$('#em_f').value.trim(), p_note:$('#em_t').value.trim()}); toast(error ? error.message : 'Queued. It sends within a minute ✓', !!error); if(!error) go('emails'); }
+async function emRetry(id){ const {error} = await db.rpc('admin_email_retry', {p_id:id}); toast(error ? error.message : 'Sending again…', !!error); if(!error) setTimeout(() => go('emails'), 1500); }
 async function setRole(){
   const {error} = await db.rpc('set_staff_role', {p_email:$('#te').value.trim(), p_role:$('#tr').value});
   toast(error ? error.message : 'Team updated', !!error); if(!error) go('team');
@@ -682,6 +711,7 @@ const VIEWS = {
         ${p.status === 'pending' ? `<button class="ghost" onclick="ptSet('${p.id}','rejected')">Reject</button>` : ''}
         <button class="ghost" onclick="ptSet('${p.id}','')">Save changes</button>
         <button class="ghost" onclick="ptProducts('${p.id}','${esc(p.business_name).replace(/'/g, '')}')">Products</button>
+        <button class="ghost" onclick="aplOpen('vendor','${p.owner_uid}','${esc(p.business_name).replace(/'/g, '')}')">📋 Documents</button>
         ${owed[p.id] ? `<button onclick="ptPay('${p.id}')">Pay vendor ${ugx(owed[p.id])}</button>` : ''}</div></div>`; }).join('') || '<p class="mut">No partner applications yet.</p>'}`;
   },
   async pporders(){
@@ -862,16 +892,29 @@ const VIEWS = {
   },
 
   async team(){
-    const {data,error} = await db.from('profiles').select('*').order('created_at'); if(error) throw error;
-    const ROLES = window.JT = {'Reception':'staff','Customer relations':'staff','Sales executive / Agent':'staff','Supervisor':'manager','Manager':'manager','Admin':'admin'};
-    $('#view').innerHTML = `<h2>Team (${data.length})</h2><div class="card"><b>Add or update an employee</b><p class="mut">Step 1: the employee creates a login at agent.html with their email. Step 2: fill this form with the same email. You can add as many employees as you need.</p>
-      <input id="tn" placeholder="Full name *"><input id="tp" type="tel" placeholder="Phone number *"><input id="te" type="email" placeholder="Their login email *">
-      <select id="tj" onchange="$('#ta').textContent='Access level: '+JT[this.value]">${Object.keys(ROLES).map(r => `<option>${r}</option>`).join('')}</select>
-      <div class="mut" id="ta">Access level: staff</div><button onclick="saveMember()">Save employee</button></div>`
-      + data.map(p => `<div class="card"><div class="row"><b>${esc(p.full_name||'(no name)')}</b><span class="pill gold">${esc(p.job_title||p.role)}</span></div><div class="mut">${esc(p.phone||'no phone')} · access: ${esc(p.role)}</div></div>`).join('');
+    const [st, nt] = await Promise.all([db.rpc('admin_staff_list'), db.rpc('team_notices_list')]); if(st.error) throw st.error; const data = st.data || [], N = nt.data || [];
+    const PRE = window.JT = {'Customer relations':['care',['care']],'Accountant':['accountant',['accounts']],'Velos Team Member (employee)':['employee',[]],'Reception / Staff':['staff',[]],'Supervisor':['manager',[]],'Manager':['manager',[]],'Admin':['admin',[]]};
+    const PN = {accounts:'Accounting system', care:'Customer care lookup', desk:'Team desk', orders:'Orders view'};
+    $('#view').innerHTML = `<h2>Team and access rights (${data.length})</h2><div class="card"><b>Give a person access</b><p class="mut">Step 1: the person creates a login at <b>agent.html</b> with their work email. Step 2: enter that same email here and choose their role. Accountants, customer relations and team members sign in at <b>team.html</b> (the Velos Team Portal). Supervisors, managers and admins sign in here.</p>
+      <input id="tn" placeholder="Full name"><input id="te" type="email" placeholder="Their login email *">
+      <select id="tj" onchange="tmPreset()">${Object.keys(PRE).map(r => `<option>${r}</option>`).join('')}</select>
+      <div class="mut">Extra rights (tick what this person may open in the Team Portal):</div>
+      <div class="row" style="justify-content:flex-start;gap:14px;flex-wrap:wrap">${Object.keys(PN).map(k => `<label><input type="checkbox" class="tp" value="${k}"> ${PN[k]}</label>`).join('')}</div>
+      <button onclick="tmSave()">Save access</button></div>`
+      + data.map(p => `<div class="card"><div class="row"><b>${esc(p.name||'(no name)')}</b><span class="pill gold">${esc(p.title||p.role)}</span></div><div class="mut">${esc(p.email||'')} · role: ${esc(p.role)} · rights: ${esc((p.perms||[]).map(k => PN[k]||k).join(', ')||'standard for the role')}</div>
+        <div class="row" style="justify-content:flex-start;gap:6px"><button class="ghost" onclick="tmEdit('${esc(p.email||'')}','${esc((p.name||'').replace(/'/g,''))}','${esc(p.role)}','${(p.perms||[]).join(',')}','${esc((p.title||'').replace(/'/g,''))}')">Change rights</button><button class="ghost" onclick="tmRemove('${p.id}','${esc((p.name||'').replace(/'/g,''))}')">Remove access</button></div></div>`).join('')
+      + `<h2>Notice board for the team</h2><div class="card"><input id="nn_t" placeholder="Title"><textarea id="nn_b" rows="3" style="width:100%" placeholder="Message to everyone in the Team Portal"></textarea><button onclick="tmNotice()">Post notice</button></div>`
+      + N.map(n => `<div class="card"><div class="row"><b>${esc(n.title)}</b><button class="ghost" onclick="tmNoticeDel('${n.id}')">Delete</button></div><div class="mut">${esc(n.body||'')}</div></div>`).join('');
   },
-
-
+  async emails(){
+    const r = await db.rpc('admin_email_list'); if(r.error) throw r.error; const L = r.data || [];
+    const bad = L.filter(x => x.status === 'failed').length, q = L.filter(x => x.status === 'queued').length;
+    $('#view').innerHTML = `<h2>Automatic emails</h2><p class="mut">Velos sends professional emails by itself: approvals, payment receipts, fee receipts and birthday cards, from info@thevelosgroup.com. ${q} waiting · ${bad} failed.</p>
+      <div class="card"><b>Send a payment receipt email by hand</b><p class="mut">Payments to partners, agents and restaurants email automatically when you record the payout. Use this for riders, technicians and security companies.</p>
+        <select id="em_r"><option value="rider">Rider</option><option value="technician">Technician</option><option value="security">Security company</option><option value="agent">Sales agent</option><option value="restaurant">Restaurant</option><option value="partner">Velos partner</option></select>
+        <input id="em_n" placeholder="Name"><input id="em_e" type="email" placeholder="Email address *"><input id="em_a" type="number" placeholder="Amount paid (UGX) *"><input id="em_f" placeholder="Reference, e.g. week 44"><textarea id="em_t" rows="2" style="width:100%" placeholder="Short personal note (optional)"></textarea><button onclick="emSend()">Send receipt email</button></div>`
+      + L.map(x => `<div class="card"><div class="row"><b>${esc(x.subject)}</b><span class="pill ${x.status==='sent'?'gold':''}">${esc(x.status)}</span></div><div class="mut">${esc(x.to_name||'')} &lt;${esc(x.to_email)}&gt; · ${esc(x.kind)} · ${new Date(x.created_at).toLocaleString('en-GB')}${x.last_error?' · <span style="color:var(--bad)">'+esc(x.last_error)+'</span>':''}</div>${x.status!=='sent'?`<button class="ghost" onclick="emRetry('${x.id}')">Send again</button>`:''}</div>`).join('') || '<p class="mut">No emails yet.</p>';
+  },
   async bookings(){
     const {data, error} = await db.rpc('admin_bookings'); if(error) throw error; const B = data || []; let due = []; if(me.role === 'admin'){ const dd = await db.rpc('admin_commit_due'); due = dd.data || []; }
     const fm = n => 'UGX ' + Math.round(n).toLocaleString('en-US'), when = d => new Date(d).toLocaleString('en-GB', {weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit', timeZone:'Africa/Kampala'});
@@ -1272,4 +1315,4 @@ async function importCatalog(){
 document.addEventListener('keydown', e => { if(e.key === 'Enter' && !$('#login').hidden) signIn(); });
 boot();
 </script><script src="velos-pw.js"></script>
-</body></html>
+<script src="velos-theme.js"></script><script>try{VelosTheme.init({db:(typeof db!=="undefined"?db:null),role:"staff",name:function(){try{return typeof me!=='undefined'&&me?me.full_name:''}catch(e){return""}}})}catch(e){}</script></body></html>

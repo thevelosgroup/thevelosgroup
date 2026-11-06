@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><script src="velos-splash.js"></script><link rel="manifest" href="manifest-rider.json"><meta name="theme-color" content="#080d1f"><link rel="apple-touch-icon" href="icon-192.png"><script src="velos-pwa.js" defer></script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rider Portal | Velos Foods</title><meta name="robots" content="noindex"><link rel="stylesheet" href="foods.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-people-docs.js"></script><script src="velos-push.js"></script><script src="velos-proof.js"></script><script src="velos-alerts.js"></script><script src="velos-shell.js"></script></head><body><div class="w" style="max-width:720px"><div id="v"><p class="m">Loading…</p></div></div><div id="toast" hidden></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-stamp.js"></script><script src="velos-people-docs.js"></script><script src="velos-push.js"></script><script src="velos-proof.js"></script><script src="velos-alerts.js"></script><script src="velos-shell.js"></script></head><body><div class="w" style="max-width:720px"><div id="v"><p class="m">Loading…</p></div></div><div id="toast" hidden></div>
 <script>
 var S=window.VELOS_SUPABASE,db=supabase.createClient(S.url,S.key),$=function(i){return document.getElementById(i)},V=function(h){$('v').innerHTML=h},PT=null,OSEEN={},PU={},ALI=false;
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})},ugx=function(n){return 'UGX '+Math.round(n||0).toLocaleString('en-US')};
@@ -63,4 +63,4 @@ async function go2(n,s){
   var r=await db.rpc('rider_set_status',{p_order_no:n,p_status:s});toast(r.error?r.error.message:'Updated',!!r.error);dash()}
 boot();
 </script><script src="velos-pw.js"></script>
-</body></html>
+<script src="velos-theme.js"></script><script>try{VelosTheme.init({db:(typeof db!=="undefined"?db:null),role:"rider",name:function(){try{return ''}catch(e){return""}}})}catch(e){}</script></body></html>

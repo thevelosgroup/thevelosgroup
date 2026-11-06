@@ -42,12 +42,24 @@
   +'.hm-w{max-width:1180px;margin:0 auto;padding:6px 16px}'
   +'.hm-sell{margin:26px auto 6px;max-width:1148px;border-radius:26px;padding:30px 24px;background:linear-gradient(120deg,#1b2f7a,#0f1a47 60%,#2a2260);display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap;border:1px solid #2a3560}'
   +'.hm-sell b{display:block;font:600 clamp(24px,4vw,36px)/1.1 "Cormorant Garamond","Fraunces",Georgia,serif;color:#f4f1ea}.hm-sell span{color:#b7c1e3;font-size:15px}.hm-sell a{background:#e8c766;color:#080d1f;font:700 15px system-ui;padding:14px 26px;border-radius:99px;text-decoration:none;white-space:nowrap}'
+  +'.hm-jh{background:#080d1f;margin:34px 0 0;padding:34px max(16px,calc((100% - 1148px)/2)) 0}.hm-jh h2{margin:0;font:600 clamp(26px,4.4vw,40px)/1.1 "Cormorant Garamond","Fraunces",Georgia,serif;color:#f4f1ea}.hm-jh p{margin:4px 0 0;color:#b7c1e3;font-size:15px}.hm-jh .k{font:700 11px system-ui;letter-spacing:.14em;color:#e8c766;text-transform:uppercase}'
+  +'.hm-j{flex:0 0 268px;min-height:168px;border-radius:24px;text-decoration:none;color:#fff;display:flex;flex-direction:column;justify-content:space-between;gap:10px;padding:18px;border:1px solid rgba(255,255,255,.12);box-shadow:0 10px 26px rgba(0,0,0,.3)}'
+  +'.hm-j i{font-style:normal;font-size:44px;line-height:1}.hm-j b{display:block;font:700 19px/1.15 system-ui}.hm-j small{display:block;font:500 13px/1.35 system-ui;opacity:.88;margin-top:4px}.hm-j u{text-decoration:none;font:700 13px system-ui;background:rgba(255,255,255,.18);border-radius:99px;padding:8px 14px;align-self:flex-start}'
+  +'.hm-jc1{background:linear-gradient(145deg,#1b2f7a,#0f1a47)}.hm-jc2{background:linear-gradient(145deg,#1f8a6a,#0d4a42)}.hm-jc3{background:linear-gradient(145deg,#c2761c,#6d3a0e)}.hm-jc4{background:linear-gradient(145deg,#8a2a6a,#451a4a)}.hm-jc5{background:linear-gradient(145deg,#b3392f,#6e1c26)}'
+  +'.hm-jtr{display:flex;gap:16px;width:max-content;animation:hmrun 48s linear infinite}.hm-run:hover .hm-jtr{animation-play-state:paused}.hm-jtr.slow{animation-duration:62s;animation-direction:reverse}'
+  +'@media(prefers-reduced-motion:reduce){.hm-jtr{animation:none}}'
   +'.hm-tr3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px auto 30px;max-width:1148px;padding:0 16px}.hm-tr3 div{text-align:center;padding:16px 8px;border:1px solid #2a3560;border-radius:18px;background:#0f1730;color:#f4f1ea}.hm-tr3 i{font-style:normal;font-size:30px;display:block;margin-bottom:6px}.hm-tr3 b{font:600 14px system-ui}'
   +'@media(prefers-reduced-motion:reduce){.hm-tr{animation:none}.hm-run{overflow-x:auto}}';
   var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
 
   function tilesHtml(){ var h = TILES.map(function(t){ return '<a class="hm-t" href="' + t[3] + '"><i>' + t[0] + '</i><div><b>' + esc(t[1]) + '</b><small>' + esc(t[2]) + '</small></div></a>'; }).join(''); return h + h; }
   var tr = $('hm-tr'); if(tr) tr.innerHTML = tilesHtml();
+  var JOIN = [['🏪','Become a Velos Partner','Open your own store and sell to all of East Africa','vendor.html','Open my store','hm-jc1'],['🛵','Become a Rider','Earn on every delivery you complete','rider.html','Start riding','hm-jc2'],['🛠️','Become a Technician','Get verified jobs from customers near you','technicians.html','Join the network','hm-jc3'],['🍽️','List your restaurant','Reach more hungry customers with Velos Foods','restaurant.html','Add my restaurant','hm-jc4']];
+  var CAREERS = [['📣','Sales Agent, Uganda','Represent Velos and earn commission on every sale','careers.html#agents','See requirements','hm-jc5'],['🇰🇪','Sales Executive, Kenya','We are appointing a sales executive to represent Velos in Kenya','careers.html#agents','Apply for Kenya','hm-jc1'],['🛠️','Technician','Skilled trades wanted across Kampala','technicians.html','Apply now','hm-jc3'],['💼','More careers','Operations, support and technology roles','careers.html#openings','View open roles','hm-jc2']];
+  function joinHtml(L){ var h = L.map(function(t){ return '<a class="hm-j ' + t[5] + '" href="' + t[3] + '"><i>' + t[0] + '</i><div><b>' + esc(t[1]) + '</b><small>' + esc(t[2]) + '</small></div><u>' + esc(t[4]) + ' →</u></a>'; }).join(''); return h + h + h + h; }
+  var jn = $('hm-join'); if(jn) jn.innerHTML = joinHtml(JOIN);
+  var cr = $('hm-careers'); if(cr) cr.innerHTML = joinHtml(CAREERS);
+
 
   /* ---------- search ---------- */
   var box = $('hmq'), res = $('hmr'), timer = 0, seq = 0;

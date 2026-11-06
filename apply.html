@@ -1,0 +1,75 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080d1f">
+<title>Requirements and documents | The Velos Group</title><meta name="robots" content="noindex"><link rel="icon" href="favicon.png">
+<style>
+:root{--bg:#080d1f;--card:#0f1730;--line:#2a3560;--gold:#e8c766;--txt:#f4f1ea;--mut:#a3adc6;--ok:#7fd99a;--bad:#ff8a80}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.55 Inter,system-ui,sans-serif}
+.w{max-width:760px;margin:0 auto;padding:16px 14px 70px}h1{font-family:Georgia,serif;color:var(--gold);margin:6px 0 4px;font-size:26px}h2{font-family:Georgia,serif;margin:22px 0 8px;font-size:20px}
+.c{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
+input,select,textarea{width:100%;padding:12px;margin:5px 0;background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:8px;font:inherit}textarea{min-height:76px}
+button,a.b{display:inline-block;text-align:center;padding:11px 15px;border:0;border-radius:8px;background:var(--gold);color:#080d1f;font-weight:700;cursor:pointer;font-size:15px;text-decoration:none}
+button.g{background:none;border:1px solid var(--line);color:var(--txt)}button:disabled{opacity:.5}
+.m{color:var(--mut);font-size:13px}.bad{color:var(--bad)}.ok{color:var(--ok)}.row{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.bar{height:10px;background:#1a2447;border-radius:99px;overflow:hidden;margin:8px 0}.bar i{display:block;height:100%;background:linear-gradient(90deg,#c9a227,#e8c766);width:0}
+.pill{font-size:12px;padding:2px 9px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}.pill.ok{border-color:#2f7a4a;color:var(--ok)}.pill.bad{border-color:#8a3a35;color:var(--bad)}
+.req{border-top:1px solid var(--line);padding:12px 0}.req:first-child{border-top:0}label.l{font-size:14px;font-weight:600;display:block;margin-top:8px}
+.seg{display:flex;gap:8px;flex-wrap:wrap}.seg button{flex:1;min-width:150px}.seg button.on{background:var(--gold);color:#080d1f}.seg button:not(.on){background:none;border:1px solid var(--line);color:var(--txt)}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ok);color:#06210f;padding:10px 16px;border-radius:99px;font-weight:700}
+.lock{display:flex;gap:10px;align-items:flex-start;background:#0b1430;border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0;font-size:14px;color:var(--mut)}
+</style></head><body><div class="w"><div id="v"><p class="m">Loading…</p></div></div><div id="toast" hidden></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script>
+<script>
+var S=window.VELOS_SUPABASE,db=supabase.createClient(S.url,S.key),$=function(i){return document.getElementById(i)},Q=new URLSearchParams(location.search);
+var KIND=['agent','rider','technician','vendor','restaurant'].indexOf(Q.get('kind'))>-1?Q.get('kind'):'agent';
+var LOGIN={agent:'agent.html',rider:'rider.html',technician:'technicians.html',vendor:'vendor.html',restaurant:'restaurant.html'};
+var COUNTRIES=['Uganda','Kenya','Rwanda','Tanzania','South Sudan','DR Congo','Burundi','Other'];
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
+function toast(m,b){var t=$('toast');t.textContent=m;t.style.background=b?'#b3261e':'';t.style.color=b?'#fff':'';t.hidden=false;setTimeout(function(){t.hidden=true},2600)}
+var ST={country:Q.get('country')||'Uganda',variant:Q.get('variant')||'licensed',details:{},files:[],spec:null,uid:null};
+async function boot(){
+  var s=(await db.auth.getSession()).data.session;
+  if(!s){$('v').innerHTML='<h1>Requirements and documents</h1><div class="c"><p>Please sign in first, so your documents are saved safely to your own application.</p><a class="b" href="'+LOGIN[KIND]+'">Sign in or create a login</a><p class="m">After you sign in, open the link in your portal that says <b>Upload my documents</b>.</p></div>';return}
+  ST.uid=s.user.id;
+  var r=await db.rpc('apply_mine',{p_kind:KIND});if(r.error){$('v').innerHTML='<div class="c bad">'+esc(r.error.message)+'<p class="m">If this says the function does not exist, Velos still needs to finish the latest database update.</p></div>';return}
+  var d=r.data||{};ST.details=d.details||{};ST.files=d.files||[];
+  if(ST.details.country)ST.country=ST.details.country;if(ST.details.variant)ST.variant=ST.details.variant;
+  await spec();render();
+}
+async function spec(){var r=await db.rpc('apply_spec',{p_kind:KIND,p_country:ST.country,p_variant:KIND==='vendor'||KIND==='restaurant'?ST.variant:null});ST.spec=r.data}
+function fileOf(k){var L=ST.files.filter(function(f){return f.req_key===k});return L[L.length-1]}
+function counts(){var req=0,have=0;(ST.spec.files||[]).forEach(function(f){if(f.required){req++;var x=fileOf(f.key);if(x&&x.status!=='rejected')have++}});return[have,req]}
+function render(){
+  var sp=ST.spec,c=counts(),pct=c[1]?Math.round(c[0]*100/c[1]):100;
+  var h='<h1>'+esc(sp.title)+'</h1><p class="m">'+esc(sp.intro)+'</p>';
+  h+='<div class="lock"><span>🔒</span><span>Your documents are private. They are stored in a protected area and can be opened only by the Velos verification team. We use them only to verify you, and we never share them.</span></div>';
+  h+='<div class="c"><div class="row"><b>Your progress</b><span class="m">'+c[0]+' of '+c[1]+' required documents uploaded</span></div><div class="bar"><i style="width:'+pct+'%"></i></div></div>';
+  h+='<div class="c"><label class="l">Country</label><select id="co" onchange="chg()">'+COUNTRIES.map(function(x){return'<option'+(x===ST.country||(x==='Other'&&COUNTRIES.indexOf(ST.country)<0)?' selected':'')+'>'+x+'</option>'}).join('')+'</select>'
+   +'<p class="m">The list below changes with your country (for example the local leader letter and the school certificate).</p>';
+  if(KIND==='vendor'||KIND==='restaurant')h+='<label class="l">Type of business</label><div class="seg"><button class="'+(ST.variant==='licensed'?'on':'')+'" onclick="setV(\'licensed\')">Registered business<br><small>I have a trading licence</small></button><button class="'+(ST.variant==='small'?'on':'')+'" onclick="setV(\'small\')">Small business<br><small>No licence or registration certificate</small></button></div>';
+  h+='</div><div class="c"><h2 style="margin-top:0">Your details</h2>';
+  (sp.fields||[]).forEach(function(f){var v=ST.details[f.key]||'';h+='<label class="l">'+esc(f.label)+(f.required?' *':'')+'</label>'+(f.type==='textarea'?'<textarea id="f-'+f.key+'">'+esc(v)+'</textarea>':'<input id="f-'+f.key+'" value="'+esc(v)+'">')});
+  h+='<button style="margin-top:10px" onclick="saveD()">Save my details</button> <span id="sd" class="m"></span></div>';
+  h+='<div class="c"><h2 style="margin-top:0">Documents to upload</h2><p class="m">Take clear, well-lit photos or scans. Photos are made smaller automatically. PDF files also work.</p>';
+  (sp.files||[]).forEach(function(f){var x=fileOf(f.key);
+    h+='<div class="req"><div class="row"><b>'+esc(f.label)+(f.required?' *':' <span class="m">(optional)</span>')+'</b>'+(x?'<span class="pill '+(x.status==='verified'?'ok':x.status==='rejected'?'bad':'')+'">'+(x.status==='verified'?'✓ Verified':x.status==='rejected'?'Please upload again':'Uploaded')+'</span>':'')+'</div>'
+     +(f.help?'<div class="m">'+esc(f.help)+'</div>':'')+(x&&x.note?'<div class="m '+(x.status==='rejected'?'bad':'')+'">Velos note: '+esc(x.note)+'</div>':'')
+     +'<div class="row" style="margin-top:6px;justify-content:flex-start;gap:8px">'+(x&&x.status!=='verified'?'':'')+(x&&x.status==='verified'?'':'<input type="file" id="u-'+f.key+'" accept="image/*,application/pdf" style="flex:1;min-width:180px;margin:0"><button onclick="up(\''+f.key+'\')">'+(x?'Replace':'Upload')+'</button>')
+     +(x?'<button class="g" onclick="view(\''+x.path+'\')">View</button>'+(x.status!=='verified'?'<button class="g" onclick="rm(\''+x.id+'\')">Remove</button>':''):'')+'</div></div>'});
+  h+='</div><p class="m">When everything marked * is uploaded, the Velos team reviews it and approves you. You will get an email when you are approved.</p><p><a href="'+LOGIN[KIND]+'" class="b">Back to my portal</a></p>';
+  $('v').innerHTML=h;
+}
+async function chg(){ST.country=$('co').value;await spec();render()}
+async function setV(v){ST.variant=v;await spec();render()}
+function readDetails(){var o={country:ST.country};if(KIND==='vendor'||KIND==='restaurant')o.variant=ST.variant;(ST.spec.fields||[]).forEach(function(f){var e=$('f-'+f.key);if(e)o[f.key]=e.value.trim()});return o}
+async function saveD(){var o=readDetails();var r=await db.rpc('apply_details_save',{p_kind:KIND,p_data:o});if(r.error)return toast(r.error.message,true);ST.details=o;$('sd').textContent='Saved ✓';toast('Details saved ✓')}
+function shrink(f){return new Promise(function(ok){if(!/^image\//.test(f.type))return ok(f);var i=new Image(),u=URL.createObjectURL(f);i.onload=function(){var M=1600,s=Math.min(1,M/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=Math.round(i.width*s);c.height=Math.round(i.height*s);c.getContext('2d').drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(function(b){ok(b||f)},'image/jpeg',.82)};i.onerror=function(){ok(f)};i.src=u})}
+async function up(k){
+  var inp=$('u-'+k),f=inp&&inp.files[0];if(!f)return toast('Choose a file first',true);if(f.size>15*1024*1024)return toast('That file is too large (max 15 MB).',true);
+  toast('Uploading…');var b=await shrink(f),isPdf=f.type==='application/pdf',ext=isPdf?'pdf':'jpg',path='apply/'+ST.uid+'/'+KIND+'/'+k+'-'+Date.now()+'.'+ext;
+  var u=await db.storage.from('people-docs').upload(path,b,{contentType:isPdf?'application/pdf':'image/jpeg'});if(u.error)return toast(u.error.message,true);
+  var r=await db.rpc('apply_file_add',{p_kind:KIND,p_key:k,p_path:path});if(r.error)return toast(r.error.message,true);
+  var m=await db.rpc('apply_mine',{p_kind:KIND});ST.files=(m.data&&m.data.files)||[];render();toast('Uploaded ✓');
+}
+async function view(p){var r=await db.storage.from('people-docs').createSignedUrl(p,120);if(r.error)return toast(r.error.message,true);window.open(r.data.signedUrl,'_blank')}
+async function rm(id){if(!confirm('Remove this file?'))return;var r=await db.rpc('apply_file_remove',{p_id:id});if(r.error)return toast(r.error.message,true);ST.files=ST.files.filter(function(x){return x.id!==id});render()}
+boot();
+</script></body></html>

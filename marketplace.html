@@ -10,6 +10,11 @@
 .qty{display:flex;align-items:center;gap:8px}.qty button{padding:6px 12px}
 .cb{position:fixed;right:14px;bottom:14px;z-index:40;box-shadow:0 6px 24px rgba(0,0,0,.5);padding:14px 18px}
 .sh{position:fixed;inset:0;background:rgba(4,8,20,.85);z-index:50;display:flex;align-items:flex-end;justify-content:center}.sh .bx{background:var(--card);width:100%;max-width:560px;max-height:92vh;overflow:auto;padding:18px;border-radius:18px 18px 0 0;border:1px solid var(--line)}@media(min-width:900px){.sh{align-items:center}.sh .bx{border-radius:18px}}
+.mq{overflow:hidden;margin:10px -14px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent)}.mqt{display:flex;gap:12px;width:max-content;animation:mqrun var(--d,45s) linear infinite}.mq:hover .mqt{animation-play-state:paused}@keyframes mqrun{to{transform:translateX(-50%)}}
+.ad{flex:0 0 300px;min-height:150px;border-radius:18px;padding:16px;color:#fff;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;cursor:pointer;background:linear-gradient(135deg,#1b2f7a,#0f1a47);background-size:cover;background-position:center;position:relative;overflow:hidden;border:1px solid var(--line)}
+.ad:before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(4,8,20,.1),rgba(4,8,20,.82))}.ad>*{position:relative}.ad .tag{font:700 10px system-ui;letter-spacing:.14em;background:var(--gold);color:#080d1f;padding:3px 8px;border-radius:99px;align-self:flex-start;margin-bottom:auto}.ad b{font-size:18px;line-height:1.15}.ad small{opacity:.9;font-size:13px}.ad .pp{color:var(--gold);font-weight:700}
+.rc{flex:0 0 150px;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column}.rc img,.rc .ph{width:100%;height:110px;object-fit:cover;background:#14265f;display:flex;align-items:center;justify-content:center;font-size:34px}.rc div{padding:8px;font-size:13px}.rc b{display:block;font-size:13.5px;line-height:1.2}.rc span{color:var(--gold);font-weight:700}
+@media(prefers-reduced-motion:reduce){.mqt{animation:none}.mq{overflow-x:auto}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-txid.js"></script><script src="velos-vendor-cats.js"></script></head>
 <body><div class="w"><div class="hd"><a href="index.html"><img src="logo-mark.png" alt="The Velos Group">Velos</a><div><a href="foods.html">Foods</a> &nbsp; <a href="#/track">Track order</a> &nbsp; <a href="vendor.html">Sell on Velos</a></div></div><div id="v"></div></div><div id="toast" hidden></div><div id="sheet"></div>
@@ -26,12 +31,17 @@ function route(){
   if(p[0] === 'm') MODE = p[1] === 'wholesale' ? 'wholesale' : 'retail';
   home();
 }
+
+function adHtml(x, toStore){ var bg = x.image_url ? ' style="background-image:url(' + esc(x.image_url) + ')"' : ''; return '<div class="ad"' + bg + ' onclick="' + (toStore ? "location.hash=\'#/s/" + x.partner_id + "\'" : (x.product_id ? "chg(\'" + x.product_id + "\',1)" : "window.scrollTo({top:0,behavior:\'smooth\'})")) + '"><span class="tag">AD · ' + esc(x.store || 'OFFER') + '</span><b>' + esc(x.title) + '</b>' + (x.body ? '<small>' + esc(x.body) + '</small>' : '') + (x.promo_price_ugx ? '<span class="pp">' + ugx(x.promo_price_ugx) + '</span>' : '') + (x.ends_on ? '<small>Ends ' + esc(x.ends_on) + '</small>' : '') + '</div>'; }
+function marquee(items, dur){ if(!items.length) return ''; var h = items.join(''), rep = items.length < 4 ? h + h + h + h : h + h; return '<div class="mq"><div class="mqt" style="--d:' + (dur || 45) + 's">' + rep + '</div></div>'; }
+async function loadAds(el, partner, toStore){ try{ var r = await db.rpc('public_promos', {p_partner:partner || null}), L = r.data || []; if(L.length && $(el)) $(el).innerHTML = '<h2 style="margin:6px 0 0">Offers</h2>' + marquee(L.map(function(x){ return adHtml(x, toStore); }), 40); }catch(e){} }
 async function home(){
   var cats = VCATS;
   V('<div class="sb"><input id="q" placeholder="Search products, shops, hotels, venues…" onkeydown="if(event.key===\'Enter\')go()"></div>'
     + '<div class="mode"><button id="mr" class="' + (MODE === 'retail' ? 'on' : '') + '" onclick="setMode(\'retail\')">🛍️ Retail · single items</button><button id="mw" class="' + (MODE === 'wholesale' ? 'on' : '') + '" onclick="setMode(\'wholesale\')">📦 Wholesale · bulk</button></div>'
     + '<div class="tiles">' + cats.map(function(c){ return '<button class="tile ' + (CAT === c.k ? 'on' : '') + '" onclick="setCat(\'' + c.k + '\')"><span>' + c.i + '</span>' + esc(c.l) + '</button>'; }).join('') + '</div>'
-    + '<h2 id="ttl">' + (CAT ? esc(vcat(CAT).l) : 'All stores') + '</h2><div id="vl" class="vg"><p class="m">Loading…</p></div>');
+    + '<div id="ads"></div><h2 id="ttl">' + (CAT ? esc(vcat(CAT).l) : 'All stores') + '</h2><div id="vl" class="vg"><p class="m">Loading…</p></div>');
+  loadAds('ads', null, true);
   var r = await db.rpc('public_partners', {p_category:CAT || null, p_mode:(vcat(CAT).kind === 'goods' || !CAT) ? MODE : null, p_q:null}), L = r.data || [];
   $('vl').innerHTML = L.length ? L.map(vcard).join('') : '<div class="c" style="grid-column:1/-1"><p>No stores here yet.</p><p class="m">New partners are joining every week. <a class="gold" href="vendor.html">Open your own store on Velos</a>.</p></div>';
 }
@@ -52,8 +62,9 @@ async function store(id){
   STORE = r.data; CART = lsGet('velos_cart_' + id) || {}; var p = STORE.partner, c = vcat(p.category), hotel = p.kind !== 'goods', P = STORE.products, cats = {};
   P.forEach(function(x){ var k = x.category || 'Items'; (cats[k] = cats[k] || []).push(x); });
   V('<p><a class="gold" href="#/">← All stores</a></p><div class="c" style="padding:0;overflow:hidden"><div style="height:140px;background:' + (p.cover_url ? 'url(' + esc(p.cover_url) + ') center/cover' : 'linear-gradient(135deg,#14265f,#080d1f)') + '"></div><div style="padding:14px"><h1>' + esc(p.business_name) + '</h1><div class="m">' + esc(c.l) + ' · ' + esc(p.city || '') + ', ' + esc(p.country) + '</div>' + (p.description ? '<p>' + esc(p.description) + '</p>' : '') + '</div></div>'
+    + '<div id="ads"></div>' + (P.length >= 2 ? '<h2 style="margin:6px 0 0">Browse the shop</h2>' + marquee(P.filter(function(x){ return x.in_stock; }).map(function(x){ return '<div class="rc" onclick="chg(\'' + x.id + '\',1)">' + (x.image_url ? '<img src="' + esc(x.image_url) + '" alt="" loading="lazy">' : '<div class="ph">📦</div>') + '<div><b>' + esc(x.name) + '</b><span>' + ugx(x.price_ugx) + '</span></div></div>'; }), 50) + '<p class="m" style="margin:-4px 0 6px">Tap a card to add it to your cart.</p>' : '')
     + (hotel ? '<p class="m">Choose a room or venue, then Velos confirms your booking after your payment.</p>' : '') + (P.length ? Object.keys(cats).map(function(k){ return '<h2>' + esc(k) + '</h2><div class="pg">' + cats[k].map(function(x){ return pcard(x); }).join('') + '</div>'; }).join('') : '<div class="c"><p class="m">This store is adding its products. Check back soon.</p></div>') + '<button class="cb" id="cb" onclick="cart()" hidden></button>');
-  cartBtn();
+  cartBtn(); loadAds('ads', id, false);
 }
 function pcard(x){ var n = CART[x.id] ? CART[x.id].q : 0; return '<div class="pc">' + (x.image_url ? '<img src="' + esc(x.image_url) + '" alt="" loading="lazy">' : '<div class="ph">📦</div>') + '<b>' + esc(x.name) + '</b>' + (x.description ? '<span class="m">' + esc(x.description).slice(0, 70) + '</span>' : '') + '<span class="pr">' + ugx(x.price_ugx) + ' / ' + esc(x.unit) + '</span>' + (x.sale_mode === 'wholesale' ? '<span class="pill">Wholesale · min ' + x.min_qty + '</span>' : '') + (x.in_stock ? '<div class="qty" id="q-' + x.id + '">' + qtyHtml(x, n) + '</div>' : '<span class="pill bad">Out of stock</span>') + '</div>'; }
 function qtyHtml(x, n){ return n ? '<button class="g" onclick="chg(\'' + x.id + '\',-1)">−</button><b>' + n + '</b><button onclick="chg(\'' + x.id + '\',1)">+</button>' : '<button class="full" style="margin:0" onclick="chg(\'' + x.id + '\',1)">Add</button>'; }

@@ -5,7 +5,7 @@
 .steps{display:flex;flex-direction:column;gap:8px}.st{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:12px}.st i{font-style:normal;font-size:20px}.st.done{border-color:var(--ok)}
 .ed{border:1px solid var(--gold);border-radius:12px;padding:12px;margin:10px 0;background:rgba(232,199,102,.05)}.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}select,textarea{width:100%;padding:12px;margin:5px 0;background:var(--bg,#080d1f);color:var(--txt);border:1px solid var(--line);border-radius:8px;font:inherit}label.m{display:block;margin-top:6px}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script><script src="velos-txid.js"></script><script src="velos-vendor-cats.js"></script><script src="velos-shell.js"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-stamp.js"></script><script src="velos-receipts.js"></script><script src="velos-myreceipts.js"></script><script src="velos-safe.js"></script><script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script><script src="velos-txid.js"></script><script src="velos-vendor-cats.js"></script><script src="velos-shell.js"></script></head>
 <body><div class="w" style="max-width:900px"><div id="v"><p class="m">Loading…</p></div></div><div id="toast" hidden></div>
 <script>
 var S = window.VELOS_SUPABASE, db = supabase.createClient(S.url, S.key), $ = function(i){ return document.getElementById(i); }, V = function(h){ $('v').innerHTML = h; };
@@ -55,6 +55,7 @@ function onboarding(){
     + '<div class="st ' + (feeDone ? 'done' : '') + '"><i>' + (feeDone ? '✅' : feeSent ? '⏳' : '1️⃣') + '</i><div><b>Pay the one-time registration fee: ' + ugx(fee) + '</b><div class="m">' + (feeDone ? 'Confirmed' : feeSent ? 'Received. Velos is confirming it.' : 'Pay by mobile money below, then send the transaction ID.') + '</div></div></div>'
     + '<div class="st ' + (signed ? 'done' : '') + '"><i>' + (signed ? '✅' : '2️⃣') + '</i><div><b>Sign the partner agreement</b><div class="m">' + (signed ? 'Signed copy received. Velos keeps a copy on file.' : 'Download it, sign it, then upload the signed copy.') + '</div></div></div>'
     + '<div class="st"><i>3️⃣</i><div><b>Velos uploads your first products</b><div class="m">Send your product list, prices and photos to Velos. After that you manage everything yourself.</div></div></div></div>';
+  h += '<div class="c"><h2>Upload your business documents</h2><p class="m">Velos verifies every store. Registered businesses upload their trading licence and TIN. Small businesses without a licence use a letter from the owner\'s LC1 chairperson. Your documents are private.</p><a class="b" href="apply.html?kind=vendor" style="display:inline-block;text-decoration:none">Open my documents checklist</a></div>';
   if(!feeDone && !feeSent) h += '<div class="c"><h2>Pay the registration fee</h2><div>MTN: <b>' + esc(ST.site_pay_mtn_number || '') + '</b> · ' + esc(ST.site_pay_mtn_name || '') + '</div><div>Airtel: <b>' + esc(ST.site_pay_airtel_number || '') + '</b> · ' + esc(ST.site_pay_airtel_name || '') + '</div><select id="fm"><option value="mtn">Paid with MTN</option><option value="airtel">Paid with Airtel</option></select><input id="fr" placeholder="Transaction ID *"><input id="fq" type="tel" placeholder="Phone you paid from *" value="' + esc(ME.phone) + '"><button class="full" onclick="feeSend()">I have paid. Submit</button><p id="fe" class="m"></p></div>';
   if(!signed) h += '<div class="c"><h2>Partner agreement</h2><p class="m">Already signed by Velos. Print, sign and stamp it, then take a clear photo or scan and upload it here.</p><button onclick="agreementPdf()">📄 Download agreement (PDF)</button><input type="file" id="af" accept="image/*,application/pdf" style="margin-top:10px"><button class="full" onclick="agreementUp()">Upload signed copy</button><p id="ae" class="m"></p></div>';
   V(h + '<button class="g" onclick="out()">Sign out</button>');
@@ -90,7 +91,7 @@ async function agreementPdf(){
     h2('9. Data and privacy'); p('Each party will protect customer information and use it only to fulfil orders. Velos keeps the signed copy of this agreement and the Partner\'s business records on file.');
     h2('10. Term and law'); p('This agreement runs until either party ends it with 30 days\' written notice, or earlier under clause 8. It is governed by the laws of Uganda.');
     if(y > 190) np(); y += 8; doc.setDrawColor(GR[0], GR[1], GR[2]); doc.setLineWidth(.3);
-    if(sig){ try{ doc.addImage(sig, 'PNG', M, y, 38, 25); }catch(e){} } doc.line(M, y + 27, M + 70, y + 27); doc.line(W - M - 70, y + 27, W - M, y + 27);
+    if(sig){ try{ doc.addImage(sig, 'PNG', M, y, 38, 25); }catch(e){} } try{ if(window.VelosStamp) await VelosStamp.place(doc, M + 40, y - 4, 32, {label:'OFFICIAL'}); }catch(e){} doc.line(M, y + 27, M + 70, y + 27); doc.line(W - M - 70, y + 27, W - M, y + 27);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(TX[0], TX[1], TX[2]); doc.text('For The Velos Group', M, y + 32); doc.text('For ' + ME.business_name, W - M - 70, y + 32);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(GR[0], GR[1], GR[2]); doc.text('Authorised signatory (pre-signed)', M, y + 36.5); doc.text('Name, signature, stamp and date', W - M - 70, y + 36.5);
     foot(); doc.save('Velos-Partner-Agreement-' + ME.agreement_no + '.pdf'); toast('Agreement downloaded ✓');
@@ -100,17 +101,29 @@ async function agreementPdf(){
 /* ---------- dashboard ---------- */
 function show(){
   VS.frame({brand:'VELOS PARTNER', title:ME.business_name, who:ME.business_name, bodyId:'body', signout:'out()', pills:'<span class="pill">' + esc(vcat(ME.category).l) + '</span> <span class="pill ok">● Store live</span>',
-    items:[{id:'home', icon:'📊', label:'Dashboard', short:'Home', note:'Sales and what needs you'}, {id:'prod', icon:'📦', label:'Products', short:'Products', note:'Add, edit, hide, delete'}, {id:'ord', icon:'🔔', label:'Orders', short:'Orders', note:'Orders to pack'}, {id:'pay', icon:'💰', label:'Earnings', short:'Money', note:'What Velos owes you'}, {id:'store', icon:'🏪', label:'My store', short:'Store', note:'Profile, logo, payout details'}],
+    items:[{id:'home', icon:'📊', label:'Dashboard', short:'Home', note:'Sales and what needs you'}, {id:'prod', icon:'📦', label:'Products', short:'Products', note:'Add, edit, hide, delete'}, {id:'ord', icon:'🔔', label:'Orders', short:'Orders', note:'Orders to pack'}, {id:'pay', icon:'💰', label:'Earnings', short:'Money', note:'What Velos owes you'}, {id:'promo', icon:'📣', label:'Promotions', short:'Promos', note:'Ads on the Velos site'}, {id:'store', icon:'🏪', label:'My store', short:'Store', note:'Profile, logo, payout details'}],
     start:TAB, pick:function(id){ tab(id); }});
   tab(TAB);
 }
-function tab(t){ TAB = t; VS.active(t); ({home:home, prod:products, ord:orders, pay:earnings, store:storeTab})[t](); }
+function tab(t){ TAB = t; VS.active(t); ({home:home, prod:products, ord:orders, pay:earnings, promo:promos, store:storeTab})[t](); }
 function bd(){ return $('body'); }
 async function home(){
   bd().innerHTML = '<p class="m">Loading…</p>'; var d = (await db.rpc('partner_dashboard')).data || {};
   bd().innerHTML = '<div class="stats"><div class="c stat"><b>' + (d.new_orders || 0) + '</b>New orders to pack</div><div class="c stat"><b>' + ugx(d.sales_today) + '</b>Sales today</div><div class="c stat"><b>' + ugx(d.sales_month) + '</b>Sales this month</div><div class="c stat"><b>' + ugx(d.owed_now) + '</b>Velos owes you</div></div>'
     + '<div class="c"><div class="row"><b>Your catalogue</b><span class="pill">' + (d.live_products || 0) + ' live of ' + (d.products || 0) + '</span></div><p class="m">Customers see items that are active and in stock. Keep prices and stock up to date.</p><button onclick="tab(\'prod\')">Manage products</button></div>'
+    + '<div id="ins"></div>'
     + '<div class="c"><b>How Velos pays you</b><p class="m">Customers pay Velos. After your order is delivered, the order value minus Velos commission is added to what Velos owes you, then paid to your registered account.</p></div>';
+  insights();
+}
+async function insights(){
+  try{ var d = (await db.rpc('partner_insights')).data; if(!d || !$('ins')) return; var h = '', li = function(L, f){ return L.map(f).join(''); };
+    if(d.top && d.top.length) h += '<div class="c" style="border-color:#2f7a4a"><b>🏆 Your best sellers (last 30 days)</b>' + li(d.top, function(x, i){ return '<div class="row"><span>' + (i + 1) + '. ' + esc(x.name) + '</span><b>' + x.sold + ' sold</b></div>'; }) + '<p class="m">Great work. Keep these in stock: Velos recognises its top performers.</p></div>';
+    if(d.rising && d.rising.length) h += '<div class="c"><b>📈 Rising</b>' + li(d.rising, function(x){ return '<div class="row"><span>' + esc(x.name) + '</span><b class="ok">+' + x.change_pct + '%</b></div>'; }) + '</div>';
+    if(d.declining && d.declining.length) h += '<div class="c" style="border-color:#8a6a1f"><b>📉 Needs attention</b>' + li(d.declining, function(x){ return '<div class="row"><span>' + esc(x.name) + '</span><b class="bad">' + x.change_pct + '%</b></div>'; }) + '<p class="m">These sold less than before. Check the price, the photo and the stock, or run a promotion.</p></div>';
+    if(d.no_sales && d.no_sales.length) h += '<div class="c"><b>💤 No sales in 30 days</b><p class="m">' + d.no_sales.map(function(x){ return esc(x.name); }).join(', ') + '. Consider a promotion or a better photo.</p></div>';
+    if(d.months && (+d.months.this_month || +d.months.last_month)) h += '<div class="c"><b>This month vs last month</b><div class="row"><span>This month</span><b>' + ugx(d.months.this_month) + '</b></div><div class="row"><span>Last month</span><b>' + ugx(d.months.last_month) + '</b></div></div>';
+    $('ins').innerHTML = h;
+  }catch(e){}
 }
 async function products(){
   bd().innerHTML = '<p class="m">Loading…</p>'; var r = await db.rpc('partner_products_mine'); PR = r.data || []; var cat = vcat(ME.category);
@@ -119,7 +132,7 @@ async function products(){
 }
 function drawP(){
   var q = ($('pq') ? $('pq').value : '').toLowerCase(), L = PR.filter(function(p){ return !q || (p.name + ' ' + (p.category || '')).toLowerCase().indexOf(q) >= 0; });
-  $('plist').innerHTML = L.length ? '<div class="pg">' + L.map(function(p){ return '<div class="pc" style="' + (p.active ? '' : 'opacity:.55') + '">' + (p.image_url ? '<img src="' + esc(p.image_url) + '" alt="" loading="lazy">' : '<div class="ph">📦</div>') + '<b>' + esc(p.name) + '</b><span class="m">' + ugx(p.price_ugx) + ' / ' + esc(p.unit) + (p.sale_mode === 'wholesale' ? ' · min ' + p.min_qty : '') + '</span><span class="pill ' + (p.in_stock ? 'ok' : 'bad') + '">' + (p.in_stock ? 'In stock' : 'Out of stock') + '</span>' + (p.active ? '' : '<span class="m">Hidden from customers</span>') + '<button class="g" onclick="edit(\'' + p.id + '\')">Edit</button></div>'; }).join('') + '</div>' : '<div class="c"><p class="m">No products yet. Send your list, prices and photos to Velos and the team will upload your first catalogue. After that you can add and edit products here yourself.</p></div>';
+  $('plist').innerHTML = L.length ? '<div class="pg">' + L.map(function(p){ return '<div class="pc" style="' + (p.active ? '' : 'opacity:.55') + '">' + (p.image_url ? '<img src="' + esc(p.image_url) + '" alt="" loading="lazy">' : '<div class="ph">📦</div>') + '<b>' + esc(p.name) + '</b><span class="m">' + ugx(p.price_ugx) + ' / ' + esc(p.unit) + (p.sale_mode === 'wholesale' ? ' · min ' + p.min_qty : '') + '</span><span class="pill ' + (p.perm_unavailable ? 'bad' : p.in_stock ? 'ok' : 'bad') + '">' + (p.perm_unavailable ? 'Permanently unavailable' : p.in_stock ? 'In stock' : 'Out of stock') + '</span>' + (p.active ? '' : '<span class="m">Hidden from customers</span>') + '<select onchange="setState(\'' + p.id + '\', this.value)" style="margin:2px 0"><option value="available"' + (!p.perm_unavailable && p.in_stock ? ' selected' : '') + '>Available</option><option value="out_of_stock"' + (!p.perm_unavailable && !p.in_stock ? ' selected' : '') + '>Out of stock for now</option><option value="permanent"' + (p.perm_unavailable ? ' selected' : '') + '>Permanently unavailable</option></select><div class="row" style="gap:6px"><button class="g" onclick="edit(\'' + p.id + '\')">Edit</button><button class="g" style="color:#ff8a80;border-color:#8a3a35" onclick="askDel(\'' + p.id + '\')">🗑 Delete</button></div></div>'; }).join('') + '</div>' : '<div class="c"><p class="m">No products yet. Send your list, prices and photos to Velos and the team will upload your first catalogue. After that you can add and edit products here yourself.</p></div>';
 }
 function edit(id){
   var p = id ? PR.filter(function(x){ return x.id === id; })[0] : {name:'', description:'', category:'', unit:vcat(ME.category).units[0], price_ugx:'', min_qty:1, sale_mode:ME.sale_mode === 'wholesale' ? 'wholesale' : 'retail', image_url:'', in_stock:true, active:true}; EDIT = id;
@@ -135,7 +148,9 @@ async function saveP(){
     if(r.error) throw r.error; toast('Saved ✓ Live on the site now'); products();
   } catch(e){ $('ee').textContent = e.message || 'Could not save'; }
 }
-async function delP(id){ if(!confirm('Delete this product for good? You can also just hide it.')) return; var r = await db.rpc('partner_product_delete', {p_id:id}); if(r.error) return toast(r.error.message, true); toast('Deleted'); products(); }
+function askDel(id){ var p = PR.filter(function(x){ return x.id === id; })[0]; if(!p) return; VelosSafe.confirmDelete({what:'product', name:p.name, permanent:!!p.perm_unavailable, onConfirm:async function(t){ var r = await db.rpc('partner_product_delete_safe', {p_id:id, p_confirm:t}); if(r.error) throw r.error; toast('Deleted from your store and from the Velos site'); products(); }}); }
+function delP(id){ askDel(id); }
+async function setState(id, s){ if(s === 'permanent' && !confirm('Mark this product as permanently unavailable? It disappears from the Velos site. You can still change it back until you delete it.')){ products(); return; } var r = await db.rpc('partner_product_set_state', {p_id:id, p_state:s}); if(r.error){ toast(r.error.message, true); products(); return; } toast('Updated ✓'); products(); }
 async function orders(){
   bd().innerHTML = '<p class="m">Loading…</p>'; var L = (await db.rpc('partner_orders_mine')).data || [];
   bd().innerHTML = '<h2>Orders</h2><p class="m">You see an order here once Velos has confirmed the customer\'s payment. Pack it and press Packed. A Velos rider collects it.</p>' + (L.length ? L.map(function(o){ var nx = o.status === 'placed' || o.status === 'confirmed';
@@ -146,10 +161,30 @@ async function earnings(){
   bd().innerHTML = '<p class="m">Loading…</p>'; var d = (await db.rpc('partner_dashboard')).data || {}, P = (await db.rpc('partner_payouts_mine')).data || [];
   bd().innerHTML = '<div class="stats"><div class="c stat"><b>' + ugx(d.owed_now) + '</b>Velos owes you</div><div class="c stat"><b>' + ugx(d.paid_out) + '</b>Paid to you so far</div><div class="c stat"><b>' + ugx(d.commission_month) + '</b>Commission this month</div></div><h2>Payments from Velos</h2>' + (P.length ? '<table><tr><th>Date</th><th>Amount</th><th>Reference</th></tr>' + P.map(function(x){ return '<tr><td>' + new Date(x.created_at).toLocaleDateString('en-GB') + '</td><td>' + ugx(x.amount_ugx) + '</td><td>' + esc(x.reference || '') + '</td></tr>'; }).join('') + '</table>' : '<div class="c"><p class="m">No payments yet. Money appears here after your orders are delivered.</p></div>');
 }
+
+/* ---------- promotions (ads shown on the marketplace and on your store page) ---------- */
+var PM = [];
+async function promos(){
+  bd().innerHTML = '<p class="m">Loading…</p>'; PM = (await db.rpc('partner_promos_mine')).data || []; var P = (await db.rpc('partner_products_mine')).data || []; PR = P;
+  bd().innerHTML = '<h2>Promotions</h2><p class="m">Run an offer and it appears as an ad on the Velos marketplace and at the top of your store page. Keep it short and clear.</p>'
+    + '<div class="c"><b>New promotion</b><input id="pt" placeholder="Title, e.g. 10% off all blenders *" maxlength="80"><textarea id="pb" placeholder="One or two lines about the offer" maxlength="240"></textarea>'
+    + '<label class="m">Product on offer (optional)</label><select id="pp"><option value="">The whole store</option>' + P.filter(function(p){ return p.active; }).map(function(p){ return '<option value="' + p.id + '">' + esc(p.name) + '</option>'; }).join('') + '</select>'
+    + '<div class="row2"><div><label class="m">Offer price UGX (optional)</label><input id="pq2" type="number" min="0"></div><div><label class="m">Ends on (optional)</label><input id="pe" type="date"></div></div>'
+    + '<label class="m">Banner picture (optional)</label><input id="pf" type="file" accept="image/*"><button class="full" onclick="savePromo()">Publish promotion</button><p id="pre" class="m"></p></div>'
+    + (PM.length ? PM.map(function(x){ return '<div class="c"><div class="row"><b>' + esc(x.title) + '</b><span class="pill ' + (x.active ? 'ok' : '') + '">' + (x.active ? 'Live' : 'Off') + '</span></div><div class="m">' + esc(x.body || '') + (x.ends_on ? ' · ends ' + esc(x.ends_on) : '') + (x.promo_price_ugx ? ' · ' + ugx(x.promo_price_ugx) : '') + '</div><button class="g" style="color:#ff8a80;border-color:#8a3a35;margin-top:6px" onclick="askDelPromo(\'' + x.id + '\')">🗑 Delete promotion</button></div>'; }).join('') : '<p class="m">No promotions yet.</p>');
+}
+async function savePromo(){
+  try{ var t = $('pt').value.trim(); if(t.length < 3){ $('pre').textContent = 'Give the promotion a short title.'; return; } $('pre').textContent = 'Publishing…'; var f = $('pf').files[0], img = f ? await upImg(f) : null;
+    var r = await db.rpc('partner_promo_save', {p_id:null, p_title:t, p_body:$('pb').value.trim(), p_image:img, p_product:$('pp').value || null, p_price:$('pq2').value ? Number($('pq2').value) : null, p_ends:$('pe').value || null});
+    if(r.error) throw r.error; toast('Promotion is live ✓'); promos();
+  } catch(e){ $('pre').textContent = e.message || 'Could not publish'; }
+}
+function askDelPromo(id){ var p = PM.filter(function(x){ return x.id === id; })[0]; VelosSafe.confirmDelete({what:'promotion', name:p ? p.title : '', onConfirm:async function(t){ var r = await db.rpc('partner_promo_delete', {p_id:id}); if(r.error) throw r.error; toast('Promotion deleted'); promos(); }}); }
 function storeTab(){
   bd().innerHTML = '<h2>My store</h2><div class="c"><label class="m">About your store</label><textarea id="sd">' + esc(ME.description) + '</textarea><div class="row2"><div><label class="m">Phone</label><input id="sp" value="' + esc(ME.phone) + '"></div><div><label class="m">Address</label><input id="sa" value="' + esc(ME.address) + '"></div></div><label class="m">Logo</label>' + (ME.logo_url ? '<img src="' + esc(ME.logo_url) + '" style="height:60px;display:block" alt="">' : '') + '<input type="file" id="sl" accept="image/*"><label class="m">Cover photo</label>' + (ME.cover_url ? '<img src="' + esc(ME.cover_url) + '" style="height:80px;display:block;border-radius:8px" alt="">' : '') + '<input type="file" id="sc" accept="image/*"></div>'
     + '<div class="c"><b>Payout details</b><select id="spm"><option value="mtn"' + (ME.payout_method === 'mtn' ? ' selected' : '') + '>MTN Mobile Money</option><option value="airtel"' + (ME.payout_method === 'airtel' ? ' selected' : '') + '>Airtel Money</option><option value="bank"' + (ME.payout_method === 'bank' ? ' selected' : '') + '>Bank account</option></select><input id="spb" placeholder="Bank name" value="' + esc(ME.payout_bank) + '"><input id="spa" placeholder="Account / wallet number" value="' + esc(ME.payout_account) + '"><input id="spn" placeholder="Name on the account" value="' + esc(ME.payout_name) + '"><p class="m">TIN: ' + esc(ME.tin) + '. To change your TIN, contact Velos.</p></div>'
-    + '<button class="full" onclick="saveStore()">Save changes</button><p id="se" class="m"></p><div class="c"><b>Partner agreement</b><p class="m">Agreement ' + esc(ME.agreement_no) + (ME.agreement_signed_path ? ' · signed copy on file' : '') + '</p><button class="g" onclick="agreementPdf()">📄 Download my agreement</button></div>';
+    + '<div class="c"><b>Fees and receipts</b><div id="myrc"></div></div><button class="full" onclick="saveStore()">Save changes</button><p id="se" class="m"></p><div class="c"><b>Partner agreement</b><p class="m">Agreement ' + esc(ME.agreement_no) + (ME.agreement_signed_path ? ' · signed copy on file' : '') + '</p><button class="g" onclick="agreementPdf()">📄 Download my agreement</button></div>';
+  try{ VelosMyReceipts.mount(db, 'myrc'); }catch(e){}
 }
 async function saveStore(){
   try{ $('se').textContent = 'Saving…'; var lg = $('sl').files[0], cv = $('sc').files[0], lu = lg ? await upImg(lg) : null, cu = cv ? await upImg(cv) : null;
@@ -158,4 +193,4 @@ async function saveStore(){
   } catch(e){ $('se').textContent = e.message || 'Could not save'; }
 }
 boot();
-</script></body></html>
+</script><script src="velos-theme.js"></script><script>try{VelosTheme.init({db:(typeof db!=="undefined"?db:null),role:"vendor",name:function(){try{return typeof ME!=='undefined'&&ME?ME.business_name:''}catch(e){return""}}})}catch(e){}</script></body></html>

@@ -1,0 +1,88 @@
+<!doctype html><html lang="en"><head><script src="velos-splash.js"></script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080d1f"><link rel="icon" href="favicon.png">
+<title>Velos Team Portal | The Velos Group</title><meta name="robots" content="noindex">
+<style>
+:root{--bg:#080d1f;--card:#0f1730;--line:#2a3560;--gold:#e8c766;--txt:#f4f1ea;--mut:#a3adc6;--ok:#7fd99a;--bad:#ff8a80}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 Inter,system-ui,sans-serif}
+.w{max-width:1100px;margin:0 auto;padding:14px 14px 70px}h1{font-family:Georgia,serif;color:var(--gold);margin:0;font-size:24px}h2{font-family:Georgia,serif;margin:18px 0 8px;font-size:19px}
+.c{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0}
+input,select{padding:11px;margin:4px 0;background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:8px;font:inherit}
+button,a.b{display:inline-block;padding:10px 14px;border:0;border-radius:8px;background:var(--gold);color:#080d1f;font-weight:700;cursor:pointer;font-size:14px;text-decoration:none}button.g{background:none;border:1px solid var(--line);color:var(--txt)}
+.m{color:var(--mut);font-size:13px}.bad{color:var(--bad)}.ok{color:var(--ok)}.row{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.hd{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 0 12px;border-bottom:1px solid var(--line)}.hd img{height:40px;vertical-align:middle;margin-right:8px}
+.tabs{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap}.tabs button{background:none;border:1px solid var(--line);color:var(--txt)}.tabs button.on{background:var(--gold);color:#080d1f}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.stat{text-align:center}.stat b{display:block;font-size:20px;color:var(--gold)}.stat.out b{color:#ffb4a8}
+.pill{font-size:12px;padding:2px 9px;border-radius:99px;border:1px solid var(--line)}
+.tw{overflow:auto}table{width:100%;border-collapse:collapse;min-width:640px}td,th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;font-size:13.5px;white-space:nowrap}th{color:var(--mut);font-weight:600;position:sticky;top:0;background:var(--card)}td.n,th.n{text-align:right}
+.in{color:var(--ok)}.out{color:#ffb4a8}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ok);color:#06210f;padding:10px 16px;border-radius:99px;font-weight:700}
+@media print{.tabs,.hd button,.noprint{display:none!important}body{background:#fff;color:#000}.c{border-color:#ccc;background:#fff}th{background:#fff}}
+</style></head><body><div class="w"><div id="v"><p class="m">Loading…</p></div></div><div id="toast" hidden></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script>
+<script src="velos-stamp.js"></script><script src="velos-receipts.js"></script>
+<script>
+var S=window.VELOS_SUPABASE,db=supabase.createClient(S.url,S.key),$=function(i){return document.getElementById(i)},ME=null,TAB=null,L=null,NM={};
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
+var ugx=function(n){return 'UGX '+Math.round(Number(n)||0).toLocaleString('en-US')};
+function toast(m,b){var t=$('toast');t.textContent=m;t.style.background=b?'#b3261e':'';t.style.color=b?'#fff':'';t.hidden=false;setTimeout(function(){t.hidden=true},2800)}
+var ROLEN={admin:'Administrator',manager:'Manager',staff:'Staff',accountant:'Accountant',care:'Customer Relations',employee:'Velos Team Member'};
+async function boot(){
+  var s=(await db.auth.getSession()).data.session;
+  if(!s){$('v').innerHTML='<div style="max-width:420px;margin:7vh auto"><div style="text-align:center"><img src="logo-mark.png" style="height:64px" alt=""><h1>Velos Team Portal</h1><p class="m">For Velos team members: accountants, customer relations and staff.</p></div><div class="c"><input id="em" type="email" placeholder="Work email" style="width:100%" autocomplete="username"><input id="pw" type="password" placeholder="Password" style="width:100%" autocomplete="current-password"><button style="width:100%;margin-top:8px" onclick="si()">Sign in</button><p id="er" class="m bad"></p></div><p class="m" style="text-align:center">No login yet? Create one at <a style="color:var(--gold)" href="agent.html">agent.html</a> with your work email, then ask the Velos admin to give you access.</p></div>';return}
+  var a=await db.rpc('velos_my_access');ME=a.data;
+  if(!ME){$('v').innerHTML='<div class="c" style="max-width:480px;margin:8vh auto"><h1>No access yet</h1><p>You are signed in, but the Velos admin has not given this login any team rights. Ask the admin to add your email in <b>Admin &gt; Team</b>.</p><button class="g" onclick="out()">Sign out</button></div>';return}
+  var P=ME.perms||[];TAB=P.indexOf('accounts')>-1?'acc':P.indexOf('care')>-1?'care':'desk';draw();
+}
+async function si(){var r=await db.auth.signInWithPassword({email:$('em').value.trim(),password:$('pw').value});if(r.error)$('er').textContent=r.error.message;else boot()}
+async function out(){await db.auth.signOut();boot()}
+function draw(){
+  var P=ME.perms||[],T=[];if(P.indexOf('accounts')>-1)T.push(['acc','📒 Accounting']);if(P.indexOf('care')>-1)T.push(['care','🎧 Customer care']);T.push(['desk','🏢 Team desk']);
+  $('v').innerHTML='<div class="hd"><div><img src="logo-mark.png" alt=""><b style="font-family:Georgia,serif;font-size:20px;color:var(--gold)">Velos Team Portal</b></div><div class="row" style="gap:8px"><span class="m">'+esc(ME.name||'')+' · <span class="pill">'+esc(ME.title||ROLEN[ME.role]||ME.role)+'</span></span>'+(['admin','manager','staff'].indexOf(ME.role)>-1?'<a class="b g" style="background:none;border:1px solid var(--line);color:var(--txt)" href="admin.html">Admin</a>':'')+'<button class="g" onclick="out()">Sign out</button></div></div>'
+   +'<div class="tabs">'+T.map(function(t){return'<button class="'+(TAB===t[0]?'on':'')+'" onclick="tab(\''+t[0]+'\')">'+t[1]+'</button>'}).join('')+'</div><div id="body"></div>';
+  ({acc:acc,care:care,desk:desk})[TAB]();
+}
+function tab(t){TAB=t;draw()}
+/* ---------------- accounting ---------------- */
+function iso(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)}
+function range(k){var n=new Date(),a,b;if(k==='week'){var d=(n.getDay()+6)%7;a=new Date(n);a.setDate(n.getDate()-d);b=n}else if(k==='last'){a=new Date(n.getFullYear(),n.getMonth()-1,1);b=new Date(n.getFullYear(),n.getMonth(),0)}else if(k==='year'){a=new Date(n.getFullYear(),0,1);b=n}else{a=new Date(n.getFullYear(),n.getMonth(),1);b=n}return[iso(a),iso(b)]}
+async function acc(){
+  var r=range('month');
+  $('body').innerHTML='<div class="c noprint"><div class="row"><div><b>Period</b> <select id="pr" onchange="pset()"><option value="month">This month</option><option value="week">This week</option><option value="last">Last month</option><option value="year">This year</option><option value="custom">Custom</option></select> <input id="f" type="date" value="'+r[0]+'"> to <input id="t" type="date" value="'+r[1]+'"> <button onclick="loadAcc()">Show</button></div><div><button class="g" onclick="csv()">⬇ Export CSV</button> <button class="g" onclick="window.print()">🖨 Print</button></div></div></div><div id="ab"><p class="m">Loading…</p></div>';
+  try{var n=await db.rpc('acct_names');NM=n.data||{}}catch(e){}loadAcc();
+}
+function pset(){var k=$('pr').value;if(k==='custom')return;var r=range(k);$('f').value=r[0];$('t').value=r[1];loadAcc()}
+async function loadAcc(){
+  var f=$('f').value,t=$('t').value;$('ab').innerHTML='<p class="m">Loading…</p>';
+  var R=await Promise.all([db.rpc('acct_summary',{p_from:f,p_to:t}),db.rpc('acct_ledger',{p_from:f,p_to:t})]);
+  if(R[0].error)return $('ab').innerHTML='<div class="c bad">'+esc(R[0].error.message)+'</div>';
+  var s=R[0].data,l=R[1].data||{};L=build(l);var net=Number(s.money_in)-Number(s.money_out);
+  $('ab').innerHTML='<div class="stats"><div class="c stat"><b>'+ugx(s.money_in)+'</b>Money received</div><div class="c stat out"><b>'+ugx(s.money_out)+'</b>Paid out</div><div class="c stat"><b>'+ugx(net)+'</b>Net movement</div><div class="c stat"><b>'+ugx(s.partner_commission)+'</b>Partner commission earned</div></div>'
+   +'<div class="stats"><div class="c stat"><b>'+ugx(s.shop_received)+'</b>Shop orders</div><div class="c stat"><b>'+ugx(s.food_received)+'</b>Velos Foods orders</div><div class="c stat"><b>'+ugx(s.partner_received)+'</b>Partner store orders</div><div class="c stat"><b>'+ugx(s.fees_received)+'</b>Registration and monthly fees</div></div>'
+   +'<div class="stats"><div class="c stat out"><b>'+ugx(s.paid_partners)+'</b>Paid to partners</div><div class="c stat out"><b>'+ugx(s.paid_agents)+'</b>Paid to agents</div><div class="c stat out"><b>'+ugx(s.paid_restaurants)+'</b>Paid to restaurants</div></div>'
+   +'<h2>Transactions ('+L.length+')</h2><div class="c tw"><table><tr><th>Date</th><th>Type</th><th>Party</th><th>Reference</th><th>Receipt no.</th><th class="n">In (UGX)</th><th class="n">Out (UGX)</th><th class="noprint"></th></tr>'
+   +L.map(function(x,i){return'<tr><td>'+esc(x.date.slice(0,10))+'</td><td>'+esc(x.type)+'</td><td>'+esc(x.party)+'</td><td>'+esc(x.ref||'')+'</td><td>'+esc(x.no||'')+'</td><td class="n in">'+(x.dir==='in'?Math.round(x.amount).toLocaleString('en-US'):'')+'</td><td class="n out">'+(x.dir==='out'?Math.round(x.amount).toLocaleString('en-US'):'')+'</td><td class="noprint">'+(x.rc?'<button class="g" onclick="rcpt('+i+')">Receipt</button>':'')+'</td></tr>'}).join('')+'</table></div>';
+}
+function nm(id){return NM[String(id)]||String(id||'').slice(0,8)}
+function build(l){
+  var o=[];
+  (l.fees||[]).forEach(function(x){o.push({date:x.paid_at,type:(x.kind==='monthly'?'Monthly fee':'Registration fee')+' ('+x.subject_kind+')',party:nm(x.subject_id),ref:x.ref,no:x.receipt_no,dir:'in',amount:x.amount_ugx,rc:{k:'fee',row:x}})});
+  (l.shop_orders||[]).forEach(function(x){o.push({date:x.created_at,type:'Shop order',party:x.customer_name,ref:'#'+x.order_no,dir:'in',amount:x.amount_paid_ugx})});
+  (l.food_orders||[]).forEach(function(x){o.push({date:x.created_at,type:'Velos Foods order',party:x.customer_name,ref:'#'+x.order_no,dir:'in',amount:x.amount_paid_ugx})});
+  (l.partner_orders||[]).forEach(function(x){o.push({date:x.created_at,type:'Partner store order (commission '+ugx(x.commission_ugx)+')',party:x.customer_name,ref:'#'+x.order_no,dir:'in',amount:x.amount_paid_ugx})});
+  (l.partner_payouts||[]).forEach(function(x){o.push({date:x.created_at,type:'Payout: partner',party:nm(x.partner_id),ref:x.reference,no:'PAY-'+String(x.id).replace(/-/g,'').slice(0,8).toUpperCase(),dir:'out',amount:x.amount_ugx,rc:{k:'pay',role:'partner',row:x,who:x.partner_id,at:x.created_at}})});
+  (l.agent_payouts||[]).forEach(function(x){o.push({date:x.paid_at,type:'Payout: sales agent',party:nm(x.agent_id),ref:x.reference,no:'PAY-'+String(x.id).replace(/-/g,'').slice(0,8).toUpperCase(),dir:'out',amount:x.amount_ugx,rc:{k:'pay',role:'agent',row:x,who:x.agent_id,at:x.paid_at}})});
+  (l.restaurant_payouts||[]).forEach(function(x){o.push({date:x.paid_at||x.created_at,type:'Payout: restaurant',party:nm(x.vendor_id),ref:x.reference,no:'PAY-'+String(x.id).replace(/-/g,'').slice(0,8).toUpperCase(),dir:'out',amount:x.amount_ugx||x.amount,rc:{k:'pay',role:'restaurant',row:x,who:x.vendor_id,at:x.paid_at||x.created_at}})});
+  o.sort(function(a,b){return String(b.date).localeCompare(String(a.date))});return o;
+}
+async function rcpt(i){var x=L[i];if(!x||!x.rc)return;try{var r;if(x.rc.k==='fee'){var row=Object.assign({},x.rc.row,{name:x.party});r=await VelosReceipt.fee(row)}else r=await VelosReceipt.pay({no:x.no,name:x.party,role:x.rc.role,amount:x.amount,reference:x.ref,paid_at:x.rc.at});VelosReceipt.save(r)}catch(e){toast(e.message||String(e),true)}}
+function csv(){if(!L||!L.length)return toast('Nothing to export',true);var q=function(s){return '"'+String(s==null?'':s).replace(/"/g,'""')+'"'};var rows=[['Date','Type','Party','Reference','Receipt no','In UGX','Out UGX']].concat(L.map(function(x){return[x.date.slice(0,10),x.type,x.party,x.ref||'',x.no||'',x.dir==='in'?Math.round(x.amount):'',x.dir==='out'?Math.round(x.amount):'']}));var b=new Blob(['﻿'+rows.map(function(r){return r.map(q).join(',')}).join('\n')],{type:'text/csv'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='velos-accounts-'+$('f').value+'-to-'+$('t').value+'.csv';a.click()}
+/* ---------------- customer care ---------------- */
+function care(){$('body').innerHTML='<div class="c"><b>Find a customer order</b><p class="m">Search by order number, phone number or customer name. This view is read-only.</p><div class="row" style="justify-content:flex-start"><input id="cq" placeholder="Order no., phone or name" style="flex:1;min-width:220px" onkeydown="if(event.key===\'Enter\')cs()"><button onclick="cs()">Search</button></div></div><div id="cr"></div>'}
+async function cs(){var q=$('cq').value.trim();$('cr').innerHTML='<p class="m">Searching…</p>';var r=await db.rpc('care_lookup',{p_q:q});if(r.error)return $('cr').innerHTML='<div class="c bad">'+esc(r.error.message)+'</div>';var L2=r.data||[];$('cr').innerHTML=L2.length?'<div class="c tw"><table><tr><th>Type</th><th>Order</th><th>Customer</th><th>Phone</th><th>Status</th><th>Payment</th><th class="n">Total</th><th>Placed</th></tr>'+L2.map(function(x){return'<tr><td>'+esc({orders:'Shop',food_orders:'Foods',partner_orders:'Partner store'}[x.source]||x.source)+'</td><td>#'+esc(x.order_no)+'</td><td>'+esc(x.customer_name||'')+'</td><td>'+esc(x.customer_phone||'')+'</td><td>'+esc(x.status||'')+'</td><td>'+esc(x.payment_status||'')+'</td><td class="n">'+ugx(x.total_ugx)+'</td><td>'+esc((x.created_at||'').slice(0,16).replace('T',' '))+'</td></tr>'}).join('')+'</table></div>':'<div class="c m">No orders found.</div>'}
+/* ---------------- team desk ---------------- */
+async function desk(){
+  $('body').innerHTML='<p class="m">Loading…</p>';var r=await db.rpc('team_notices_list'),N=r.data||[];
+  $('body').innerHTML='<div class="c"><h2 style="margin-top:0">Welcome, '+esc((ME.name||'').split(' ')[0]||'team member')+'</h2><p class="m">Your role: <b>'+esc(ME.title||ROLEN[ME.role]||ME.role)+'</b>. What you can open here is set by the Velos admin.</p><div class="row" style="justify-content:flex-start;gap:6px">'+(ME.perms||[]).map(function(p){return'<span class="pill">'+esc({accounts:'Accounting',care:'Customer care',desk:'Team desk',orders:'Orders'}[p]||p)+'</span>'}).join('')+'</div></div><h2>Notice board</h2>'
+   +(N.length?N.map(function(n){return'<div class="c"><b>'+esc(n.title)+'</b><div class="m">'+esc(new Date(n.created_at).toLocaleDateString('en-GB'))+'</div><p style="white-space:pre-wrap">'+esc(n.body||'')+'</p></div>'}).join(''):'<div class="c m">No notices yet.</div>');
+}
+boot();
+</script><script src="velos-theme.js"></script><script>try{VelosTheme.init({db:db,role:'staff',name:function(){return ME&&ME.name}})}catch(e){}</script></body></html>

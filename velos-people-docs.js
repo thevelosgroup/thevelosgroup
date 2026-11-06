@@ -97,6 +97,7 @@
     doc.splitTextToSize('By signing, the Contractor confirms that the details above are true, that they have read and understood this agreement, and that they agree to it. Signed copies are kept by both sides.', 180).forEach(function (l) { doc.text(l, 15, y); y += 4.2; });
     var sy = y + 32; if (sy > 258) { foot(page); doc.addPage(); page++; sy = 60; }
     if (sig) fit(doc, sig, 17, sy - 25, 56, 24);
+    try { if (W.VelosStamp) await W.VelosStamp.place(doc, 75, sy - 34, 32, { label: 'APPROVED', date: p.issued_at }); } catch (e) {}
     doc.setDrawColor(GR[0], GR[1], GR[2]); doc.setLineWidth(.3); doc.line(15, sy, 75, sy); doc.line(135, sy, 195, sy);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(TX[0], TX[1], TX[2]); doc.text('The Velos Group (signed)', 15, sy + 4.5); doc.text(name + ' (Contractor)', 135, sy + 4.5);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(GR[0], GR[1], GR[2]); doc.text('Authorised signature', 15, sy + 8.8); doc.text('Date: ' + issued, 15, sy + 13.5); doc.text('Contractor signature', 135, sy + 8.8); doc.text(p.holderSig ? 'Date: ' + dmy(Date.now()) : 'Date: ........ / ........ / ............', 135, sy + 13.5);
@@ -265,7 +266,11 @@
     box.innerHTML = h;
   }
   /* panel(kind, p, active): HTML for the Documents page. p needs the person's details (see top). Works before and after approval. */
-  function panel(kind, p, active) { ME = { kind: kind, p: p, active: !!active }; setTimeout(fill, 30); return '<div id="vpd"><div class="c"><p>Loading…</p></div></div>'; }
+  function reqCard(kind, active) {
+    if (active) return '';
+    return '<div class="c"><h3 style="margin:0 0 6px">📋 Step 1: upload your documents</h3><p class="m">Velos verifies every ' + (kind === 'agent' ? 'sales agent' : kind === 'rider' ? 'rider' : 'technician') + ' before approval. Upload your ID, passport photo, account proof' + (kind === 'agent' ? ', qualification certificate, LC1 / local leader letter and CV' : kind === 'rider' ? ', riding permit, referees and residence letter' : ', trade certificate and good-conduct certificate') + '. Your documents are private.</p><a class="b" href="apply.html?kind=' + kind + '">Open my requirements checklist</a></div>';
+  }
+  function panel(kind, p, active) { ME = { kind: kind, p: p, active: !!active }; setTimeout(fill, 30); return reqCard(kind, active) + '<div id="vpd"><div class="c"><p>Loading…</p></div></div>'; }
   async function mine(what) {
     try {
       if (!ME) return; var p = ME.p;
