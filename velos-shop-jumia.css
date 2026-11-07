@@ -92,3 +92,9 @@ input,textarea,select{font-size:16px}
 button,a{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 html{-webkit-text-size-adjust:100%}
 body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+
+.vj-ini{font:700 24px Georgia,serif;color:#e8c766;background:linear-gradient(145deg,#1b2f7a,#0f1a47)!important}
+.vj-ex{color:#e8c766;background:#0f1a47!important;border-style:dashed!important}.vj-ex svg{width:30px;height:30px}
+.vj-more em{color:#e8c766;font-weight:700}
+.vj-cf{width:100%;box-sizing:border-box;margin:0 0 14px;padding:12px 16px;border-radius:99px;border:1px solid #2a3560;background:#080d1f;color:#f4f1ea;font:500 15px system-ui}
+.vj-box{color:#f4f1ea}.vj-bh b{color:#f4f1ea}.vj-cg button{color:#e9edf8}

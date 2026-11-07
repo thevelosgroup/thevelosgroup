@@ -98,11 +98,16 @@ function checkout(items, onDone){
     + '<div id="vx_map" style="height:220px;border-radius:10px;margin:8px 0;border:1px solid #2a3560"></div><input id="vx_a" placeholder="Building / landmark / directions *" value="' + esc(c.a) + '"></div>'
     + '<div id="vx_pk" class="sum" style="display:none"><b>Pick-up station</b><br>' + esc(pk.n) + '<br>' + esc(pk.a) + '<br><br>' + esc(pk.note) + '</div>'
     + '<div class="sum" id="vx_tot"></div>'
+    + '<button type="button" class="cx" onclick="vxDraft()">📝 Get a quotation or invoice (PDF)</button>'
     + '<div class="sum">Payment</div>' + (t.total < RULES.adv ? [['mtn', 'MTN Mobile Money'], ['airtel', 'Airtel Money']] : [['cash', 'Pay on delivery or collection'], ['mtn', 'MTN Mobile Money'], ['airtel', 'Airtel Money']]).map(function(m, i){ return '<label class="pm"><input type="radio" name="vxpm" value="' + m[0] + '"' + (i === 0 ? ' checked' : '') + '> ' + m[1] + '</label>'; }).join('')
     + '<div class="sum">' + (t.total < RULES.adv ? 'Orders below UGX ' + RULES.adv.toLocaleString('en-US') + ' are paid in full in advance by Mobile Money. After you tap Place order you will be taken to our secure payment page, and your order is processed once your payment is verified.' : dep ? 'A deposit is required for this order. After you tap Place order you will be taken to our secure payment page. Your order is confirmed once your deposit is verified.' : 'Your order is confirmed as soon as you place it. You can pay on delivery or collection, or pay online from your order page.') + ' Payments are made in Uganda Shillings.<br>By ordering you agree to our <a href="terms.html" target="_blank" style="color:#e8c766">Terms</a> and <a href="privacy.html" target="_blank" style="color:#e8c766">Privacy Policy</a>.</div>'
     + '<textarea id="vx_o" rows="2" placeholder="Notes (optional)"></textarea>',
     '<button class="go" id="vx_go">Place order</button>');
   var goBtn = document.getElementById('vx_go'), el = function(i){ return document.getElementById(i); };
+  function docOrd(extra){ var dl = mode === 'pickup' ? 0 : fee, v = function(i){ return el(i) ? el(i).value.trim() : ''; };
+    return Object.assign({store:'Velos Global Shop', date:new Date(), mode:mode, km:km, delivery:dl, customer:{name:v('vx_n'), phone:v('vx_p'), email:v('vx_e'), address:mode === 'pickup' ? 'Pick-up at ' + pk.n : (v('vx_a') + (v('vx_sq') ? ' · ' + v('vx_sq') : ''))},
+      lines:items.map(function(it){ var p = PRODUCTS.find(function(x){ return x.id === it.product_id; }) || {}; return {name:p.name || it.product_id, qty:it.qty, unit:'piece', price:effPrice(p) || 0}; }), paid:0}, extra || {}); }
+  window.vxDraft = function(){ if(!window.VelosDocs){ alert('Documents are loading. Please try again in a moment.'); return; } if(el('vx_n').value.trim().length < 2){ alert('Enter your name so it appears on the document.'); return; } VelosDocs.sheet(docOrd(), {draft:true}); };
   function totUI(){
     var f = mode === 'pickup' ? 0 : fee;
     el('vx_tot').innerHTML = '<div style="display:flex;justify-content:space-between"><span>Goods</span><span>' + both(t.total) + '</span></div><div style="display:flex;justify-content:space-between"><span>Delivery</span><span>' + (mode === 'pickup' ? 'None (pick-up)' : (pinned ? both(f) + ' · ' + km + ' km' : 'Pin your location')) + '</span></div>'
@@ -138,6 +143,7 @@ function checkout(items, onDone){
     if(n.length < 2 || p.length < 7){ alert('Please enter your name and phone number.'); return; }
     if(mode === 'delivery' && (a.length < 3 || !pinned)){ alert('Please pin your delivery location on the map and add a landmark or building.'); return; }
     try { localStorage.setItem('velosContact', JSON.stringify({n:n, p:p, e:e, a:a})); } catch(x){}
+    var dd = docOrd();
     goBtn.disabled = true; goBtn.textContent = 'Placing order…';
     var ll = mode === 'delivery' ? pin.getLatLng() : null, label = {cash:'Cash on delivery or collection', mtn:'MTN Mobile Money', airtel:'Airtel Money'}[pm];
     var body = {p_name:n, p_phone:p, p_email:e || null, p_address:mode === 'pickup' ? 'Pick-up at ' + pk.n : a + (g('vx_sq') ? ' · ' + g('vx_sq') : ''), p_payment:label, p_notes:o, p_items:items};
@@ -152,10 +158,12 @@ function checkout(items, onDone){
         onDone && onDone();
         if(res.needs_payment || (t.total < RULES.adv && !(res.paid))){ location.href = 'pay.html?o=' + no + '&p=' + encodeURIComponent(p); return; }
         var wa = 'Hello Velos Global Shop, I placed Order #' + no + ' on the website. ' + t.lines.join('; ') + '. Goods ' + ugxs(t.total) + ', delivery ' + ugxs(f) + '. Name: ' + n + ', phone: ' + p + '.';
-        modal('Thank you for shopping with Velos ✓',
+        dd.no = no; dd.delivery = mode === 'pickup' ? 0 : f; dd.date = new Date();
+        var m2 = modal('Thank you for shopping with Velos ✓',
           '<div class="sum" style="font-size:15px;color:#f4f1ea">Dear ' + esc(n) + ', your Order <b>#' + no + '</b> is confirmed. Grand total: <b>' + both(t.total + f) + '</b>' + (f ? ' (delivery ' + both(f) + ', paid on delivery)' : '') + '.'
           + (mode === 'pickup' ? '<br><br><b style="color:#e8c766">Collection:</b> ' + esc(pk.n) + ', ' + esc(pk.a) + '. ' + esc(pk.note) : '<br><br>We will keep you updated at every step.') + '<br><br>Keep your order number to track progress.</div>',
-          '<a class="vb go" href="track.html?o=' + no + '">Track my order</a>' + (window.VelosPush ? VelosPush.custBtn(p, 'shop', no, 'vb cx') : '') + '<a class="vb cx" href="pay.html?o=' + no + '&p=' + encodeURIComponent(p) + '">Pay online now (optional)</a><a class="vb cx" target="_blank" rel="noopener" href="' + waLink(wa) + '">Message us on WhatsApp (optional)</a>');
+          '<a class="vb go" href="track.html?o=' + no + '">Track my order</a>' + (window.VelosPush ? VelosPush.custBtn(p, 'shop', no, 'vb cx') : '') + '<a class="vb cx" href="pay.html?o=' + no + '&p=' + encodeURIComponent(p) + '">Pay online now (optional)</a><a class="vb cx" target="_blank" rel="noopener" href="' + waLink(wa) + '">Message us on WhatsApp (optional)</a><button class="cx" id="vx_doc">📄 Quotation, invoice or receipt (PDF)</button>');
+        m2.querySelector('#vx_doc').onclick = function(){ if(window.VelosDocs) VelosDocs.sheet(dd); };
       })
       .catch(function(err){
         goBtn.disabled = false; goBtn.textContent = 'Place order';
