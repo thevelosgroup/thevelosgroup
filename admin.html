@@ -40,6 +40,7 @@ main{padding:12px;max-width:900px;margin:auto}
   <input id="em" type="email" placeholder="Email" autocomplete="username">
   <input id="pw" type="password" placeholder="Password" autocomplete="current-password">
   <button style="width:100%;margin-top:8px" onclick="signIn()">Sign in</button>
+  <div id="mfaBox" hidden style="margin-top:10px"><p class="mut">Two-step check. Open your authenticator app and type the 6-digit code for Velos Admin.</p><input id="mfaCode" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code"><button style="width:100%;margin-top:8px" onclick="mfaGo()">Verify and continue</button><button class="ghost" style="width:100%;margin-top:6px" onclick="db.auth.signOut().then(()=>location.reload())">Cancel</button></div>
   <p id="err" style="color:var(--bad)"></p>
 </div>
 
@@ -54,7 +55,7 @@ main{padding:12px;max-width:900px;margin:auto}
 <div id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="supabase-config.js"></script><script src="velos-stamp.js"></script><script src="velos-receipts.js"></script><script src="velos-vendor-cats.js"></script>
+<script src="supabase-config.js"></script><script src="velos-guard-config.js"></script><script src="velos-guard.js"></script><script src="velos-ui.js"></script><script src="velos-stamp.js"></script><script src="velos-receipts.js"></script><script src="velos-vendor-cats.js"></script>
 <script>
 const db = supabase.createClient(VELOS_SUPABASE.url, VELOS_SUPABASE.key);
 const $ = s => document.querySelector(s);
@@ -73,6 +74,13 @@ async function signIn(){
   if(error){ $('#err').textContent = error.message; return; }
   boot();
 }
+/* Two-step login: if this account enrolled an authenticator app, ask for the code before opening the panel */
+async function needStepUp(){ try { const {data} = await db.auth.mfa.getAuthenticatorAssuranceLevel(); return !!(data && data.nextLevel === 'aal2' && data.currentLevel !== 'aal2'); } catch(e){ return false; } }
+async function mfaGo(){ $('#err').textContent = ''; const code = $('#mfaCode').value.replace(/\D/g,''); if(code.length !== 6){ $('#err').textContent = 'Type the 6 digits from your app.'; return; }
+  const f = await db.auth.mfa.listFactors(); const fac = ((f.data && f.data.totp) || []).find(x => x.status === 'verified'); if(!fac){ $('#err').textContent = 'No authenticator found.'; return; }
+  const c = await db.auth.mfa.challenge({factorId:fac.id}); if(c.error){ $('#err').textContent = c.error.message; return; }
+  const v = await db.auth.mfa.verify({factorId:fac.id, challengeId:c.data.id, code}); if(v.error){ $('#err').textContent = 'That code is not right. Try the new one in your app.'; return; }
+  $('#mfaBox').hidden = true; boot(); }
 let AL_SINCE = new Date().toISOString(), AL_T = null, AL_ON = false; const AL_N = {};
 const AL_SRC = [['orders','🛍️ New shop order','orders'],['food_orders','🍽️ New food order','forders'],['payments','💰 New payment to approve','payments'],['food_bookings','📅 New table booking','bookings'],['service_requests','🛠️ New service request','service'],['gift_requests','🎁 New gift request','gifts'],['design_requests','🎨 New design request','designs'],['inquiries','✉️ New inquiry','inq'],['leads','📣 New lead','leads'],['technician_applications','🧰 New technician application','techs'],['food_help_requests','🆘 A restaurant needs help','forders','warn'],['phone_verifications','📱 Phone check waiting','phones']];
 async function alPoll(){ const t0 = new Date().toISOString(), since = AL_SINCE; AL_SINCE = t0;
@@ -81,20 +89,31 @@ async function alPoll(){ const t0 = new Date().toISOString(), since = AL_SINCE; 
 function startAlerts(){ if(AL_ON) return; AL_ON = true; VelosAlerts.init({offlineText:'NO INTERNET. New orders and requests will NOT alert you until you are back online.'}); AL_SINCE = new Date().toISOString(); AL_T = setInterval(alPoll, 20000); }
 async function signOut(){ clearInterval(AL_T); AL_ON = false; VelosAlerts.stopAll(); await db.auth.signOut(); show(false); }
 
+
+async function mfaOn(){ const e = await db.auth.mfa.enroll({factorType:'totp', friendlyName:'Velos Admin ' + Date.now()}); if(e.error) return toast(e.error.message, true);
+  window.MFA_F = e.data.id; $('#mfaSetup').innerHTML = `<div class="vu-sec">Step 1: scan</div><p class="mut">Open your authenticator app, choose Add account, then scan this picture.</p><img src="${e.data.totp.qr_code}" alt="QR code" style="width:200px;height:200px;background:#fff;padding:8px;border-radius:12px"><p class="mut">Cannot scan? Type this key into the app: <b style="word-break:break-all">${esc(e.data.totp.secret)}</b></p><div class="vu-sec">Step 2: confirm</div><input id="mfaC" inputmode="numeric" maxlength="6" placeholder="6-digit code from the app" style="max-width:240px"> <button onclick="mfaConfirm()">Confirm and turn on</button>`; }
+async function mfaConfirm(){ const code = $('#mfaC').value.replace(/\D/g,''); if(code.length !== 6) return toast('Type the 6 digits', true);
+  const c = await db.auth.mfa.challenge({factorId:MFA_F}); if(c.error) return toast(c.error.message, true);
+  const v = await db.auth.mfa.verify({factorId:MFA_F, challengeId:c.data.id, code}); if(v.error) return toast('That code is not right. Try the new one.', true);
+  toast('Two-step login is now ON ✓'); go('mysec'); }
+async function mfaOff(id){ if(!confirm('Turn off two-step login? Your account becomes easier to break into.')) return; const r = await db.auth.mfa.unenroll({factorId:id}); toast(r.error ? r.error.message : 'Two-step login turned off', !!r.error); go('mysec'); }
+async function pwChange(){ const a = $('#np1').value, b = $('#np2').value; if(a.length < 12) return toast('Use at least 12 characters', true); if(a !== b) return toast('The two passwords do not match', true);
+  const r = await db.auth.updateUser({password:a}); toast(r.error ? r.error.message : 'Password changed ✓', !!r.error); if(!r.error){ $('#np1').value = ''; $('#np2').value = ''; } }
 async function boot(){
   const {data:{session}} = await db.auth.getSession();
   if(!session) return show(false);
+  if(await needStepUp()){ show(false); $('#mfaBox').hidden = false; $('#mfaCode').focus(); return; }
   const {data:p, error:pe} = await db.from('profiles').select('full_name,role').eq('id', session.user.id).maybeSingle();
   if(!p){ await db.auth.signOut(); show(false); $('#err').textContent = pe ? 'Database error: ' + pe.message : 'This account is not authorised as staff. (login id ' + session.user.id + ')'; return; }
   if(!['admin','manager','staff'].includes(p.role)){ location.href = 'team.html'; return; }
   me = p; $('#who').textContent = p.full_name || p.role; show(true); try { VelosPush.mount(db); } catch(e){}
   const {data} = await db.from('categories').select('*').order('sort_order'); cats = data || [];
-  const hide = ({manager:['team','settings','frules'], staff:['emails','report','products','agents','leads','team','import','export','security','applinks','promos','bundles','photos','docs','careers','bizset','settings','fmenu','supplies','fvendors','friders','frules']})[p.role] || [];
+  const hide = ({manager:['team','settings','frules'], staff:['audit','emails','report','products','agents','leads','team','import','export','security','applinks','promos','bundles','photos','docs','careers','bizset','settings','fmenu','supplies','fvendors','friders','frules']})[p.role] || [];
   window.TB = TABS.filter(t => !hide.includes(t[0]));
   go('home'); startAlerts();
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['bookings','Table bookings'],['docs','Invoices & quotes'],['customers','Customers'],['phones','Phone checks'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['cleanup','Clean-up & fees'],['proof','Proof photos'],['partners','Partners'],['pporders','Partner orders'],['inq','Inquiries'],['team','Team'],['emails','Emails'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['bundles','Combos & bundles'],['careers','Careers'],['bizset','Business profile'],['photos','Photos'],['settings','Settings'],['import','Import']];
+const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['bookings','Table bookings'],['docs','Invoices & quotes'],['customers','Customers'],['phones','Phone checks'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['cleanup','Clean-up & fees'],['proof','Proof photos'],['partners','Partners'],['pporders','Partner orders'],['inq','Inquiries'],['team','Team'],['emails','Emails'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['bundles','Combos & bundles'],['careers','Careers'],['bizset','Business profile'],['photos','Photos'],['settings','Settings'],['import','Import'],['mysec','Account security'],['audit','Activity log']];
 function alCopy(i){ const u = AL[i][1]; (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('Link copied'), () => { prompt('Copy this link', u); }); }
 function alShare(i){ const a = AL[i]; if(navigator.share) navigator.share({title:a[0], text:'Install the Velos '+a[0], url:a[1]}).catch(()=>{}); else alCopy(i); }
 async function savePromos(){
@@ -692,6 +711,26 @@ async function ppoSet(no, st, pay){
 }
 
 const VIEWS = {
+  async mysec(){
+    const f = await db.auth.mfa.listFactors(), ver = ((f.data && f.data.totp) || []).filter(x => x.status === 'verified'), un = ((f.data && f.data.totp) || []).filter(x => x.status !== 'verified');
+    for(const u of un){ try { await db.auth.mfa.unenroll({factorId:u.id}); } catch(e){} }
+    const on = ver.length > 0;
+    $('#view').innerHTML = VelosUI.head('Account security', 'Protect this login. Everything here applies to your own account only.')
+      + VelosUI.stats([{label:'Two-step login', value:on ? 'ON' : 'OFF', tone:on ? 'good' : 'bad'}, {label:'Signed in as', value:me.full_name || me.role}, {label:'Role', value:me.role}])
+      + `<div class="card"><b>Two-step login (authenticator app)</b><p class="mut">After your password, the panel asks for a 6-digit code from an app on your phone (Google Authenticator, Microsoft Authenticator or Authy). Even if someone learns your password they cannot get in. It is free.</p>
+        ${on ? `<p>✅ Two-step login is <b>on</b> for your account.</p><button class="ghost" onclick="mfaOff('${ver[0].id}')">Turn off</button>` : `<button onclick="mfaOn()">Turn on two-step login</button>`}<div id="mfaSetup"></div></div>
+      <div class="card"><b>Change your password</b><p class="mut">Use at least 12 characters. Do not reuse it anywhere else and never share it.</p><div class="vu-form"><div><label>New password</label><input id="np1" type="password" autocomplete="new-password"></div><div><label>Repeat it</label><input id="np2" type="password" autocomplete="new-password"></div></div><button style="margin-top:10px" onclick="pwChange()">Save new password</button></div>
+      <div class="card"><b>Safety rules for staff</b><ul class="mut" style="margin:6px 0 0 18px"><li>One person, one login. Never share a login.</li><li>Sign out on shared or public computers.</li><li>Approve a payment only after you saw the same transaction ID in your MTN or Airtel messages.</li><li>Report any strange sign-in or lost phone to the admin at once.</li></ul></div>`;
+  },
+  async audit(){
+    const q = window.AUQ || ''; const r = await db.rpc('admin_audit_list', {p_table:q || null, p_limit:200});
+    if(r.error){ $('#view').innerHTML = VelosUI.head('Activity log') + `<p class="bad">${esc(/function|schema cache/i.test(r.error.message) ? 'Run velos-upgrade-45.sql in Supabase first.' : r.error.message)}</p>`; return; }
+    const rows = r.data || [], NAME = {payments:'Payments', orders:'Shop orders', food_orders:'Food orders', partners:'Partners', food_vendors:'Restaurants', food_riders:'Riders', agents:'Agents', settings:'Settings', profiles:'Staff accounts', partner_orders:'Partner orders', agent_payouts:'Agent payouts', food_vendor_payouts:'Restaurant payouts'}, OPN = {INSERT:'Added', UPDATE:'Changed', DELETE:'Deleted'};
+    $('#view').innerHTML = VelosUI.head('Activity log', 'Who changed what, and when. Latest 200 entries. Nobody can edit or delete this log.', rows.length)
+      + `<div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:10px"><select class="sm" onchange="AUQ=this.value;go('audit')"><option value="">All areas</option>${Object.keys(NAME).map(k => `<option value="${k}" ${k===q?'selected':''}>${NAME[k]}</option>`).join('')}</select></div>`
+      + VelosUI.table([{label:'When', fn:x => dt(x.at)}, {label:'Who', fn:x => esc(x.who_name || x.who_email || 'System')}, {label:'Area', fn:x => NAME[x.table_name] || x.table_name}, {label:'Action', fn:x => VelosUI.badge(x.op === 'DELETE' ? 'cancelled' : x.op === 'INSERT' ? 'approved' : 'pending', OPN[x.op] || x.op), html:true}, {label:'Record', fn:x => esc(x.record_label || '')}, {label:'What changed', fn:x => `<span class="mut">${esc(x.summary || '')}</span>`, html:true}], rows, {empty:{icon:'📜', title:'Nothing logged yet', text:'Approvals, edits and deletes appear here from now on.'}});
+  },
+
   async partners(){
     const r = await db.rpc('admin_partner_list'); if(r.error){ $('#view').innerHTML = `<h2>Partners</h2><p class="bad">${esc(/function|schema cache/i.test(r.error.message) ? 'Run velos-upgrade-41.sql in Supabase first.' : r.error.message)}</p>`; return; }
     const o = await db.rpc('admin_partner_orders'), orders = o.data || [], owed = {};
@@ -717,16 +756,12 @@ const VIEWS = {
   async pporders(){
     const r = await db.rpc('admin_partner_orders'); if(r.error){ $('#view').innerHTML = `<h2>Partner orders</h2><p class="bad">${esc(/function|schema cache/i.test(r.error.message) ? 'Run velos-upgrade-41.sql in Supabase first.' : r.error.message)}</p>`; return; }
     const rows = r.data || [], NEXT = {placed:'confirmed', confirmed:'packed', packed:'dispatched', dispatched:'delivered'};
-    $('#view').innerHTML = `<h2>Partner orders</h2><p class="mut">Customer pays Velos. When a vendor has packed, assign a rider (use Food riders), then mark dispatched and delivered. Pay vendors from the Partners page.</p>
-    ${rows.map(x => `<div class="card"><div class="row"><b>#${x.order_no} · ${esc(x.store)}</b><span class="mut">${new Date(x.created_at).toLocaleString('en-GB')}</span></div>
-      <div>${(x.items || []).map(i => `${i.qty} × ${esc(i.name)}`).join(', ')}</div>
-      <div class="mut">${esc(x.customer_name)} · ☎ ${esc(x.customer_phone)} · ${esc(x.address || '')}</div>
-      <div class="mut">Items ${ugx(x.subtotal_ugx)} · Velos commission ${ugx(x.commission_ugx)} · Vendor gets ${ugx(x.subtotal_ugx - x.commission_ugx)} · Deposit needed ${ugx(x.deposit_required_ugx)}</div>
-      <div class="mut">Payment: <b>${esc(x.payment_status)}</b>${x.pay_ref ? ' · ref ' + esc(x.pay_ref) : ''} · Status: <b>${esc(x.status)}</b></div>
-      <div class="row" style="flex-wrap:wrap;gap:6px;justify-content:flex-start;margin-top:6px">
-        ${x.payment_status !== 'confirmed' ? `<button onclick="ppoSet(${x.order_no},'','confirmed')">Confirm payment</button>` : ''}
-        ${NEXT[x.status] && x.payment_status === 'confirmed' ? `<button onclick="ppoSet(${x.order_no},'${NEXT[x.status]}')">Mark ${NEXT[x.status]}</button>` : ''}
-        ${x.status !== 'cancelled' && x.status !== 'delivered' ? `<button class="ghost" onclick="if(confirm('Cancel this order?'))ppoSet(${x.order_no},'cancelled')">Cancel</button>` : ''}</div></div>`).join('') || '<p class="mut">No partner orders yet.</p>'}`;
+    const card = x => VelosUI.order({no:x.order_no, status:x.status, isNew:x.status==='placed', sub:dt(x.created_at),
+      meta:[['Store', x.store], ['Customer', `${esc(x.customer_name)} · ☎ ${esc(x.customer_phone)}`, 'html'], ['Address', x.address||''], ['Payment', x.payment_status + (x.pay_ref ? ' · ref ' + x.pay_ref : '')]],
+      items:(x.items||[]).map(i => ({qty:i.qty, name:i.name, amount:i.price*i.qty})),
+      totals:[['Items', x.subtotal_ugx], ['Velos commission', '− '+ugx(x.commission_ugx), 'neg'], ['Vendor gets', x.subtotal_ugx - x.commission_ugx, 's'], ['Deposit needed', x.deposit_required_ugx||0]],
+      actions:`${x.payment_status !== 'confirmed' ? `<button onclick="ppoSet(${x.order_no},'','confirmed')">Confirm payment</button>` : ''}${NEXT[x.status] && x.payment_status === 'confirmed' ? `<button onclick="ppoSet(${x.order_no},'${NEXT[x.status]}')">Mark ${NEXT[x.status]}</button>` : ''}${x.status !== 'cancelled' && x.status !== 'delivered' ? `<button class="ghost" onclick="if(confirm('Cancel this order?'))ppoSet(${x.order_no},'cancelled')">Cancel</button>` : ''}`});
+    $('#view').innerHTML = VelosUI.head('Partner orders','Customer pays Velos. When a vendor has packed, assign a rider (use Food riders), then mark dispatched and delivered. Pay vendors from the Partners page.', rows.length) + (rows.map(card).join('') || VelosUI.empty('📦','No partner orders yet'));
   },
 
   async home(){
@@ -752,15 +787,16 @@ const VIEWS = {
   async orders(){
     const {data,error} = await db.from('orders').select('*, order_items(product_name,qty,unit_price_ugx)').order('created_at',{ascending:false}).limit(100);
     if(error) throw error; window.OD = data;
-    $('#view').innerHTML = '<h2>Orders</h2>' + (data.length ? data.map(o => `<div class="card">
-      <div class="row"><b class="gold">#${o.order_no}</b>${sel('orders',o.id,o.status,['awaiting_payment','new','confirmed','ready_for_pickup','dispatched','delivered','collected','cancelled'])}</div>
-      <div>${esc(o.customer_name)} · <a href="${wa(o.customer_phone)}" target="_blank">${esc(o.customer_phone)}</a></div>${o.fulfilment==='pickup'?'<div><span class="pill gold">PICK-UP: check National ID on collection</span></div>':''}
-      <div class="mut">${esc(o.delivery_address||'')}${o.customer_email?' · '+esc(o.customer_email):''}${o.delivery_lat?` · <a href="https://www.google.com/maps?q=${o.delivery_lat},${o.delivery_lng}" target="_blank">Map</a> · ${o.distance_km} km · delivery ${ugx(o.delivery_fee_ugx)}`:''}</div>
-      <div class="mut">Payment: ${esc(o.payment_method||'—')} · Total ${ugx(o.total_ugx)}${o.deposit_required_ugx?' · 30% deposit '+ugx(o.deposit_required_ugx):''} · Paid ${ugx(o.amount_paid_ugx||0)} · <b class="gold">Balance ${ugx(Math.max(0,(o.total_ugx||0)-(o.amount_paid_ugx||0)))}</b></div>
-      <div class="row"><span>${['unpaid','part_paid','deposit_paid','paid','refunded'].map(x=>x===(o.payment_status||'unpaid')?`<span class="pill gold">${x}</span>`:'').join('')}</span><span><input class="sm" id="pay-${o.id}" type="number" placeholder="Total received UGX" style="width:150px"> <button onclick="recPay('${o.id}',${o.total_ugx||0},${o.deposit_required_ugx||0})">Record</button></span></div>
-      <div class="mut">${o.order_items.map(i=>`${esc(i.product_name)} ×${i.qty}`).join('<br>')}</div>
-      <div class="row"><b>${ugx(o.total_ugx)}</b><span class="mut">${dt(o.created_at)}</span></div>${delBtn('shop_order', o.id)}
-      <div class="row"><select class="sm" id="mt-${o.id}"><option value="received">Message: order received</option><option value="payment">Message: payment received</option><option value="pickup">Message: ready for pick-up</option><option value="dispatch">Message: out for delivery</option><option value="delivered">Message: delivered or collected</option></select><button class="ghost" onclick="sendMsg('${o.id}','wa')">💬 WhatsApp</button><button class="ghost" onclick="sendMsg('${o.id}','mail')">✉ Email</button></div></div>`).join('') : '<p class="mut">No orders yet.</p>');
+    const card = o => { const bal = Math.max(0,(o.total_ugx||0)-(o.amount_paid_ugx||0)), ps = o.payment_status||'unpaid';
+      return VelosUI.order({no:o.order_no, status:o.status, headRight:sel('orders',o.id,o.status,['awaiting_payment','new','confirmed','ready_for_pickup','dispatched','delivered','collected','cancelled']), isNew:o.status==='new'||o.status==='awaiting_payment', sub:dt(o.created_at),
+        meta:[['Customer', `${esc(o.customer_name)} · <a href="${wa(o.customer_phone)}" target="_blank">${esc(o.customer_phone)}</a>`, 'html'], ['Email', o.customer_email||''], ['Type', o.fulfilment==='pickup' ? 'Pick-up (check National ID)' : 'Delivery'],
+          ['Address', `${esc(o.delivery_address||'—')}${o.delivery_lat?` · <a href="https://www.google.com/maps?q=${o.delivery_lat},${o.delivery_lng}" target="_blank">Map</a> · ${o.distance_km} km`:''}`, 'html'],
+          ['Payment method', o.payment_method||'—'], ['Payment status', VelosUI.badge(ps==='part_paid'||ps==='deposit_paid'?'pending':ps, ps.replace(/_/g,' ')), 'html']],
+        items:o.order_items.map(i => ({qty:i.qty, name:i.product_name, amount:i.unit_price_ugx*i.qty})),
+        totals:[...(o.delivery_lat ? [['Delivery fee', o.delivery_fee_ugx||0]] : []), ['Order total', o.total_ugx||0], ...(o.deposit_required_ugx ? [['30% deposit required', o.deposit_required_ugx]] : []), ['Paid so far', o.amount_paid_ugx||0, 'pos'], ['Balance', bal, 's']],
+        extra:`<div class="row"><input class="sm" id="pay-${o.id}" type="number" placeholder="Total received UGX" style="width:170px"> <button onclick="recPay('${o.id}',${o.total_ugx||0},${o.deposit_required_ugx||0})">Record payment</button></div>
+          <div class="row"><select class="sm" id="mt-${o.id}"><option value="received">Message: order received</option><option value="payment">Message: payment received</option><option value="pickup">Message: ready for pick-up</option><option value="dispatch">Message: out for delivery</option><option value="delivered">Message: delivered or collected</option></select><button class="ghost" onclick="sendMsg('${o.id}','wa')">💬 WhatsApp</button><button class="ghost" onclick="sendMsg('${o.id}','mail')">✉ Email</button></div>${delBtn('shop_order', o.id)}`}); };
+    $('#view').innerHTML = VelosUI.head('Orders','Latest 100 shop orders. Change status, record payments and message the customer.', data.length) + (data.length ? data.map(card).join('') : VelosUI.empty('🛒','No orders yet','Orders from the shop appear here.'));
   },
 
   async products(){
@@ -934,14 +970,18 @@ const VIEWS = {
     const oi = data.filter(p => p.kind==='order').map(p => p.order_id), fi = data.filter(p => p.kind==='food').map(p => p.order_id);
     const [o,f] = await Promise.all([oi.length ? db.from('orders').select('id,order_no,customer_name,customer_phone,customer_email,total_ugx,delivery_fee_ugx,amount_paid_ugx,fulfilment').in('id',oi) : {data:[]}, fi.length ? db.from('food_orders').select('id,order_no,customer_name,customer_phone,customer_email,total_ugx,amount_paid_ugx,fulfilment').in('id',fi) : {data:[]}]);
     const OM = {}; (o.data||[]).forEach(x => OM[x.id] = x); (f.data||[]).forEach(x => OM[x.id] = x); window.POM = OM; window.PYL = data;
-    const card = p => { const x = OM[p.order_id] || {}, grand = (x.total_ugx||0) + (x.delivery_fee_ugx||0);
-      return `<div class="card"><div class="row"><b class="gold">${p.kind==='food'?'F':'#'}${x.order_no||''}</b><span class="pill" ${p.status==='rejected'?'style="color:var(--bad)"':''}>${p.status}</span></div>
-      <div><b>${ugx(p.amount_ugx)}</b> · ${p.method==='mtn'?'MTN':'Airtel'} · ${esc(p.purpose)}</div><div class="mut">Transaction ID: <b>${esc(p.txn_ref)}</b> · paid from ${esc(p.payer_phone||'—')}</div>
-      <div>${esc(x.customer_name||'')} · <a href="${wa(x.customer_phone)}" target="_blank">${esc(x.customer_phone||'')}</a> · order total ${ugx(grand)} · paid so far ${ugx(x.amount_paid_ugx||0)}</div><div class="mut">${dt(p.created_at)}${p.note?' · '+esc(p.note):''}</div>
-      ${p.status==='pending' ? (me.role==='staff' ? '<div class="mut">A manager must approve this payment.</div>' : `<div class="row"><input class="sm" id="rn-${p.id}" placeholder="Reason if rejecting" style="flex:1"><button onclick="approvePay('${p.id}')">✓ Approve</button><button class="ghost" onclick="rejectPay('${p.id}')">Reject</button></div>`) : ''}
-      ${p.status==='approved' ? `<div class="row"><span class="mut">Receipt R${p.receipt_no}</span><span><button class="ghost" onclick="sendRcpt('${p.id}','wa')">💬 WhatsApp receipt</button> <button class="ghost" onclick="sendRcpt('${p.id}','mail')">✉ Email receipt</button></span></div>` : ''}</div>`; };
-    const pend = data.filter(p => p.status==='pending'), rest = data.filter(p => p.status!=='pending');
-    $('#view').innerHTML = '<h2>Payments to approve (' + pend.length + ')</h2><p class="mut">Check the transaction ID against your MTN or Airtel messages before approving. Approving confirms the order, issues the receipt and notifies the customer.</p>' + (pend.map(card).join('') || '<p class="mut">Nothing waiting.</p>') + '<h2>Recent payments</h2>' + (rest.map(card).join('') || '<p class="mut">None yet.</p>');
+    const card = p => { const x = OM[p.order_id] || {}, grand = (x.total_ugx||0) + (x.delivery_fee_ugx||0), isP = p.status==='pending';
+      return VelosUI.order({prefix:p.kind==='food'?'F':'#', no:x.order_no||'', status:p.status, isNew:isP, sub:dt(p.created_at),
+        meta:[['Amount', ugx(p.amount_ugx)], ['Network', p.method==='mtn'?'MTN Mobile Money':'Airtel Money'], ['Transaction ID', esc(p.txn_ref), 'html'], ['Paid from', p.payer_phone||'—'], ['Purpose', p.purpose||''],
+          ['Customer', `${esc(x.customer_name||'')} · <a href="${wa(x.customer_phone)}" target="_blank">${esc(x.customer_phone||'')}</a>`, 'html']],
+        note:p.note||'', totals:[['Order total', grand], ['Paid so far', x.amount_paid_ugx||0, 'pos'], ['This payment', p.amount_ugx, 's']],
+        extra:p.status==='approved' ? `<div class="row"><span class="mut">Receipt R${p.receipt_no}</span><span><button class="ghost" onclick="sendRcpt('${p.id}','wa')">💬 WhatsApp receipt</button> <button class="ghost" onclick="sendRcpt('${p.id}','mail')">✉ Email receipt</button></span></div>` : '',
+        actions:isP ? (me.role==='staff' ? '<span class="mut">A manager must approve this payment.</span>' : `<input class="sm" id="rn-${p.id}" placeholder="Reason if rejecting" style="flex:2 1 200px"><button onclick="approvePay('${p.id}')">✓ Approve</button><button class="ghost" onclick="rejectPay('${p.id}')">Reject</button>`) : ''}); };
+    const pend = data.filter(p => p.status==='pending'), rest = data.filter(p => p.status!=='pending'), sum = a => a.reduce((t,p) => t + (+p.amount_ugx||0), 0);
+    $('#view').innerHTML = VelosUI.head('Payments','Check the transaction ID against your MTN or Airtel messages before approving. Approving confirms the order, issues the receipt and notifies the customer.')
+      + VelosUI.stats([{label:'Waiting for approval', value:pend.length, tone:pend.length?'warn':''}, {label:'Value waiting', value:ugx(sum(pend))}, {label:'Approved (latest 100)', value:ugx(sum(data.filter(p=>p.status==='approved'))), tone:'good'}])
+      + VelosUI.sec('To approve (' + pend.length + ')') + (pend.map(card).join('') || VelosUI.empty('✅','Nothing waiting','New payments to verify appear here.'))
+      + VelosUI.sec('Recent payments') + (rest.map(card).join('') || VelosUI.empty('💳','None yet'));
   },
 
   async customers(){
@@ -1143,17 +1183,17 @@ const VIEWS = {
   async forders(){
     const [o,r] = await Promise.all([db.from('food_orders').select('*, food_vendors(name), food_riders(full_name)').order('created_at',{ascending:false}).limit(80), db.from('food_riders').select('id,full_name').eq('status','active')]);
     if(o.error) throw o.error; const ropts = (r.data||[]).map(x => `<option value="${x.id}">${esc(x.full_name)}</option>`).join('');
-    $('#view').innerHTML = '<h2>Food orders</h2>' + (o.data.length ? o.data.map(x => `<div class="card">
-      <div class="row"><b class="gold">F${x.order_no}</b>${sel('food_orders',x.id,x.status,['awaiting_payment','placed','confirmed','preparing','ready','out_for_delivery','in_transit','delivered','collected','cancelled'])}</div>
-      <div><b>${esc(x.food_vendors?.name||'')}</b> · ${dt(x.created_at)}</div>${delBtn('food_order', x.id)}
-      <div>${esc(x.customer_name)} · <a href="${wa(x.customer_phone)}" target="_blank">${esc(x.customer_phone)}</a></div>
-      <div class="mut">📍 ${esc(x.address_text)} · <a href="https://www.google.com/maps?q=${x.lat},${x.lng}" target="_blank">Map</a> · ${x.distance_km} km</div>
-      <div class="mut">Subtotal ${ugx(x.subtotal_ugx)} + delivery ${ugx(x.delivery_fee_ugx)} = <b class="gold">${ugx(x.total_ugx)}</b> · restaurant value ${ugx(x.vendor_base_ugx)} · rider pay ${ugx(x.rider_pay_ugx)}</div>
-      <div class="mut">${esc(x.payment_method)} · ${x.ready_by?'ready by '+dt(x.ready_by)+(x.delay_extension_min?' (+'+x.delay_extension_min+' min)':''):'not confirmed yet'}${x.penalty_ugx?` · <b style="color:var(--bad)">penalty ${ugx(x.penalty_ugx)}</b>`:''}${x.cancel_reason?' · cancelled: '+esc(x.cancel_reason):''}</div>
-      ${x.needs_quote && !x.quote_approved ? `<div class="row"><span class="gold">Delivery quote needed (${x.distance_km} km)</span><input class="sm" id="fq-${x.id}" type="number" value="${x.delivery_fee_ugx}" style="width:120px"><button onclick="approveQuote('${x.id}',${x.subtotal_ugx})">Approve quote</button></div>` : ''}
-      <div class="row"><select class="sm" onchange="stf('food_orders','${x.id}','payment_status',this.value)">${['unpaid','paid','refund_due','refunded'].map(p => `<option ${p===x.payment_status?'selected':''}>${p}</option>`).join('')}</select><span class="mut">Rider: ${esc(x.food_riders?.full_name||'none')} (${esc(x.rider_status)})</span></div>
-      ${['delivered','cancelled'].includes(x.status) ? '' : `<div class="row"><select class="sm" id="rd-${x.id}" style="flex:1"><option value="">— Assign rider —</option>${ropts}</select><button onclick="offerRider(${x.order_no},'${x.id}')">Offer job</button></div>
-      <div class="row"><select class="sm" id="cr-${x.id}"><option value="customer">Customer cancelled</option><option value="out_of_stock">Out of stock</option><option value="delay">Delay</option><option value="other">Other</option></select><label class="mut"><input type="checkbox" class="sm" id="cw-${x.id}"> waive penalty</label><button class="ghost" onclick="adminCancel(${x.order_no},'${x.id}')">Cancel order</button></div>`}</div>`).join('') : '<p class="mut">No food orders yet.</p>');
+    const card = x => { const done = ['delivered','cancelled'].includes(x.status);
+      return VelosUI.order({prefix:'F', no:x.order_no, status:x.status, headRight:sel('food_orders',x.id,x.status,['awaiting_payment','placed','confirmed','preparing','ready','out_for_delivery','in_transit','delivered','collected','cancelled']), isNew:x.status==='placed', sub:dt(x.created_at),
+        meta:[['Restaurant', x.food_vendors?.name||''], ['Customer', `${esc(x.customer_name)} · <a href="${wa(x.customer_phone)}" target="_blank">${esc(x.customer_phone)}</a>`, 'html'], ['Deliver to', `${esc(x.address_text)} · <a href="https://www.google.com/maps?q=${x.lat},${x.lng}" target="_blank">Map</a> · ${x.distance_km} km`, 'html'],
+          ['Payment', x.payment_method], ['Kitchen', x.ready_by ? 'Ready by '+dt(x.ready_by)+(x.delay_extension_min?' (+'+x.delay_extension_min+' min)':'') : 'Not confirmed yet'], ['Rider', `${x.food_riders?.full_name||'none'} (${x.rider_status||'—'})`]],
+        warn:[x.penalty_ugx ? `Penalty ${ugx(x.penalty_ugx)}` : '', x.cancel_reason ? 'Cancelled: '+esc(x.cancel_reason) : ''].filter(Boolean).join(' · '),
+        totals:[['Subtotal', x.subtotal_ugx], ['Delivery', x.delivery_fee_ugx], ['Customer pays', x.total_ugx, 's'], ['Restaurant value', x.vendor_base_ugx], ['Rider pay', x.rider_pay_ugx]],
+        extra:(x.needs_quote && !x.quote_approved ? `<div class="vu-note"><div class="row"><span>Delivery quote needed (${x.distance_km} km)</span><input class="sm" id="fq-${x.id}" type="number" value="${x.delivery_fee_ugx}" style="width:130px"><button onclick="approveQuote('${x.id}',${x.subtotal_ugx})">Approve quote</button></div></div>` : '')
+          + `<div class="row"><span class="mut">Payment status</span><select class="sm" onchange="stf('food_orders','${x.id}','payment_status',this.value)">${['unpaid','paid','refund_due','refunded'].map(p => `<option ${p===x.payment_status?'selected':''}>${p}</option>`).join('')}</select></div>` + delBtn('food_order', x.id),
+        actions:done ? '' : `<select class="sm" id="rd-${x.id}" style="flex:2 1 180px"><option value="">— Assign rider —</option>${ropts}</select><button onclick="offerRider(${x.order_no},'${x.id}')">Offer job</button>
+          <select class="sm" id="cr-${x.id}" style="flex:2 1 160px"><option value="customer">Customer cancelled</option><option value="out_of_stock">Out of stock</option><option value="delay">Delay</option><option value="other">Other</option></select><label class="mut"><input type="checkbox" class="sm" id="cw-${x.id}"> waive penalty</label><button class="ghost" onclick="adminCancel(${x.order_no},'${x.id}')">Cancel order</button>`}); };
+    $('#view').innerHTML = VelosUI.head('Food orders','Latest 80 orders from Velos Foods restaurants.', o.data.length) + (o.data.length ? o.data.map(card).join('') : VelosUI.empty('🍽️','No food orders yet'));
   },
 
   async fmenu(){

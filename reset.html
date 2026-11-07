@@ -4,7 +4,7 @@
 <body><div class="c"><img src="logo-mark.png" alt="The Velos Group" style="width:auto;height:48px"><h1>Choose a new password</h1><p>Enter a new password for your Velos account (at least 8 characters).</p>
 <input id="p1" type="password" placeholder="New password" autocomplete="new-password"><input id="p2" type="password" placeholder="Repeat new password" autocomplete="new-password">
 <button class="go" onclick="save()">Save new password</button><div id="m"></div><p><a href="/">← Back to Velos</a></p></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-guard-config.js"></script><script src="velos-guard.js"></script>
 <script>
 var S=window.VELOS_SUPABASE,db=supabase.createClient(S.url,S.key),ready=false;
 db.auth.onAuthStateChange(function(e){if(e==='PASSWORD_RECOVERY'||e==='SIGNED_IN')ready=true});

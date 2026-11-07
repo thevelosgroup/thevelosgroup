@@ -5,7 +5,7 @@
 .steps{display:flex;flex-direction:column;gap:8px}.st{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:12px}.st i{font-style:normal;font-size:20px}.st.done{border-color:var(--ok)}
 .ed{border:1px solid var(--gold);border-radius:12px;padding:12px;margin:10px 0;background:rgba(232,199,102,.05)}.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}select,textarea{width:100%;padding:12px;margin:5px 0;background:var(--bg,#080d1f);color:var(--txt);border:1px solid var(--line);border-radius:8px;font:inherit}label.m{display:block;margin-top:6px}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-stamp.js"></script><script src="velos-receipts.js"></script><script src="velos-myreceipts.js"></script><script src="velos-safe.js"></script><script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script><script src="velos-txid.js"></script><script src="velos-vendor-cats.js"></script><script src="velos-shell.js"></script><script src="velos-location.js"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-guard-config.js"></script><script src="velos-guard.js"></script><script src="velos-ui.js"></script><script src="velos-stamp.js"></script><script src="velos-receipts.js"></script><script src="velos-myreceipts.js"></script><script src="velos-safe.js"></script><script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script><script src="velos-txid.js"></script><script src="velos-vendor-cats.js"></script><script src="velos-shell.js"></script><script src="velos-location.js"></script></head>
 <body><div class="w" style="max-width:900px"><div id="v"><p class="m">Loading…</p></div></div><div id="toast" hidden></div>
 <script>
 var S = window.VELOS_SUPABASE, db = supabase.createClient(S.url, S.key), $ = function(i){ return document.getElementById(i); }, V = function(h){ $('v').innerHTML = h; };
@@ -115,7 +115,7 @@ function tab(t){ TAB = t; VS.active(t); ({home:home, prod:products, ord:orders, 
 function bd(){ return $('body'); }
 async function home(){
   bd().innerHTML = '<p class="m">Loading…</p>'; var d = (await db.rpc('partner_dashboard')).data || {};
-  bd().innerHTML = '<div class="stats"><div class="c stat"><b>' + (d.new_orders || 0) + '</b>New orders to pack</div><div class="c stat"><b>' + ugx(d.sales_today) + '</b>Sales today</div><div class="c stat"><b>' + ugx(d.sales_month) + '</b>Sales this month</div><div class="c stat"><b>' + ugx(d.owed_now) + '</b>Velos owes you</div></div>'
+  bd().innerHTML = VelosUI.stats([{label:'New orders to pack', value:d.new_orders || 0, tone:(d.new_orders ? 'warn' : '')}, {label:'Sales today', value:ugx(d.sales_today)}, {label:'Sales this month', value:ugx(d.sales_month)}, {label:'Velos owes you', value:ugx(d.owed_now), tone:'good'}])
     + '<div class="c"><div class="row"><b>Your catalogue</b><span class="pill">' + (d.live_products || 0) + ' live of ' + (d.products || 0) + '</span></div><p class="m">Customers see items that are active and in stock. Keep prices and stock up to date.</p><button onclick="tab(\'prod\')">Manage products</button></div>'
     + '<div id="ins"></div>'
     + '<div class="c"><b>How Velos pays you</b><p class="m">Customers pay Velos. After your order is delivered, the order value minus Velos commission is added to what Velos owes you, then paid to your registered account.</p></div>';
@@ -159,13 +159,24 @@ function delP(id){ askDel(id); }
 async function setState(id, s){ if(s === 'permanent' && !confirm('Mark this product as permanently unavailable? It disappears from the Velos site. You can still change it back until you delete it.')){ products(); return; } var r = await db.rpc('partner_product_set_state', {p_id:id, p_state:s}); if(r.error){ toast(r.error.message, true); products(); return; } toast('Updated ✓'); products(); }
 async function orders(){
   bd().innerHTML = '<p class="m">Loading…</p>'; var L = (await db.rpc('partner_orders_mine')).data || [];
-  bd().innerHTML = '<h2>Orders</h2><p class="m">You see an order here once Velos has confirmed the customer\'s payment. Pack it and press Packed. A Velos rider collects it.</p>' + (L.length ? L.map(function(o){ var nx = o.status === 'placed' || o.status === 'confirmed';
-    return '<div class="c"><div class="row"><b>#' + o.order_no + ' · ' + esc(o.customer_name || '') + '</b><span class="pill">' + esc(o.status) + '</span></div>' + (o.items || []).map(function(i){ return '<div>' + i.qty + ' × ' + esc(i.name) + ' <span class="m">' + ugx(i.price * i.qty) + '</span></div>'; }).join('') + '<div class="m">Order ' + ugx(o.subtotal_ugx) + ' · Velos commission ' + ugx(o.commission_ugx) + ' · <b>You get ' + ugx(o.you_get_ugx) + '</b></div>' + (nx ? '<button onclick="pack(' + o.order_no + ')">Packed and ready for the rider</button>' : '') + '</div>'; }).join('') : '<div class="c"><p class="m">No orders yet.</p></div>');
+  var nw = L.filter(function(o){ return o.status === 'placed' || o.status === 'confirmed'; }), rest = L.filter(function(o){ return !(o.status === 'placed' || o.status === 'confirmed'); });
+  var card = function(o){ var nx = o.status === 'placed' || o.status === 'confirmed', at = {placed:0, confirmed:0, packed:1, out_for_delivery:2, in_transit:2, delivered:3}[o.status];
+    return VelosUI.order({no:o.order_no, status:o.status, isNew:nx, sub:o.created_at ? VelosUI.date(o.created_at, 1) : '',
+      steps:(o.status === 'cancelled' || o.status === 'rejected') ? null : {list:['To pack','Packed','With rider','Delivered'], at:at == null ? 0 : at},
+      meta:[['Customer', o.customer_name || ''], ['Payment', 'Confirmed by Velos']],
+      items:(o.items || []).map(function(i){ return {qty:i.qty, name:i.name, amount:i.price * i.qty}; }),
+      totals:[['Order value', o.subtotal_ugx], ['Velos commission', '− ' + ugx(o.commission_ugx), 'neg'], ['You receive', o.you_get_ugx, 's']],
+      actions:nx ? '<button onclick="pack(' + o.order_no + ')">✅ Packed and ready for the rider</button>' : ''}); };
+  bd().innerHTML = VelosUI.head('Orders', 'You see an order here once Velos has confirmed the customer\'s payment. Pack it and press Packed. A Velos rider collects it.', L.length)
+    + (L.length ? (nw.length ? VelosUI.sec('To pack now (' + nw.length + ')') + nw.map(card).join('') : '') + (rest.length ? VelosUI.sec('Earlier orders') + rest.map(card).join('') : '') : VelosUI.empty('📦', 'No orders yet', 'New orders appear here the moment a customer pays.'));
 }
 async function pack(n){ var r = await db.rpc('partner_order_set', {p_no:n, p_status:'packed'}); if(r.error) return toast(r.error.message, true); toast('Marked packed ✓'); orders(); }
 async function earnings(){
   bd().innerHTML = '<p class="m">Loading…</p>'; var d = (await db.rpc('partner_dashboard')).data || {}, P = (await db.rpc('partner_payouts_mine')).data || [];
-  bd().innerHTML = '<div class="stats"><div class="c stat"><b>' + ugx(d.owed_now) + '</b>Velos owes you</div><div class="c stat"><b>' + ugx(d.paid_out) + '</b>Paid to you so far</div><div class="c stat"><b>' + ugx(d.commission_month) + '</b>Commission this month</div></div><h2>Payments from Velos</h2>' + (P.length ? '<table><tr><th>Date</th><th>Amount</th><th>Reference</th></tr>' + P.map(function(x){ return '<tr><td>' + new Date(x.created_at).toLocaleDateString('en-GB') + '</td><td>' + ugx(x.amount_ugx) + '</td><td>' + esc(x.reference || '') + '</td></tr>'; }).join('') + '</table>' : '<div class="c"><p class="m">No payments yet. Money appears here after your orders are delivered.</p></div>');
+  bd().innerHTML = VelosUI.head('Payments', 'What Velos owes you and what has been paid out to you.')
+    + VelosUI.stats([{label:'Velos owes you', value:ugx(d.owed_now), tone:'warn'}, {label:'Paid to you so far', value:ugx(d.paid_out), tone:'good'}, {label:'Commission this month', value:ugx(d.commission_month)}])
+    + VelosUI.sec('Payment history')
+    + VelosUI.table([{label:'Date', k:'created_at', date:true}, {label:'Reference', fn:function(x){ return x.reference || '—'; }}, {label:'Status', fn:function(){ return 'paid'; }, badge:true}, {label:'Amount', k:'amount_ugx', money:true}], P, {foot:P.length ? ['Total paid', '', '', '<b>' + ugx(P.reduce(function(t, x){ return t + (+x.amount_ugx || 0); }, 0)) + '</b>'] : null, empty:{icon:'💳', title:'No payments yet', text:'Money appears here after your orders are delivered.'}});
 }
 
 /* ---------- promotions (ads shown on the marketplace and on your store page) ---------- */
