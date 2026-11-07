@@ -33,8 +33,8 @@
   +'.hm-r img{width:38px;height:38px;object-fit:cover;border-radius:8px;background:#fff}.hm-r b{display:block;font:600 14.5px system-ui}.hm-r small{color:#9fb0e0;font:13px system-ui}.hm-r em{margin-left:auto;font:700 12px system-ui;color:#e8c766;font-style:normal;white-space:nowrap}'
   +'.hm-none{padding:16px;color:#9fb0e0;font:14px system-ui}'
   +'.hm-chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:16px auto 0;max-width:720px}.hm-chips a{color:#dfe5f7;text-decoration:none;border:1px solid #33406f;background:rgba(255,255,255,.04);padding:8px 14px;border-radius:99px;font:600 13.5px system-ui}.hm-chips a:hover{border-color:#e8c766;color:#e8c766}'
-  +'.hm-run{position:relative;z-index:1;overflow:hidden;padding:18px 0 6px;background:#080d1f;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}'
-  +'.hm-tr{display:flex;gap:14px;width:max-content;animation:hmrun 60s linear infinite}.hm-run:hover .hm-tr{animation-play-state:paused}@keyframes hmrun{to{transform:translateX(-50%)}}'
+  +'.hm-run{position:relative;z-index:1;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;cursor:grab;padding:18px 0 6px;background:#080d1f;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}'
+  +'.hm-run::-webkit-scrollbar{display:none}.hm-run.drag{cursor:grabbing}.hm-run.drag a{pointer-events:none}.hm-tr{display:flex;gap:14px;width:max-content}'
   +'.hm-t{flex:0 0 148px;height:164px;border-radius:22px;text-decoration:none;color:#fff;display:flex;flex-direction:column;justify-content:space-between;padding:14px;position:relative;overflow:hidden;box-shadow:0 8px 20px rgba(0,0,0,.35);transition:transform .2s}.hm-t:hover{transform:translateY(-4px)}'
   +'.hm-t i{font-style:normal;font-size:58px;line-height:1;filter:drop-shadow(0 6px 10px rgba(0,0,0,.35))}.hm-t b{font:700 18px/1.1 system-ui}.hm-t small{display:block;font:500 12.5px system-ui;opacity:.85;margin-top:2px}'
   +'.hm-t:nth-child(6n+1){background:linear-gradient(145deg,#b3392f,#6e1c26)}.hm-t:nth-child(6n+2){background:linear-gradient(145deg,#2a47b8,#14216b)}.hm-t:nth-child(6n+3){background:linear-gradient(145deg,#a23a8a,#4b1a5c)}'
@@ -48,19 +48,39 @@
   +'.hm-j{flex:0 0 268px;min-height:168px;border-radius:24px;text-decoration:none;color:#fff;display:flex;flex-direction:column;justify-content:space-between;gap:10px;padding:18px;border:1px solid rgba(255,255,255,.12);box-shadow:0 10px 26px rgba(0,0,0,.3)}'
   +'.hm-j i{font-style:normal;font-size:44px;line-height:1}.hm-j b{display:block;font:700 19px/1.15 system-ui}.hm-j small{display:block;font:500 13px/1.35 system-ui;opacity:.88;margin-top:4px}.hm-j u{text-decoration:none;font:700 13px system-ui;background:rgba(255,255,255,.18);border-radius:99px;padding:8px 14px;align-self:flex-start}'
   +'.hm-jc1{background:linear-gradient(145deg,#1b2f7a,#0f1a47)}.hm-jc2{background:linear-gradient(145deg,#1f8a6a,#0d4a42)}.hm-jc3{background:linear-gradient(145deg,#c2761c,#6d3a0e)}.hm-jc4{background:linear-gradient(145deg,#8a2a6a,#451a4a)}.hm-jc5{background:linear-gradient(145deg,#b3392f,#6e1c26)}'
-  +'.hm-jtr{display:flex;gap:16px;width:max-content;animation:hmrun 48s linear infinite}.hm-run:hover .hm-jtr{animation-play-state:paused}.hm-jtr.slow{animation-duration:62s;animation-direction:reverse}'
-  +'@media(prefers-reduced-motion:reduce){.hm-jtr{animation:none}}'
-  +'.hm-tr3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px auto 30px;max-width:1148px;padding:0 16px}.hm-tr3 div{text-align:center;padding:16px 8px;border:1px solid #2a3560;border-radius:18px;background:#0f1730;color:#f4f1ea}.hm-tr3 i{font-style:normal;font-size:30px;display:block;margin-bottom:6px}.hm-tr3 b{font:600 14px system-ui}'
-  +'@media(prefers-reduced-motion:reduce){.hm-tr{animation:none}.hm-run{overflow-x:auto}}';
+  +'.hm-jtr{display:flex;gap:16px;width:max-content}'
+    +'.hm-tr3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px auto 30px;max-width:1148px;padding:0 16px}.hm-tr3 div{text-align:center;padding:16px 8px;border:1px solid #2a3560;border-radius:18px;background:#0f1730;color:#f4f1ea}.hm-tr3 i{font-style:normal;font-size:30px;display:block;margin-bottom:6px}.hm-tr3 b{font:600 14px system-ui}'
+  +'';
   var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
 
-  function tilesHtml(){ var h = TILES.map(function(t){ return '<a class="hm-t" data-k="' + esc(t[1]) + '" href="' + t[3] + '"><i>' + t[0] + '</i><div><b>' + esc(t[1]) + '</b><small>' + esc(t[2]) + '</small></div></a>'; }).join(''); return h + h; }
+  function tilesHtml(){ var h = TILES.map(function(t){ return '<a class="hm-t" data-k="' + esc(t[1]) + '" href="' + t[3] + '"><i>' + t[0] + '</i><div><b>' + esc(t[1]) + '</b><small>' + esc(t[2]) + '</small></div></a>'; }).join(''); return h + h + h + h; }
   var tr = $('hm-tr'); if(tr) tr.innerHTML = tilesHtml();
   var JOIN = [['🏪','Become a Velos Partner','Open your own store and sell to all of East Africa','vendor.html','Open my store','hm-jc1'],['🛵','Become a Rider','Earn on every delivery you complete','rider.html','Start riding','hm-jc2'],['🛠️','Become a Technician','Get verified jobs from customers near you','technicians.html','Join the network','hm-jc3'],['🍽️','List your restaurant','Reach more hungry customers with Velos Foods','restaurant.html','Add my restaurant','hm-jc4']];
   var CAREERS = [['📣','Sales Agent, Uganda','Represent Velos and earn commission on every sale','careers.html#agents','See requirements','hm-jc5'],['🇰🇪','Sales Executive, Kenya','We are appointing a sales executive to represent Velos in Kenya','careers.html#agents','Apply for Kenya','hm-jc1'],['🛠️','Technician','Skilled trades wanted across Kampala','technicians.html','Apply now','hm-jc3'],['💼','More careers','Operations, support and technology roles','careers.html#openings','View open roles','hm-jc2']];
   function joinHtml(L){ var h = L.map(function(t){ return '<a class="hm-j ' + t[5] + '" href="' + t[3] + '"><i>' + t[0] + '</i><div><b>' + esc(t[1]) + '</b><small>' + esc(t[2]) + '</small></div><u>' + esc(t[4]) + ' →</u></a>'; }).join(''); return h + h + h + h; }
   var jn = $('hm-join'); if(jn) jn.innerHTML = joinHtml(JOIN);
   var cr = $('hm-careers'); if(cr) cr.innerHTML = joinHtml(CAREERS);
+
+
+  /* ---------- running cards: they drift by themselves, but you can always swipe, drag or scroll them ---------- */
+  function runner(box, speed, dir){ if(!box) return; var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var pos = 0, last = 0, hold = 0, hover = false, down = false, moved = 0, sx = 0, sl = 0, unit = 0;
+    function measure(){ var tk = box.firstElementChild; unit = tk ? tk.scrollWidth / 4 : 0; if(unit && (box.scrollLeft < unit || box.scrollLeft >= unit * 2)) box.scrollLeft = unit + (box.scrollLeft % unit); pos = box.scrollLeft; }
+    function user(ms){ hold = Date.now() + (ms || 2600); }
+    function wrap(){ if(!unit) return; if(box.scrollLeft >= unit * 2) box.scrollLeft -= unit; else if(box.scrollLeft < unit) box.scrollLeft += unit; }
+    function tick(t){ var dt = Math.min(60, t - last) || 16; last = t;
+      if(!reduce && unit && !down && !hover && Date.now() > hold && !document.hidden){ if(Math.abs(box.scrollLeft - pos) > 2) pos = box.scrollLeft; pos += dir * speed * dt / 1000; box.scrollLeft = pos; wrap(); pos = box.scrollLeft; }
+      requestAnimationFrame(tick); }
+    box.addEventListener('scroll', function(){ if(Date.now() > hold && Math.abs(box.scrollLeft - pos) > 3) user(); wrap(); }, {passive:true});
+    ['touchstart','touchmove','wheel'].forEach(function(e){ box.addEventListener(e, function(){ user(3200); }, {passive:true}); });
+    box.addEventListener('touchend', function(){ user(3200); }, {passive:true});
+    box.addEventListener('mouseenter', function(){ hover = true; }); box.addEventListener('mouseleave', function(){ hover = false; });
+    box.addEventListener('pointerdown', function(e){ if(e.pointerType !== 'mouse' || e.button !== 0) return; down = true; moved = 0; sx = e.clientX; sl = box.scrollLeft; });
+    window.addEventListener('pointermove', function(e){ if(!down) return; var d = e.clientX - sx; moved = Math.max(moved, Math.abs(d)); if(moved > 6) box.classList.add('drag'); box.scrollLeft = sl - d; });
+    window.addEventListener('pointerup', function(){ if(!down) return; down = false; user(3200); setTimeout(function(){ box.classList.remove('drag'); }, 0); });
+    box.addEventListener('click', function(e){ if(moved > 6){ e.preventDefault(); e.stopPropagation(); moved = 0; } }, true);
+    window.addEventListener('resize', measure); window.addEventListener('load', measure); setTimeout(measure, 300); setTimeout(measure, 1500); measure(); requestAnimationFrame(tick); }
+  document.querySelectorAll('.hm-run').forEach(function(box){ var k = box.firstElementChild; if(!k) return; runner(box, k.id === 'hm-tr' ? 38 : 34, k.classList.contains('slow') ? -1 : 1); });
 
   /* ---------- real pictures on the running cards ---------- */
   function setPhoto(label, url){ if(!url) return; var im = new Image(); im.onload = function(){ document.querySelectorAll('.hm-t[data-k="' + label + '"]').forEach(function(a){ a.classList.add('ph'); a.style.backgroundImage = 'url("' + String(url).replace(/"/g, '%22') + '")'; }); }; im.src = url; }

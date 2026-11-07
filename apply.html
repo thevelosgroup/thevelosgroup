@@ -72,4 +72,4 @@ async function up(k){
 async function view(p){var r=await db.storage.from('people-docs').createSignedUrl(p,120);if(r.error)return toast(r.error.message,true);window.open(r.data.signedUrl,'_blank')}
 async function rm(id){if(!confirm('Remove this file?'))return;var r=await db.rpc('apply_file_remove',{p_id:id});if(r.error)return toast(r.error.message,true);ST.files=ST.files.filter(function(x){return x.id!==id});render()}
 boot();
-</script></body></html>
+</script><script src="velos-ai.js?v=1" defer></script></body></html>

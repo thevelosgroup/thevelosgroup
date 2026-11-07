@@ -297,8 +297,11 @@ window.shareContent = async function(title, bodyText, waLink, pageLink, imgSrc, 
 };
 window.shareProduct = function(id){
   var p = PRODUCTS.find(function(x){ return x.id === id; }); if(!p) return;
-  var eff = effPrice(p), d = PROMO[id];
-  window.shareContent(p.name, p.name + '\n' + (eff ? fmt(eff) : 'Request a quote') + (d ? '  (-' + d + '% offer)' : ''), '', siteUrl('shop.html') + '?p=' + encodeURIComponent(id), p.img, 'velos-product.jpg',
+  var eff = effPrice(p), d = PROMO[id], base = siteUrl('shop.html') + '?p=' + encodeURIComponent(id), combo = /^bd/.test(String(id)) || /^Bundle/i.test(p.sub || '');
+  var o = {kind:combo ? 'combo' : (d ? 'promo' : 'product'), title:p.name, price:eff || null, oldPrice:d ? p.price : null, discount:d || 0, image:p.img, store:'Velos Global Shop',
+    desc:combo ? String(p.sub || '').replace(/^Bundle\s*·\s*/i, '') : (p.sub || ''), url:base, addUrl:base + '&add=1'};
+  if(window.VelosShare) return VelosShare.open(o);
+  window.shareContent(p.name, p.name + '\n' + (eff ? fmt(eff) : 'Request a quote') + (d ? '  (-' + d + '% offer)' : ''), '', base, p.img, 'velos-product.jpg',
     {imgSrc:p.img, title:p.name, priceText:eff ? fmt(eff) : 'Request a quote', oldPriceText:d ? fmt(p.price) : null, badgeText:d ? '-' + d + '% OFF' : null});
 };
 
@@ -311,10 +314,10 @@ window.openProductSheet = function(id){
     + '<div style="font-size:22px;font-weight:700;color:#7fd99a">' + (eff ? fmt(eff) : 'Request a quote') + (d ? ' <s style="font-size:14px;color:#8a93ab">' + fmt(p.price) + '</s> <span style="color:#e6493f;font-size:14px">-' + d + '%</span>' : '') + '</div>'
     + '<div class="sum">' + (oos ? '<b style="color:#ff8a80">Currently out of stock</b>' : '<b style="color:#7fd99a">In stock</b> · Order online, pay as agreed, track every step.') + '</div>',
     (oos ? '' : '<button class="go" onclick="' + close + 'orderNow(\'' + id + '\')">Order now</button><button class="cx" onclick="' + close + 'addToCart(\'' + id + '\')">Add to cart</button>')
-    + '<a class="vb cx" href="shop.html">Browse the shop</a>');
+    + '<button class="cx" onclick="shareProduct(\'' + id + '\')">Share</button><a class="vb cx" href="shop.html">Browse the shop</a>');
 };
 window.vProd = function(id){ openProductSheet(id); return false; };
-function openFromUrl(){ var id = new URLSearchParams(location.search).get('p'); if(id) openProductSheet(id); }
+function openFromUrl(){ var q = new URLSearchParams(location.search), id = q.get('p'); if(!id) return; openProductSheet(id); if(q.get('add') === '1'){ try { var pr = PRODUCTS.find(function(x){ return x.id === id; }); if(pr && pr.inStock !== false){ addToCart(id); var sm = document.querySelector('#vx .sum'); if(sm) sm.innerHTML = '<b style="color:#7fd99a">✓ Added to your cart.</b> Tap Order now to finish, or keep browsing.'; } } catch(e){} } }
 catP.catch(function(){}).then(function(){ setTimeout(openFromUrl, 400); });
 
 

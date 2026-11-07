@@ -16,7 +16,7 @@
 .rc{flex:0 0 150px;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column}.rc img,.rc .ph{width:100%;height:110px;object-fit:cover;background:#14265f;display:flex;align-items:center;justify-content:center;font-size:34px}.rc div{padding:8px;font-size:13px}.rc b{display:block;font-size:13.5px;line-height:1.2}.rc span{color:var(--gold);font-weight:700}
 @media(prefers-reduced-motion:reduce){.mqt{animation:none}.mq{overflow-x:auto}}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-txid.js"></script><script src="velos-location.js"></script><script src="velos-stamp.js"></script><script src="velos-docs.js"></script><script src="velos-vendor-cats.js"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-txid.js"></script><script src="velos-location.js"></script><script src="velos-stamp.js"></script><script src="velos-share.js"></script><script src="velos-docs.js"></script><script src="velos-vendor-cats.js"></script><style>.ad{position:relative}</style></head>
 <body><div class="w"><div class="hd"><a href="index.html"><img src="logo-mark.png" alt="The Velos Group">Velos</a><div><a href="foods.html">Foods</a> &nbsp; <a href="#/track">Track order</a> &nbsp; <a href="vendor.html">Sell on Velos</a></div></div><div id="v"></div></div><div id="toast" hidden></div><div id="sheet"></div>
 <script>
 var S = window.VELOS_SUPABASE, db = supabase.createClient(S.url, S.key), $ = function(i){ return document.getElementById(i); }, V = function(h){ $('v').innerHTML = h; };
@@ -27,12 +27,12 @@ function lsGet(k){ try{ return JSON.parse(localStorage.getItem(k) || 'null'); }c
 
 function route(){
   var h = location.hash.replace(/^#\/?/, ''), p = h.split('/');
-  if(p[0] === 's' && p[1]) return store(p[1]); if(p[0] === 'q') return search(decodeURIComponent(p[1] || '')); if(p[0] === 'track') return track(); if(p[0] === 'c') CAT = p[1] || ''; else CAT = '';
+  if(p[0] === 's' && p[1]) return store(p[1], p[2] === 'p' ? p[3] : null, p[4] === 'add'); if(p[0] === 'q') return search(decodeURIComponent(p[1] || '')); if(p[0] === 'track') return track(); if(p[0] === 'c') CAT = p[1] || ''; else CAT = '';
   if(p[0] === 'm') MODE = p[1] === 'wholesale' ? 'wholesale' : 'retail';
   home();
 }
 
-function adHtml(x, toStore){ var bg = x.image_url ? ' style="background-image:url(' + esc(x.image_url) + ')"' : ''; return '<div class="ad"' + bg + ' onclick="' + (toStore ? "location.hash=\'#/s/" + x.partner_id + "\'" : (x.product_id ? "chg(\'" + x.product_id + "\',1)" : "window.scrollTo({top:0,behavior:\'smooth\'})")) + '"><span class="tag">AD · ' + esc(x.store || 'OFFER') + '</span><b>' + esc(x.title) + '</b>' + (x.body ? '<small>' + esc(x.body) + '</small>' : '') + (x.promo_price_ugx ? '<span class="pp">' + ugx(x.promo_price_ugx) + '</span>' : '') + (x.ends_on ? '<small>Ends ' + esc(x.ends_on) + '</small>' : '') + '</div>'; }
+function adHtml(x, toStore){ var sb = location.href.split('#')[0] + '#/s/' + x.partner_id, ak = 'mpa-' + (x.id || x.product_id || x.title); VelosShare.reg(ak, {kind:'promo', title:x.title, price:x.promo_price_ugx || null, image:x.image_url, store:x.store, desc:x.body, ends:x.ends_on, url:x.product_id ? sb + '/p/' + x.product_id : sb, addUrl:x.product_id ? sb + '/p/' + x.product_id + '/add' : null}); var bg = x.image_url ? ' style="background-image:url(' + esc(x.image_url) + ')"' : ''; return '<div class="ad"' + bg + ' onclick="' + (toStore ? "location.hash=\'#/s/" + x.partner_id + "\'" : (x.product_id ? "chg(\'" + x.product_id + "\',1)" : "window.scrollTo({top:0,behavior:\'smooth\'})")) + '"><span class="tag">AD · ' + esc(x.store || 'OFFER') + '</span><b>' + esc(x.title) + '</b>' + (x.body ? '<small>' + esc(x.body) + '</small>' : '') + (x.promo_price_ugx ? '<span class="pp">' + ugx(x.promo_price_ugx) + '</span>' : '') + (x.ends_on ? '<small>Ends ' + esc(x.ends_on) + '</small>' : '') + VelosShare.btn(ak, 'fab') + '</div>'; }
 function marquee(items, dur){ if(!items.length) return ''; var h = items.join(''), rep = items.length < 4 ? h + h + h + h : h + h; return '<div class="mq"><div class="mqt" style="--d:' + (dur || 45) + 's">' + rep + '</div></div>'; }
 async function loadAds(el, partner, toStore){ try{ var r = await db.rpc('public_promos', {p_partner:partner || null}), L = r.data || []; if(L.length && $(el)) $(el).innerHTML = '<h2 style="margin:6px 0 0">Offers</h2>' + marquee(L.map(function(x){ return adHtml(x, toStore); }), 40); }catch(e){} }
 async function home(){
@@ -57,7 +57,7 @@ async function search(q){
 }
 
 /* ---------- a store ---------- */
-async function store(id){
+async function store(id, focusId, autoAdd){
   V('<p class="m">Loading…</p>'); var r = await db.rpc('public_partner_catalog', {p_partner:id}); if(!r.data){ V('<div class="c"><p>This store is not open right now.</p><a class="b" href="#/">Back to all stores</a></div>'); return; }
   STORE = r.data; CART = lsGet('velos_cart_' + id) || {}; var p = STORE.partner, c = vcat(p.category), hotel = p.kind !== 'goods', P = STORE.products, cats = {};
   P.forEach(function(x){ var k = x.category || 'Items'; (cats[k] = cats[k] || []).push(x); });
@@ -65,8 +65,14 @@ async function store(id){
     + '<div id="ads"></div>' + (P.length >= 2 ? '<h2 style="margin:6px 0 0">Browse the shop</h2>' + marquee(P.filter(function(x){ return x.in_stock; }).map(function(x){ return '<div class="rc" onclick="chg(\'' + x.id + '\',1)">' + (x.image_url ? '<img src="' + esc(x.image_url) + '" alt="" loading="lazy">' : '<div class="ph">📦</div>') + '<div><b>' + esc(x.name) + '</b><span>' + ugx(x.price_ugx) + '</span></div></div>'; }), 50) + '<p class="m" style="margin:-4px 0 6px">Tap a card to add it to your cart.</p>' : '')
     + (hotel ? '<p class="m">Choose a room or venue, then Velos confirms your booking after your payment.</p>' : '') + (P.length ? Object.keys(cats).map(function(k){ return '<h2>' + esc(k) + '</h2><div class="pg">' + cats[k].map(function(x){ return pcard(x); }).join('') + '</div>'; }).join('') : '<div class="c"><p class="m">This store is adding its products. Check back soon.</p></div>') + '<button class="cb" id="cb" onclick="cart()" hidden></button>');
   cartBtn(); loadAds('ads', id, false);
+  var sr = location.href.split('#')[0] + '#/s/' + id, ky = 'mps-' + id;
+  VelosShare.reg(ky, {kind:hotel ? 'store' : 'store', title:p.business_name, image:p.cover_url || p.logo_url, desc:(c.l ? c.l + ' · ' : '') + (p.city || '') + (p.description ? '. ' + p.description : ''), url:sr});
+  var h1 = document.querySelector('#v h1'); if(h1) h1.insertAdjacentHTML('afterend', '<div style="margin:6px 0">' + VelosShare.btn(ky, 'pill', 'Share this store') + '</div>');
+  if(focusId){ var el = document.getElementById('pc-' + focusId); if(el){ el.scrollIntoView({behavior:'smooth', block:'center'}); el.style.outline = '2px solid #e8c766'; el.style.boxShadow = '0 0 0 6px rgba(232,199,102,.2)'; if(autoAdd && !CART[focusId]){ var xx = STORE.products.filter(function(q){ return q.id === focusId && q.in_stock; })[0]; if(xx) chg(focusId, 1); } } }
 }
-function pcard(x){ var n = CART[x.id] ? CART[x.id].q : 0; return '<div class="pc">' + (x.image_url ? '<img src="' + esc(x.image_url) + '" alt="" loading="lazy">' : '<div class="ph">📦</div>') + '<b>' + esc(x.name) + '</b>' + (x.description ? '<span class="m">' + esc(x.description).slice(0, 70) + '</span>' : '') + '<span class="pr">' + ugx(x.price_ugx) + ' / ' + esc(x.unit) + '</span>' + (x.sale_mode === 'wholesale' ? '<span class="pill">Wholesale · min ' + x.min_qty + '</span>' : '') + (x.in_stock ? '<div class="qty" id="q-' + x.id + '">' + qtyHtml(x, n) + '</div>' : '<span class="pill bad">Out of stock</span>') + '</div>'; }
+function pcard(x){ var n = CART[x.id] ? CART[x.id].q : 0, pid = STORE.partner.id, base = location.href.split('#')[0] + '#/s/' + pid + '/p/' + x.id, ky = 'mpp-' + x.id;
+  VelosShare.reg(ky, {kind:'product', title:x.name, price:x.price_ugx, image:x.image_url, store:STORE.partner.business_name + (STORE.partner.city ? ', ' + STORE.partner.city : ''), desc:x.description, tag:x.sale_mode === 'wholesale' ? 'WHOLESALE' : '', url:base, addUrl:base + '/add'});
+  return '<div class="pc" id="pc-' + x.id + '">' + (x.image_url ? '<img src="' + esc(x.image_url) + '" alt="" loading="lazy">' : '<div class="ph">📦</div>') + '<b>' + esc(x.name) + '</b>' + (x.description ? '<span class="m">' + esc(x.description).slice(0, 70) + '</span>' : '') + '<span class="pr">' + ugx(x.price_ugx) + ' / ' + esc(x.unit) + '</span>' + (x.sale_mode === 'wholesale' ? '<span class="pill">Wholesale · min ' + x.min_qty + '</span>' : '') + (x.in_stock ? '<div class="qty" id="q-' + x.id + '">' + qtyHtml(x, n) + '</div>' : '<span class="pill bad">Out of stock</span>') + '<div style="margin-top:6px">' + VelosShare.btn(ky, 'pill', 'Share') + '</div></div>'; }
 function qtyHtml(x, n){ return n ? '<button class="g" onclick="chg(\'' + x.id + '\',-1)">−</button><b>' + n + '</b><button onclick="chg(\'' + x.id + '\',1)">+</button>' : '<button class="full" style="margin:0" onclick="chg(\'' + x.id + '\',1)">Add</button>'; }
 function chg(id, d){ var x = STORE.products.filter(function(p){ return p.id === id; })[0], cur = CART[id] ? CART[id].q : 0, wh = x.sale_mode === 'wholesale', q;
   if(d > 0) q = (cur === 0 && wh) ? x.min_qty : cur + 1; else { q = cur - 1; if(wh && q < x.min_qty) q = 0; }
@@ -133,4 +139,4 @@ var LASTTRACK = null;
 function trackDoc(){ var o = LASTTRACK, c = lsGet('velos_cust') || {}; if(!o) return; var sub = 0, ls = (o.items || []).map(function(x){ sub += x.price * x.qty; return {name:x.name, qty:x.qty, unit:x.unit, price:x.price}; });
   VelosDocs.sheet({no:o.order_no, store:o.store, date:new Date(), mode:(o.total_ugx - sub) > 0 ? 'delivery' : 'pickup', delivery:Math.max(0, o.total_ugx - sub), customer:{name:c.n || '', phone:$('tp').value, email:c.e || '', address:''}, lines:ls, paid:o.payment_status === 'confirmed' ? o.amount_paid_ugx : 0}); }
 window.addEventListener('hashchange', route); route();
-</script></body></html>
+</script><script src="velos-ai.js?v=1" defer></script></body></html>

@@ -4,6 +4,7 @@
    to a server endpoint that returns {reply}; it is used only when the built-in answers have no good match. */
 (function(){
   'use strict';
+  if(window.__vaBrain) return; window.__vaBrain = 1;
   var WA = '256755215751', FASHION = ['women-fashion','women-beauty','men-fashion','men-grooming'];
   var ctx = {flow:null, step:0, d:{}}, hist = [], FOOD = null, FOODP = null, busy = false;
   function $(i){ return document.getElementById(i); }
@@ -121,9 +122,36 @@
     {re:/abroad|import|overseas|china|dubai|sourc/, f:function(){ return {text:'Buying from abroad? We handle sourcing, shipping, customs and delivery. Tell us the item and your budget and we come back with options and a quote before you pay.', links:[['sourcing-request.html', 'Request sourcing']]}; }}
   ];
 
+
+  /* ---------- location-aware suggestions (asks permission only when the visitor asks for "near me") ---------- */
+  var LOC = null, SETS = null, STORES = null, STATION = {lat:0.3955, lng:32.6120, name:'Velos Pick-up Station, Clover Restaurant, Kyanja'};
+  function hav(a, b, c, d){ var R = 6371, r = Math.PI / 180, x = (c - a) * r, y = (d - b) * r, h = Math.sin(x / 2) * Math.sin(x / 2) + Math.cos(a * r) * Math.cos(c * r) * Math.sin(y / 2) * Math.sin(y / 2); return 2 * R * Math.asin(Math.sqrt(h)); }
+  function rest(path, body){ var S = window.VELOS_SUPABASE; if(!S) return Promise.resolve(null); return fetch(S.url + '/rest/v1/' + path, body ? {method:'POST', headers:{apikey:S.key, Authorization:'Bearer ' + S.key, 'Content-Type':'application/json'}, body:JSON.stringify(body)} : {headers:{apikey:S.key, Authorization:'Bearer ' + S.key}}).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }); }
+  function getLoc(){ return new Promise(function(ok){ try { var c = sessionStorage.getItem('va_loc'); if(c){ LOC = JSON.parse(c); return ok(LOC); } } catch(e){}
+    if(!navigator.geolocation) return ok(null);
+    navigator.geolocation.getCurrentPosition(function(p){ LOC = {lat:p.coords.latitude, lng:p.coords.longitude}; try { sessionStorage.setItem('va_loc', JSON.stringify(LOC)); } catch(e){} ok(LOC); }, function(){ ok(null); }, {enableHighAccuracy:false, timeout:9000, maximumAge:600000}); }); }
+  function areaName(l){ return fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&lat=' + l.lat + '&lon=' + l.lng).then(function(r){ return r.json(); }).then(function(j){ var a = (j && j.address) || {}; return a.suburb || a.neighbourhood || a.village || a.town || a.city_district || a.city || ''; }).catch(function(){ return ''; }); }
+  function geocode(q){ return fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ug,ke,rw,tz,bi,ss&q=' + encodeURIComponent(q)).then(function(r){ return r.json(); }).then(function(j){ return j && j[0] ? {lat:+j[0].lat, lng:+j[0].lon, name:(j[0].display_name || '').split(',')[0]} : null; }).catch(function(){ return null; }); }
+  function feeFor(km){ var per = (SETS && +SETS.rule_delivery_per_km) || 900, mn = (SETS && +SETS.rule_delivery_min_ugx) || 0; return Math.max(Math.round(km * per / 100) * 100, mn); }
+  function nearFlow(raw, t){ var m = t.match(/\b(?:near|around|close to|in|at)\s+([a-z][a-z .'-]{2,28})$/), area = m && !/^(me|my|here|you|the|a|an|this)\b/.test(m[1]) ? m[1].trim() : null;
+    return {async:true, run:function(){ bot('Let me look around ' + (area ? '<b>' + esc(area) + '</b>' : 'you') + '…');
+      var locP = area ? geocode(area + ', Uganda').then(function(g){ if(g){ LOC = g; } return g; }) : getLoc();
+      return locP.then(function(l){ if(!l){ bot(area ? 'I could not find that area. Try a nearby landmark or town.' : 'I could not get your location. Allow location access for this site in your browser, or tell me your area, for example <b>near Ntinda</b>.'); chips(['near Kyanja', 'near Ntinda', 'near Kampala Road', 'I am hungry']); return; }
+        return Promise.all([loadFood(), STORES ? STORES : rest('rpc/public_partners', {p_category:null, p_mode:null, p_q:null}).then(function(r){ STORES = r || []; return STORES; }), SETS ? SETS : rest('settings?select=key,value&key=in.(rule_delivery_per_km,rule_delivery_min_ugx)').then(function(r){ SETS = {}; (r || []).forEach(function(x){ SETS[x.key] = x.value; }); return SETS; }), area ? Promise.resolve(area) : areaName(l)]).then(function(res){
+          var where = res[3] || area || '', hr = new Date().getHours(), meal = hr < 11 ? 'breakfast' : hr < 16 ? 'lunch' : hr < 21 ? 'dinner' : 'a late bite';
+          var rs = ((FOOD && FOOD.vendors) || []).filter(function(v){ return v.lat != null && v.lng != null; }).map(function(v){ return {v:v, km:hav(l.lat, l.lng, +v.lat, +v.lng) * 1.3}; }).sort(function(a, b){ return a.km - b.km; }).slice(0, 3);
+          var ss = (STORES || []).filter(function(x){ return x.lat != null && x.lng != null; }).map(function(x){ return {s:x, km:hav(l.lat, l.lng, +x.lat, +x.lng) * 1.3}; }).sort(function(a, b){ return a.km - b.km; }).slice(0, 3);
+          var st = hav(l.lat, l.lng, STATION.lat, STATION.lng) * 1.3;
+          bot('Here is what is close to <b>' + esc(where || 'your location') + '</b>. Distances are road estimates:');
+          if(rs.length){ bot('🍽️ <b>Restaurants</b> (' + meal + ' idea)'); rs.forEach(function(x){ link('foods.html?v=' + encodeURIComponent(x.v.slug), x.v.name + ' · about ' + x.km.toFixed(1) + ' km · delivery about ' + money(feeFor(x.km))); }); }
+          else bot('I do not have exact pins for restaurants yet. Open Velos Foods to browse them.');
+          if(ss.length){ bot('🏪 <b>Partner stores</b>'); ss.forEach(function(x){ link('marketplace.html#/s/' + x.s.id, x.s.business_name + ' · about ' + x.km.toFixed(1) + ' km · delivery about ' + money(feeFor(x.km))); }); }
+          bot('📦 Free pick-up: ' + esc(STATION.name) + ', about ' + st.toFixed(1) + ' km from you.');
+          link('foods.html', 'Order food to this spot'); link('marketplace.html', 'Browse stores'); chips(['I am hungry', 'Delivery fees', 'Find a phone', 'Book a service']); }); }); }}; }
+
   /* ---------- brain ---------- */
   function answer(raw){ var t = raw.toLowerCase().trim(), r;
-    if(/^(cancel|stop|start over|reset|never ?mind|restart)$/.test(t)){ flowEnd(); chips(['Find a phone', 'I am hungry', 'Outfit help', 'Track my order']); return {text:'No problem, we can start again. What would you like to do?'}; }
+    if(/^(cancel|stop|start over|reset|never ?mind|restart)$/.test(t)){ flowEnd(); chips(['near me', 'Find a phone', 'I am hungry', 'Outfit help', 'Track my order']); return {text:'No problem, we can start again. What would you like to do?'}; }
     // continue a running flow
     if(ctx.flow){ var wasSkip = /^skip$/.test(t); if(ctx.flow === 'outfit'){ if(wasSkip) ctx.d.skipH = true; return outfitFlow(t); } if(ctx.flow === 'perfume') return perfumeFlow(t); if(ctx.flow === 'skin') return skinFlow(t, 'skin'); if(ctx.flow === 'makeup') return skinFlow(t, 'makeup'); if(ctx.flow === 'size') return sizeFlow(t); if(ctx.flow === 'gift') return giftFlow(t); }
     // advisory flows
@@ -133,6 +161,8 @@
     if(/lotion|moistur|skin ?care|skin routine|body butter|sunscreen|glow|dry skin|oily skin/.test(t)){ flowStart('skin'); return skinFlow(t, 'skin'); }
     if(/what size|my size|size (guide|chart|help)|which size|fit me|am i a (small|medium|large)/.test(t) || (pickHeight(t) && pickWeight(t))){ flowStart('size'); return sizeFlow(t); }
     if(/gift|present|surprise/.test(t) && !/concierge/.test(t)){ flowStart('gift'); return giftFlow(t); }
+    // near me / near an area
+    if(/\b(near ?me|nearby|near here|around me|close to me|closest|nearest|my location|where i am)\b/.test(t) || /\bnear\s+[a-z][a-z .'-]{2,28}$/.test(t)) return nearFlow(raw, t);
     // meal booking (must come before the general food search)
     if(/\b(book|booking|reserve|reservation)\b.*\b(meal|table|breakfast|lunch|dinner|supper|brunch)\b|\b(breakfast|lunch|dinner|supper|brunch)\b.*\b(book|booking|reserve|reservation)\b|table for/.test(t)){
       var mealW = (t.match(/breakfast|brunch|lunch|dinner|supper/) || ['meal'])[0];
@@ -151,6 +181,9 @@
     for(var i = 0; i < KB.length; i++){ if(KB[i].re.test(t)){ r = KB[i].f(t); return r; } }
     // catalogue
     var hits = findProducts(t); if(hits.length) return {text:'Here is what we have in stock:', products:hits, chips:['Delivery fees', 'Payment terms', 'Talk to a person']};
+    if(!has() && toks(t).length){ var qq = toks(t).slice(0, 3).join(' '); return {async:true, run:function(){ return rest('rpc/public_product_search', {p_q:qq}).then(function(r){ r = (r || []).filter(function(x){ return x.in_stock !== false; }).slice(0, 4);
+        if(r.length){ bot('Here is what partner stores have for <b>' + esc(qq) + '</b>:'); r.forEach(function(x){ card(x.image_url, x.name, x.partner + (x.city ? ' · ' + x.city : ''), money(x.price_ugx), 'marketplace.html#/s/' + x.partner_id); }); link('marketplace.html#/q/' + encodeURIComponent(qq), 'See every match'); chips(['Delivery fees', 'near me', 'Payment terms']); }
+        else { bot('I could not find <b>' + esc(qq) + '</b> in the stores yet, but our concierge can source it for you with a quote before you pay.'); link('shop.html', 'Search the Velos Global Shop'); link('sourcing-request.html?idea=' + encodeURIComponent(raw), 'Request this item'); wa('I need help with: ' + raw); chips(['near me', 'I am hungry', 'Book a service']); } }); }}; }
     // optional external AI
     if(window.VELOS_AI_URL){ return {async:true, run:function(){ return fetch(window.VELOS_AI_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:raw, history:hist.slice(-6), page:location.pathname})}).then(function(r){ return r.json(); }).then(function(j){ if(j && j.reply) bot(esc(j.reply)); else throw 0; }).catch(function(){ bot('I could not find that in our catalogue, but we can probably source it for you. Tell us what you need and your budget.'); link('sourcing-request.html?idea=' + encodeURIComponent(raw), 'Request this item'); wa('I need help with: ' + raw); }); }}; }
     return {text:'I could not find that in our catalogue, but we can probably source it for you. Tell us what you need and your budget and our concierge will come back with options and a quote.', links:[['sourcing-request.html?idea=' + encodeURIComponent(raw), 'Request this item']], wa:true, chips:['Find a phone', 'I am hungry', 'Outfit help', 'Talk to a person']}; }
@@ -163,7 +196,7 @@
     user(text); if(inp) inp.value = ''; hist.push({r:'user', t:text}); busy = true; typing(true);
     setTimeout(function(){ var res; try { res = answer(text); } catch(e){ res = {text:'Sorry, something went wrong on my side. Please try again or message us on WhatsApp.'}; }
       var done = function(){ typing(false); busy = false; if(res && res.text) hist.push({r:'bot', t:res.text.replace(/<[^>]+>/g, ' ')}); };
-      if(res && res.async){ res.run().then(done, done); } else { typing(false); render(res, text); done(); if(res && res.chips == null && !ctx.flow) chips(['Find a phone', 'I am hungry', 'Outfit help', 'Track my order', 'Delivery fees']); } }, 380); };
+      if(res && res.async){ res.run().then(done, done); } else { typing(false); render(res, text); done(); if(res && res.chips == null && !ctx.flow) chips(['near me', 'Find a phone', 'I am hungry', 'Outfit help', 'Track my order', 'Delivery fees']); } }, 380); };
   window.toggleChat = function(open){ var w = $('chatWindow'); if(!w) return; w.classList.toggle('open', open);
     if(open && !w.dataset.started){ w.dataset.started = '1'; var n = me(); bot('Hello' + (n ? ' ' + esc(n) : '') + '! I am the <b>Velos Assistant</b>. Ask me anything: find a product or a meal, get outfit, perfume or make-up ideas, work out your size, check delivery fees, or track an order.'); chips(['Find a phone', 'I am hungry', 'Outfit help', 'Perfume ideas', 'Track my order', 'Delivery fees']); }
     if(open) setTimeout(function(){ var i = $('chatInput'); if(i) i.focus(); }, 300); };
