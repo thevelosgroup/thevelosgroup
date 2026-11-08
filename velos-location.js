@@ -15,26 +15,30 @@
     var s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js'; s.onload = cb; s.onerror = function(){ cb(true); }; document.head.appendChild(s);
   }
   function css(){ if(document.getElementById('vl-css')) return; var s = document.createElement('style'); s.id = 'vl-css'; s.textContent = CSS; document.head.appendChild(s); }
+  function lp(cb){ if(W.VelosPlaces) return cb(); var s = document.createElement('script'); s.src = 'velos-places.js?v=1'; s.onload = cb; document.head.appendChild(s); }
   var uid = 0;
   function build(box, o){
     css(); var n = ++uid, id = function(x){ return 'vl' + x + n; };
-    box.innerHTML = '<div class="vl"><b class="t">📍 ' + esc(o.title || 'Exact location') + '</b><div class="m" style="font-size:13px;opacity:.85">Search your area, use GPS, or drag the pin to your exact door. Customers and Velos riders use this pin to work out the distance and the delivery fee.</div>'
-      + '<div class="r"><input id="' + id('q') + '" placeholder="Search e.g. Nakasero Market, Kampala"><button type="button" id="' + id('s') + '" class="g">Search</button><button type="button" id="' + id('g') + '" class="g">📍 GPS</button></div>'
-      + '<div class="mp" id="' + id('m') + '"></div><input id="' + id('t') + '" placeholder="Building, floor, landmark or directions *" value="' + esc(o.text || '') + '"><div class="st no" id="' + id('x') + '">Not pinned yet. Tap the map or use GPS.</div></div>';
+    box.innerHTML = '<div class="vl"><b class="t">📍 ' + esc(o.title || 'Exact location') + '</b><div class="m" style="font-size:13px;opacity:.85">' + (o.receiver ? 'Ordering for someone else? Just search <b>their</b> area, street or landmark, or paste a location link they shared. You do not need to be there.' : 'Search your area, use GPS, or drag the pin to your exact door.') + ' Velos riders use this pin to work out the distance and the delivery fee.</div>'
+      + '<div class="r"><input id="' + id('q') + '" placeholder="' + (o.receiver ? 'Search their area or landmark, e.g. Bukoto, Kampala' : 'Search e.g. Nakasero Market, Kampala') + '" autocomplete="off"><button type="button" id="' + id('s') + '" class="g">Search</button><button type="button" id="' + id('g') + '" class="g">' + (o.receiver ? '📍 I am here now' : '📍 GPS') + '</button></div>'
+      + '<div class="mp" id="' + id('m') + '"></div><input id="' + id('t') + '" placeholder="Building, floor, landmark or directions *" value="' + esc(o.text || '') + '"><div class="st no" id="' + id('x') + '">Not pinned yet. Search above, tap the map or use GPS.</div><div id="' + id('r') + '"></div></div>';
     var st = {lat: o.lat != null ? +o.lat : null, lng: o.lng != null ? +o.lng : null}, map, pin;
     function status(){ var e = $(id('x')); if(!e) return; if(st.lat == null){ e.className = 'st no'; e.textContent = 'Not pinned yet. Tap the map or use GPS.'; } else { e.className = 'st ok'; e.textContent = '✔ Pinned at ' + st.lat.toFixed(5) + ', ' + st.lng.toFixed(5); } if(o.onChange) o.onChange(st); }
     function put(a, b, zoom, quiet){ st.lat = a; st.lng = b; pin.setLatLng([a, b]); map.setView([a, b], zoom || map.getZoom()); status();
-      if(!quiet && !$(id('t')).value){ fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=17&lat=' + a + '&lon=' + b).then(function(r){ return r.json(); }).then(function(j){ if(j && j.display_name && !$(id('t')).value) $(id('t')).value = j.display_name.split(',').slice(0, 3).join(',').trim(); }).catch(function(){}); } }
+      if(!quiet && !$(id('t')).value){ rev(a, b); } }
+    function rev(a, b){ var f = function(){ if(W.VelosPlaces) W.VelosPlaces.reverse(a, b).then(function(t){ if(t && !$(id('t')).value) $(id('t')).value = t; }); }; if(W.VelosPlaces) f(); else lp(f); }
     leaflet(function(bad){
       var m = $(id('m')); if(!m) return; if(bad || !W.L){ m.innerHTML = '<p class="m" style="padding:12px">The map could not load. Check your internet and reload this page.</p>'; return; }
       map = L.map(m).setView(st.lat != null ? [st.lat, st.lng] : K, st.lat != null ? 17 : 12); L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
       pin = L.marker(st.lat != null ? [st.lat, st.lng] : K, {draggable:true}).addTo(map); pin.on('dragend', function(){ var p = pin.getLatLng(); put(p.lat, p.lng, null); }); map.on('click', function(e){ put(e.latlng.lat, e.latlng.lng, null); });
       setTimeout(function(){ map.invalidateSize(); }, 300); status();
       $(id('g')).onclick = function(){ if(!navigator.geolocation){ alert('GPS is not available. Search or tap the map.'); return; } navigator.geolocation.getCurrentPosition(function(p){ put(p.coords.latitude, p.coords.longitude, 18); }, function(){ alert('Could not get your location. Search or tap the map.'); }, {enableHighAccuracy:true, timeout:15000}); };
-      $(id('s')).onclick = function(){ var q = $(id('q')).value.trim(); if(!q) return; fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ug,ke,tz,rw,bi,ss,cd,et,so&q=' + encodeURIComponent(q)).then(function(r){ return r.json(); }).then(function(j){ if(j[0]) put(+j[0].lat, +j[0].lon, 17, true); else alert('Place not found. Try another name or tap the map.'); }).catch(function(){ alert('Search is unavailable. Tap the map instead.'); }); };
-      $(id('q')).addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); $(id('s')).click(); } });
+      var attachIt = function(){ if(!W.VelosPlaces) return; var A = W.VelosPlaces.attach($(id('q')), {center:function(){ return map ? [map.getCenter().lat, map.getCenter().lng] : null; }, onPick:function(a, b, label){ put(a, b, 17, true); if(!$(id('t')).value && label) $(id('t')).value = label; $(id('x')).textContent = '✔ Found. Drag the pin to the exact gate or door if needed.'; }, onError:function(m){ alert(m); }});
+        $(id('s')).onclick = function(){ if(A) A.go(); }; }; if(W.VelosPlaces) attachIt(); else lp(attachIt);
     });
-    return { get: function(){ if(st.lat == null) return null; return {lat: st.lat, lng: st.lng, text: ($(id('t')) || {}).value ? $(id('t')).value.trim() : ''}; }, text: function(){ var e = $(id('t')); return e ? e.value.trim() : ''; } };
+    var rc = null; if(o.receiver){ var rf = function(){ if(W.VelosPlaces){ rc = W.VelosPlaces.receiver($(id('r'))); } }; if(W.VelosPlaces) rf(); else lp(rf); }
+    var txt = function(){ var e = $(id('t')), t = e ? e.value.trim() : '', r = rc && rc.label(); return r ? (t ? t + ' · ' : '') + r : t; };
+    return { get: function(){ if(st.lat == null) return null; return {lat: st.lat, lng: st.lng, text: txt(), receiverError: rc ? rc.error() : ''}; }, text: txt };
   }
   W.VelosLoc = {
     field: function(elId, o){ var box = $(elId); if(!box) return null; return build(box, o || {}); },

@@ -111,7 +111,7 @@ function show(){
     start:TAB, pick:function(id){ tab(id); }});
   tab(TAB);
 }
-function tab(t){ TAB = t; VS.active(t); ({home:home, prod:products, ord:orders, pay:earnings, promo:promos, store:storeTab})[t](); }
+function tab(t){ TAB = t; try { VelosChange.watch(db); } catch(e){} VS.active(t); ({home:home, prod:products, ord:orders, pay:earnings, promo:promos, store:storeTab})[t](); }
 function bd(){ return $('body'); }
 async function home(){
   bd().innerHTML = '<p class="m">Loading…</p>'; var d = (await db.rpc('partner_dashboard')).data || {};
@@ -158,7 +158,8 @@ function askDel(id){ var p = PR.filter(function(x){ return x.id === id; })[0]; i
 function delP(id){ askDel(id); }
 async function setState(id, s){ if(s === 'permanent' && !confirm('Mark this product as permanently unavailable? It disappears from the Velos site. You can still change it back until you delete it.')){ products(); return; } var r = await db.rpc('partner_product_set_state', {p_id:id, p_state:s}); if(r.error){ toast(r.error.message, true); products(); return; } toast('Updated ✓'); products(); }
 async function orders(){
-  bd().innerHTML = '<p class="m">Loading…</p>'; var L = (await db.rpc('partner_orders_mine')).data || [];
+  if(ME && ME.kind !== 'goods') return stays();
+  bd().innerHTML = '<p class="m">Loading…</p>'; var L = (await db.rpc('partner_orders_mine')).data || []; window.PO = L;
   var nw = L.filter(function(o){ return o.status === 'placed' || o.status === 'confirmed'; }), rest = L.filter(function(o){ return !(o.status === 'placed' || o.status === 'confirmed'); });
   var card = function(o){ var nx = o.status === 'placed' || o.status === 'confirmed', at = {placed:0, confirmed:0, packed:1, out_for_delivery:2, in_transit:2, delivered:3}[o.status];
     return VelosUI.order({no:o.order_no, status:o.status, isNew:nx, sub:o.created_at ? VelosUI.date(o.created_at, 1) : '',
@@ -166,10 +167,38 @@ async function orders(){
       meta:[['Customer', o.customer_name || ''], ['Payment', 'Confirmed by Velos']],
       items:(o.items || []).map(function(i){ return {qty:i.qty, name:i.name, amount:i.price * i.qty}; }),
       totals:[['Order value', o.subtotal_ugx], ['Velos commission', '− ' + ugx(o.commission_ugx), 'neg'], ['You receive', o.you_get_ugx, 's']],
-      actions:nx ? '<button onclick="pack(' + o.order_no + ')">✅ Packed and ready for the rider</button>' : ''}); };
+      actions:nx ? '<button onclick="pack(' + o.order_no + ')">✅ Packed and ready for the rider</button> <button class="g" onclick="chgP(' + o.order_no + ')">⚠️ Item unavailable</button>' : ''}); };
   bd().innerHTML = VelosUI.head('Orders', 'You see an order here once Velos has confirmed the customer\'s payment. Pack it and press Packed. A Velos rider collects it.', L.length)
-    + (L.length ? (nw.length ? VelosUI.sec('To pack now (' + nw.length + ')') + nw.map(card).join('') : '') + (rest.length ? VelosUI.sec('Earlier orders') + rest.map(card).join('') : '') : VelosUI.empty('📦', 'No orders yet', 'New orders appear here the moment a customer pays.'));
+    + '<div style="margin:0 0 10px"><button class="g" onclick="VelosChange.history(db)">📋 Change requests</button></div>' + (L.length ? (nw.length ? VelosUI.sec('To pack now (' + nw.length + ')') + nw.map(card).join('') : '') + (rest.length ? VelosUI.sec('Earlier orders') + rest.map(card).join('') : '') : VelosUI.empty('📦', 'No orders yet', 'New orders appear here the moment a customer pays.'));
 }
+
+/* ---------- hotel and venue bookings ---------- */
+async function stays(){
+  bd().innerHTML = '<p class="m">Loading…</p>'; var r = await db.rpc('vendor_stays_mine'), L = r.data || [], today = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10); window.SY = L;
+  if(r.error){ bd().innerHTML = '<p class="bad">' + esc(/function|schema cache/i.test(r.error.message) ? 'Bookings are being set up. Please try again later.' : r.error.message) + '</p>'; return; }
+  var fd = function(x){ return x ? new Date(x + 'T00:00').toLocaleDateString('en-GB', {weekday:'short', day:'numeric', month:'short', year:'numeric'}) : ''; };
+  var live = L.filter(function(o){ return o.status !== 'cancelled' && o.status !== 'delivered'; }), done = L.filter(function(o){ return o.status === 'cancelled' || o.status === 'delivered'; });
+  var card = function(o){ var ss = o.status === 'cancelled' ? 'cancelled' : o.status === 'delivered' ? 'completed' : o.stay_status, at = {requested:0, confirmed:1, completed:2}[ss], act = '';
+    if(o.status !== 'cancelled' && o.status !== 'delivered'){
+      if(ss === 'requested') act += '<button onclick="stAct(' + o.order_no + ',\'confirm\')">✅ Confirm booking</button> ';
+      if(ss === 'confirmed' && o.stay_in <= today) act += '<button onclick="stAct(' + o.order_no + ',\'complete\')">🏁 Guest has stayed: mark completed</button> ';
+      act += '<button class="g" onclick="chgS(' + o.order_no + ')">⚠️ Room or dates unavailable</button> <button class="g" onclick="stAct(' + o.order_no + ',\'decline\')">Decline</button>'; }
+    return VelosUI.order({no:o.order_no, status:ss, isNew:ss === 'requested', sub:fd(o.stay_in) + ' → ' + fd(o.stay_out),
+      steps:ss === 'cancelled' ? null : {list:['Requested', 'Confirmed', 'Completed'], at:at == null ? 0 : at},
+      meta:[['Guest', o.customer_name || ''], ['Phone', o.customer_phone || ''], ['Check-in', fd(o.stay_in)], ['Check-out', fd(o.stay_out)], ['Nights', o.nights], ['Guests', o.guests], ['Rooms', o.rooms], ['Request', o.note || '']],
+      items:(o.items || []).map(function(i){ return {qty:i.qty + ' × ' + o.nights + ' night' + (o.nights > 1 ? 's' : ''), name:i.name, amount:i.price * i.qty * o.nights}; }),
+      totals:[['Booking value', o.subtotal_ugx], ['Velos commission', '− ' + ugx(o.commission_ugx), 'neg'], ['You receive', o.you_get_ugx, 's']], actions:act}); };
+  bd().innerHTML = VelosUI.head('Bookings', 'Guests appear here once Velos has confirmed their deposit. Confirm their dates, or tell them if a room or date is not available.', L.length)
+    + '<div style="margin:0 0 10px"><button class="g" onclick="VelosChange.history(db)">📋 Change requests</button></div>'
+    + (L.length ? (live.length ? VelosUI.sec('Upcoming and current (' + live.length + ')') + live.map(card).join('') : '') + (done.length ? VelosUI.sec('Earlier bookings') + done.map(card).join('') : '') : VelosUI.empty('🛎️', 'No bookings yet', 'New bookings appear here once the guest has paid the deposit.'));
+}
+async function stAct(n, a){
+  if(a === 'decline' && !confirm('Decline this booking? The guest is refunded and a penalty is charged to you for declining a paid booking. If a room or dates are the problem, use "Room or dates unavailable" instead so the guest can choose other dates.')) return;
+  var note = a === 'decline' ? (prompt('Reason for declining (the guest is told):') || '') : null; if(a === 'decline' && !note) return;
+  var r = await db.rpc('partner_stay_set', {p_no:n, p_action:a, p_note:note}); if(r.error) return toast(r.error.message, true); toast(a === 'confirm' ? 'Booking confirmed ✓' : a === 'complete' ? 'Marked completed ✓' : 'Booking declined'); stays();
+}
+function chgS(n){ var o = (window.SY || []).filter(function(x){ return x.order_no === n; })[0]; if(o) VelosChange.open({db:db, kind:'partner', no:n, items:o.items, nights:o.nights, stay:{in:o.stay_in, out:o.stay_out}, done:stays}); }
+function chgP(n){ var o = (window.PO || []).filter(function(x){ return x.order_no === n; })[0]; if(o) VelosChange.open({db:db, kind:'partner', no:n, items:o.items, done:orders}); }
 async function pack(n){ var r = await db.rpc('partner_order_set', {p_no:n, p_status:'packed'}); if(r.error) return toast(r.error.message, true); toast('Marked packed ✓'); orders(); }
 async function earnings(){
   bd().innerHTML = '<p class="m">Loading…</p>'; var d = (await db.rpc('partner_dashboard')).data || {}, P = (await db.rpc('partner_payouts_mine')).data || [];
@@ -212,4 +241,4 @@ async function saveStore(){
   } catch(e){ $('se').textContent = e.message || 'Could not save'; }
 }
 boot();
-</script><script src="velos-theme.js"></script><script>try{VelosTheme.init({db:(typeof db!=="undefined"?db:null),role:"vendor",name:function(){try{return typeof ME!=='undefined'&&ME?ME.business_name:''}catch(e){return""}}})}catch(e){}</script></body></html>
+</script><script src="velos-change.js"></script><script src="velos-theme.js"></script><script>try{VelosTheme.init({db:(typeof db!=="undefined"?db:null),role:"vendor",name:function(){try{return typeof ME!=='undefined'&&ME?ME.business_name:''}catch(e){return""}}})}catch(e){}</script></body></html>

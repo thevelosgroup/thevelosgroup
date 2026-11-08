@@ -1,0 +1,43 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080d1f"><meta name="robots" content="noindex">
+<title>Review your order · Velos</title>
+<link rel="icon" href="favicon.png">
+<style>
+:root{--bg:#080d1f;--card:#0f1731;--line:#26335f;--txt:#f4f1ea;--mut:#9fb0e0;--gold:#e8c766;--ok:#7fd99a;--bad:#ff8a80}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+.w{max-width:560px;margin:0 auto;padding:18px 16px 40px}.top{display:flex;align-items:center;gap:10px;margin-bottom:14px}.top img{width:38px;height:38px;border-radius:10px}.top b{font:600 20px Georgia,serif;color:var(--gold)}
+.c{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0}h1{font:600 26px Georgia,serif;margin:6px 0;color:var(--gold)}.m{color:var(--mut);font-size:14px}
+input{width:100%;background:#0a1130;color:var(--txt);border:1px solid #2a3866;border-radius:12px;padding:12px;font:16px system-ui;margin:8px 0}
+button{width:100%;border:0;border-radius:99px;padding:14px;font:700 16px system-ui;cursor:pointer;margin-top:8px}.p{background:var(--gold);color:#080d1f}.g{background:transparent;color:#ffb3ac;border:1px solid #6b3430}
+.col{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:480px){.col{grid-template-columns:1fr}}.col h3{margin:0 0 6px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.it{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed #243158}.it:last-child{border:0}.rm{text-decoration:line-through;color:var(--bad)}.nw{color:var(--ok)}
+.tot{display:flex;justify-content:space-between;margin-top:8px;font-weight:700}.msg{background:#121c40;border-radius:12px;padding:10px 12px;margin:10px 0}.bad{color:var(--bad)}.ok{color:var(--ok)}.tm{color:var(--gold);font-weight:700}
+</style></head><body><div class="w"><div class="top"><img src="logo-mark.png" alt=""><b>The Velos Group</b></div><div id="v"></div></div>
+<script src="supabase-config.js"></script>
+<script>
+var Q=new URLSearchParams(location.search),K=Q.get('k')||'food',NO=+Q.get('o')||0,$=function(i){return document.getElementById(i)},S=window.VELOS_SUPABASE,PH='';
+try{PH=localStorage.getItem('velos_ph')||''}catch(e){}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function u(n){return 'UGX '+Math.round(Number(n)||0).toLocaleString('en-US')}
+function rpc(n,b){return fetch(S.url+'/rest/v1/rpc/'+n,{method:'POST',headers:{apikey:S.key,Authorization:'Bearer '+S.key,'Content-Type':'application/json'},body:JSON.stringify(b)}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.message||'Something went wrong');return j})})}
+function ask(err){$('v').innerHTML='<h1>Review your order</h1><p class="m">Order <b>#'+NO+'</b>. Enter the phone number you used when ordering so we can show you the update.</p><div class="c"><input id="ph" type="tel" placeholder="Your phone number" value="'+esc(PH)+'" autocomplete="tel"><div class="bad">'+esc(err||'')+'</div><button class="p" onclick="go()">Show my order</button></div>'}
+function go(){PH=$('ph').value.trim();try{localStorage.setItem('velos_ph',PH)}catch(e){}
+  rpc('order_change_lookup',{p_kind:K,p_no:NO,p_phone:PH}).then(function(d){if(!d)return ask('We could not find an update for that order and phone number.');show(d)}).catch(function(e){ask(e.message)})}
+var T;
+function lines(a){return (a||[]).map(function(i){return i}) }
+function show(d){clearInterval(T);var priced=Number(d.old_total)>0||Number(d.new_total)>0;
+  if(d.status!=='pending'){var t={accepted:['✓ You accepted the change','The store has been told and will continue with your order.'+(d.refund_due>0?' Because the total went down, Velos will refund '+u(d.refund_due)+' to you.':'')],declined:['Your order was cancelled','We are sorry it did not work out.'+(d.refund_due>0?' Velos will refund '+u(d.refund_due)+' to the number you paid from.':'')],expired:['This request has expired','We did not hear from you in time, so the order was cancelled.'+(d.refund_due>0?' Velos will refund '+u(d.refund_due)+'.':'')]}[d.status];
+    $('v').innerHTML='<h1>'+t[0]+'</h1><div class="c"><p>'+t[1]+'</p><p class="m">Order #'+NO+' · '+esc(d.store||'')+'</p><a href="index.html" style="color:var(--gold)">Back to Velos</a></div>';return}
+  var names={},old=d.old_items||[],nw=d.new_items||[],on=d.old_nights||1,nn=d.new_nights||1,fd=function(x){return x?new Date(x+'T00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'}):''};nw.forEach(function(i){names[i.name]=i});
+  var left=old.map(function(i){var n=names[i.name],gone=!n||Number(n.qty)<Number(i.qty);return '<div class="it"><span class="'+(gone&&!n?'rm':'')+'">'+esc(i.qty)+'× '+esc(i.name)+'</span>'+(priced?'<span>'+u(i.price*i.qty*on)+'</span>':'')+'</div>'}).join('');
+  var right=nw.map(function(i){var o=old.filter(function(x){return x.name===i.name})[0];return '<div class="it"><span class="'+(!o||Number(o.qty)!==Number(i.qty)?'nw':'')+'">'+esc(i.qty)+'× '+esc(i.name)+(!o?' <span class="m">(replacement)</span>':'')+'</span>'+(priced?'<span>'+u(i.price*i.qty*nn)+'</span>':'')+'</div>'}).join('');
+  var stay=d.old_in?'<div class="msg"><b>Your stay</b><br>'+(d.new_in?'<span class="rm">'+fd(d.old_in)+' → '+fd(d.old_out)+'</span><br><span class="nw">'+fd(d.new_in)+' → '+fd(d.new_out)+' ('+nn+' night'+(nn>1?'s':'')+')</span>':fd(d.old_in)+' → '+fd(d.old_out)+' ('+on+' night'+(on>1?'s':'')+')')+'</div>':'';
+  var why={out_of_stock:'An item is out of stock.',unavailable:'An item is temporarily unavailable.',price_changed:'A price has changed.',other:'The store needs to adjust your order.'}[d.reason]||'';
+  $('v').innerHTML='<h1>A change to your order</h1><p class="m">Order <b>#'+NO+'</b> at <b>'+esc(d.store||'the store')+'</b></p><div class="c"><p style="margin:0"><b>'+why+'</b></p>'+(d.message?'<div class="msg">“'+esc(d.message)+'”</div>':'')+stay
+   +'<div class="col"><div><h3>You ordered</h3>'+left+(priced?'<div class="tot"><span>Items</span><span>'+u(d.old_total)+'</span></div>':'')+'</div><div><h3>Updated order</h3>'+right+(priced?'<div class="tot"><span>Items</span><span>'+u(d.new_total)+'</span></div>':'')+'</div></div>'
+   +(priced&&d.new_total<d.old_total?'<p class="ok">You pay '+u(d.old_total-d.new_total)+' less on the items.</p>':'')+(priced&&d.new_total>d.old_total?'<p class="m">The items now cost '+u(d.new_total-d.old_total)+' more.</p>':'')+(!priced?'<p class="m">Velos will confirm the final total for you.</p>':'')+'</div>'
+   +'<div class="c"><p class="m" style="margin:0 0 4px">Please answer within <span class="tm" id="tm">…</span>. If we do not hear from you, the order is cancelled.</p><button class="p" onclick="ans(true)">✓ Accept the change</button><button class="g" onclick="ans(false)">Cancel my whole order</button><div id="er" class="bad"></div></div>';
+  var end=new Date(d.expires_at).getTime();function tick(){var s=Math.max(0,Math.round((end-Date.now())/1000));if($('tm'))$('tm').textContent=Math.floor(s/60)+' min '+('0'+s%60).slice(-2)+' s';if(!s){clearInterval(T);go()}}tick();T=setInterval(tick,1000)}
+function ans(ok){if(!ok&&!confirm('Cancel the whole order? Any money you paid will be refunded by Velos.'))return;$('er').textContent='';
+  rpc('order_change_respond',{p_kind:K,p_no:NO,p_phone:PH,p_accept:ok,p_note:null}).then(function(){go()}).catch(function(e){$('er').textContent=e.message})}
+if(!NO||!S)$('v').innerHTML='<h1>Link not valid</h1><p class="m">Please open the link we sent you again.</p>';else if(PH)go();else ask();
+</script></body></html>
