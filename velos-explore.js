@@ -15,10 +15,15 @@
   function tiles(){ var t = $('categoryTiles'); if(!t || !ready()) return; var n = t.children.length;
     if(n > LIMIT){ t.classList.add('vex-c'); if(!$('vex-more')){ var b = document.createElement('button'); b.id = 'vex-more'; b.className = 'vex-btn'; b.onclick = function(){ if(window.vjCats) window.vjCats(); }; t.parentNode.insertBefore(b, t.nextSibling); } $('vex-more').textContent = 'Explore all ' + CATEGORIES.length + ' categories'; }
     else { t.classList.remove('vex-c'); if($('vex-more')) $('vex-more').remove(); } }
-  function bar(){ var tb = $('tabBar'); if(!tb || !ready() || CATEGORIES.length <= 6) return; tb.classList.add('vex-h');
-    var cur = tb.querySelector('.tab-btn.active'), name = cur ? cur.textContent : 'All'; var x = $('vex-bar');
+  var PICKED = false, FASH = /fashion/i.test(location.pathname);
+  function hook(){ if(window.__vexh || typeof window.setCat !== 'function') return; window.__vexh = 1; var o = window.setCat; window.setCat = function(){ PICKED = true; var r = o.apply(this, arguments); setTimeout(tick, 30); return r; }; }
+  function bar(){ var tb = $('tabBar'); if(!tb || !ready() || CATEGORIES.length <= 6) return; tb.classList.add('vex-h'); hook();
+    var cur = tb.querySelector('.tab-btn.active'), name = cur ? cur.textContent : '', word = 'Showing', main;
+    if(PICKED && name){ main = name; word = /fashion|wear|shoe|bag|jewel|watch|beauty|groom|perfume|cloth|dress|suit/i.test(name) ? 'Shopping' : /food|grocer|drink/i.test(name) ? 'Ordering' : 'Browsing'; }
+    else { main = FASH ? 'All of Velos Fashion' : 'Everything in the Velos Global Shop'; word = FASH ? 'Shopping' : 'Browsing'; }
+    var x = $('vex-bar');
     if(!x){ x = document.createElement('div'); x.id = 'vex-bar'; x.className = 'vex-bar'; tb.parentNode.insertBefore(x, tb); }
-    var h = '<div><small>You are browsing</small><b>' + String(name).replace(/[<>&]/g, '') + '</b></div><button onclick="vjCats&&vjCats()">Explore categories</button>'; if(x.__h !== h){ x.__h = h; x.innerHTML = h; } }
+    var h = '<div><small>' + word + '</small><b>' + String(main).replace(/[<>&]/g, '') + '</b></div><button onclick="vjCats&&vjCats()">Explore categories</button>'; if(x.__h !== h){ x.__h = h; x.innerHTML = h; } }
   function tick(){ try { tiles(); bar(); } catch(e){} }
   var n = 0, iv = setInterval(function(){ tick(); if(++n > 80) clearInterval(iv); }, 500);
   new MutationObserver(function(){ clearTimeout(window.__vext); window.__vext = setTimeout(tick, 80); }).observe(document.body, {childList:true, subtree:true});

@@ -10,6 +10,7 @@
   + '#vaL .av:after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(232,199,102,.65);animation:vap 2.2s ease-out infinite}@keyframes vap{0%{transform:scale(.9);opacity:.9}100%{transform:scale(1.35);opacity:0}}'
   + '#vaL .ai{position:absolute;top:-6px;right:-8px;background:#e8c766;color:#080d1f;border:2px solid #080d1f;border-radius:99px;font:800 9px system-ui;padding:1px 5px;letter-spacing:.06em}'
   + '#vaL.hide{display:none}'
+  + '@media(max-width:640px){#vaL{padding:0;gap:0;width:54px;height:54px;justify-content:center;right:12px}#vaL>span:last-child{display:none}#vaL .av{width:54px;height:54px;font-size:25px;background:linear-gradient(135deg,#f3d981,#cfa63a);color:#080d1f}#vaL .av:after{border-color:rgba(232,199,102,.8)}#vaL .ai{background:#080d1f;color:#e8c766;border-color:#e8c766}#vaB{right:12px;max-width:210px}}'
   + '#vaB{position:fixed;right:16px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:2147481999;max-width:240px;background:#fff;color:#14192b;border-radius:16px 16px 4px 16px;padding:11px 14px;font:600 14px/1.35 system-ui;box-shadow:0 10px 30px rgba(0,0,0,.35);display:none}'
   + '#vaB.on{display:block;animation:vai .35s ease-out}@keyframes vai{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}#vaB b{color:#8a6a10}#vaB i{position:absolute;top:2px;right:8px;font-style:normal;cursor:pointer;color:#6a7179;font-size:16px}'
   /* panel */
@@ -57,9 +58,14 @@
     /* 3. the launcher: a clear card with a name, not an anonymous bubble */
     var L = D.createElement('button'); L.id = 'vaL'; L.type = 'button'; L.setAttribute('aria-label', 'Open the Velos Assistant');
     L.innerHTML = '<span class="av">✨<span class="ai">AI</span></span><span>Ask Velos<small>Products · food · services · near you</small></span>';
-    var lift = /(^|\/)(foods|marketplace)\.html$/.test(location.pathname); if(lift) L.style.bottom = 'calc(92px + env(safe-area-inset-bottom))';
+    
     D.body.appendChild(L);
-    var B = D.createElement('div'); B.id = 'vaB'; B.innerHTML = '<i aria-label="Close">×</i>Hi! I am the <b>Velos Assistant</b>. Ask me anything, or tap <b>near me</b> for ideas around you.'; if(lift) B.style.bottom = 'calc(162px + env(safe-area-inset-bottom))'; D.body.appendChild(B);
+    var B = D.createElement('div'); B.id = 'vaB'; B.innerHTML = '<i aria-label="Close">×</i>Hi! I am the <b>Velos Assistant</b>. Ask me anything, or tap <b>near me</b> for ideas around you.'; D.body.appendChild(B);
+
+    /* keep the launcher clear of any bottom bar (shop tabs, cart bars, app bars) so nothing is covered */
+    function place(){ var top = innerHeight, vw = innerWidth; D.querySelectorAll('body *').forEach(function(e){ if(e === L || e === B || e === w || L.contains(e) || w.contains(e)) return; var cs = getComputedStyle(e); if(cs.position !== 'fixed' || cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) return; var r = e.getBoundingClientRect(); if(r.width < 60 || r.height < 30 || r.height > innerHeight * 0.4) return; if(r.bottom < innerHeight - 24 || r.top < innerHeight * 0.55) return; if(r.width < vw * 0.35 && r.left > vw * 0.5 === false) return; top = Math.min(top, r.top); });
+      var off = Math.max(16, innerHeight - top + 12); L.style.bottom = 'calc(' + off + 'px + env(safe-area-inset-bottom))'; B.style.bottom = 'calc(' + (off + (innerWidth <= 640 ? 66 : 70)) + 'px + env(safe-area-inset-bottom))'; }
+    place(); [600, 1500, 3500].forEach(function(t){ setTimeout(place, t); }); setInterval(place, 4000); addEventListener('resize', place); addEventListener('scroll', function(){ clearTimeout(place._t); place._t = setTimeout(place, 150); }, {passive:true});
     var open = function(){ B.classList.remove('on'); L.classList.add('hide'); if(W.toggleChat) W.toggleChat(true); };
     L.onclick = open; B.onclick = function(e){ if(e.target.tagName === 'I'){ B.classList.remove('on'); try { sessionStorage.setItem('vaB', '1'); } catch(x){} } else open(); };
     try { new MutationObserver(function(){ L.classList.toggle('hide', w.classList.contains('open')); }).observe(w, {attributes:true, attributeFilter:['class']}); } catch(e){}
@@ -74,6 +80,11 @@
       n.innerHTML = rich ? '<span class="wm-label">✨ Velos Assistant</span><span class="wm-sub">Ask anything, find places near you</span>' : '✨ Velos Assistant';
       n.onclick = function(e){ e.preventDefault(); open(); }; a.parentNode.insertBefore(n, a); });
 
+
+    D.querySelectorAll('a[href="vendor.html"][data-page]').forEach(function(a){
+      var rich = a.querySelector('.wm-label'), n = D.createElement('a'); n.href = '#'; n.className = 'vaM'; n.setAttribute('data-page', 'share');
+      n.innerHTML = rich ? '<span class="wm-label">📤 Share Velos</span><span class="wm-sub">Send the website to friends</span>' : '📤 Share Velos';
+      n.onclick = function(e){ e.preventDefault(); if(W.VelosShare) return VelosShare.site(); var sc = D.createElement('script'); sc.src = 'velos-share.js?v=2'; sc.onload = function(){ VelosShare.site(); }; D.body.appendChild(sc); }; a.parentNode.insertBefore(n, a); });
     /* 6. landing page card, right under the search area */
     var run = D.querySelector('.hm-run'); if(run && /(^\/$|index\.html$)/.test(location.pathname) && !D.getElementById('vaCard')){
       var c = D.createElement('section'); c.id = 'vaCard'; c.className = 'vaC';

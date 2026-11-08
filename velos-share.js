@@ -64,24 +64,40 @@
   function toast(t){ var e = D.getElementById('vshT'); if(!e){ e = D.createElement('div'); e.id = 'vshT'; e.style.cssText = 'position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#e8c766;color:#080d1f;font:700 14px system-ui;padding:10px 18px;border-radius:99px;z-index:2147483300;box-shadow:0 8px 24px rgba(0,0,0,.4)'; D.body.appendChild(e); } e.textContent = t; e.style.display = 'block'; clearTimeout(e._t); e._t = setTimeout(function(){ e.style.display = 'none'; }, 2200); }
   function copy(t, ok){ var done = function(){ toast(ok || 'Copied ✓'); }; if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, function(){ fb(); }); else fb(); function fb(){ var a = D.createElement('textarea'); a.value = t; a.style.cssText = 'position:fixed;opacity:0'; D.body.appendChild(a); a.select(); try { D.execCommand('copy'); done(); } catch(e){ prompt('Copy this', t); } a.remove(); } }
 
+
+  /* the exact photo of the item, untouched (only shrunk if it is very large) */
+  function exactPhoto(src){ if(!src) return Promise.resolve(null);
+    return fetch(abs(src), {mode:'cors'}).then(function(r){ if(!r.ok) throw 0; return r.blob(); }).then(function(b){ if(!/^image\//.test(b.type)) throw 0;
+      if(b.size <= 2500000) return b;
+      return createImageBitmap(b).then(function(bm){ var k = Math.min(1, 1800 / Math.max(bm.width, bm.height)), c = D.createElement('canvas'); c.width = Math.round(bm.width * k); c.height = Math.round(bm.height * k); c.getContext('2d').drawImage(bm, 0, 0, c.width, c.height); return new Promise(function(res){ c.toBlob(function(x){ res(x || b); }, 'image/jpeg', 0.92); }); }); })
+    .catch(function(){ return loadImg(src).then(function(i){ var c = D.createElement('canvas'); c.width = i.naturalWidth; c.height = i.naturalHeight; c.getContext('2d').drawImage(i, 0, 0); return new Promise(function(res){ try { c.toBlob(function(x){ res(x); }, 'image/jpeg', 0.92); } catch(e){ res(null); } }); }).catch(function(){ return null; }); }); }
+  function extOf(b){ return /png/.test(b.type) ? 'png' : /webp/.test(b.type) ? 'webp' : /gif/.test(b.type) ? 'gif' : 'jpg'; }
+
   function open(o){ close();
-    var S = LAST = {o:o, add:false, blob:null, obj:null}, B = D.createElement('div'); B.id = 'vshB';
+    var S = LAST = {o:o, add:false, blob:null, obj:null, card:false, photo:null}, B = D.createElement('div'); B.id = 'vshB';
     var hasAdd = !!o.addUrl;
     B.innerHTML = '<div id="vsh" role="dialog" aria-label="Share"><div class="hd"><b>Share this ' + esc(o.kind === 'combo' ? 'combo' : o.kind === 'promo' ? 'offer' : o.kind === 'store' || o.kind === 'restaurant' ? 'store' : o.kind === 'dish' ? 'dish' : 'product') + '</b><button class="x" type="button" aria-label="Close">×</button></div>'
-      + '<div class="pv" id="vshP"><span>Preparing your picture…</span></div>'
+      + '<div class="pv" id="vshP"><span>Loading the photo…</span></div>'
       + (hasAdd ? '<div class="lk" id="vshL"><label class="on"><input type="radio" name="vshl" value="0" checked><span><b>Link to this item</b><small>Opens it so the customer can read, add to cart or order.</small></span></label><label><input type="radio" name="vshl" value="1"><span><b>Add-to-cart link</b><small>Opens with the item already in the customer\'s cart, ready to order.</small></span></label></div>' : '')
       + '<textarea id="vshM" aria-label="Message"></textarea>'
       + '<div class="bt"><button class="pr" type="button" id="vshS">' + ICON + ' Share picture and message</button><button class="wa" type="button" id="vshW">💬 WhatsApp</button><button type="button" id="vshC">📋 Copy message</button><button type="button" id="vshK">🔗 Copy link</button><button type="button" id="vshD">⬇️ Save picture</button></div>'
-      + '<div class="nt" id="vshN"></div></div>';
+      + '<div class="nt" id="vshN"></div><div class="nt"><a href="#" id="vshT2" style="color:#e8c766"></a></div></div>';
     D.body.appendChild(B);
     var $ = function(i){ return D.getElementById(i); }, msg = $('vshM');
     var refresh = function(){ msg.value = message(o, urlFor(o, S.add)); }; refresh();
     B.addEventListener('click', function(e){ if(e.target === B || e.target.className === 'x') close(); });
     if(hasAdd) $('vshL').addEventListener('change', function(e){ S.add = e.target.value === '1'; refresh(); [].forEach.call($('vshL').children, function(l){ l.className = l.querySelector('input').checked ? 'on' : ''; }); });
     var url = function(){ return urlFor(o, S.add); };
-    var fileName = (String(o.title || 'velos').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'velos') + '.jpg';
-    makeImage(o).then(function(bl){ S.blob = bl; var pv = $('vshP'); if(!pv) return; if(bl){ S.obj = URL.createObjectURL(bl); pv.innerHTML = '<img alt="Preview" src="' + S.obj + '">'; } else if(o.image){ pv.innerHTML = '<img alt="" src="' + esc(abs(o.image)) + '">'; } else pv.innerHTML = '<span>No picture for this item yet. The message and link still work.</span>'; });
-    var asFile = function(){ return S.blob ? new File([S.blob], fileName, {type:'image/jpeg'}) : null; };
+    var baseName = (String(o.title || 'velos').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'velos'), nameOf = function(b){ return baseName + '.' + (b ? extOf(b) : 'jpg'); };
+    var show = function(bl, fallbackSrc){ S.blob = bl; if(S.obj){ try { URL.revokeObjectURL(S.obj); } catch(e){} S.obj = null; } var pv = $('vshP'); if(!pv) return; if(bl){ S.obj = URL.createObjectURL(bl); pv.innerHTML = '<img alt="Preview" src="' + S.obj + '">'; } else if(fallbackSrc){ pv.innerHTML = '<img alt="" src="' + esc(abs(fallbackSrc)) + '">'; } else pv.innerHTML = '<span>No picture for this item yet. The message and link still work.</span>'; };
+    var t2 = $('vshT2');
+    var setMode = function(card){ S.card = card; t2.textContent = card ? 'Use the plain product photo instead' : 'Use a branded picture card instead'; t2.style.display = o.image ? '' : 'none';
+      if(card){ $('vshP').innerHTML = '<span>Preparing your picture…</span>'; makeImage(o).then(function(bl){ if(S.card) show(bl, o.image); }); }
+      else { show(S.photo, o.image); } };
+    t2.onclick = function(e){ e.preventDefault(); setMode(!S.card); };
+    exactPhoto(o.image).then(function(bl){ S.photo = bl; if(bl){ setMode(false); } else { setMode(true); } });
+    $('vshP').innerHTML = '<span>Loading the photo…</span>';
+    var asFile = function(){ return S.blob ? new File([S.blob], nameOf(S.blob), {type:S.blob.type || 'image/jpeg'}) : null; };
     $('vshS').onclick = function(){ var f = asFile(), data = {title:o.title, text:msg.value}; if(!navigator.share){ copy(msg.value, 'Message copied. Paste it in WhatsApp, Facebook or SMS ✓'); $('vshN').textContent = 'Tip: tap Save picture and attach it to your post.'; return; }
       if(f && navigator.canShare && navigator.canShare({files:[f]})) data.files = [f];
       navigator.share(data).catch(function(e){ if(e && e.name === 'AbortError') return; copy(msg.value, 'Message copied ✓'); }); };
@@ -89,12 +105,13 @@
       window.open('https://wa.me/?text=' + encodeURIComponent(msg.value), '_blank', 'noopener'); $('vshN').textContent = 'WhatsApp opens with your message. Tap Save picture to attach the photo too.'; };
     $('vshC').onclick = function(){ copy(msg.value, 'Message copied ✓'); };
     $('vshK').onclick = function(){ copy(url(), 'Link copied ✓'); };
-    $('vshD').onclick = function(){ if(!S.blob){ toast('No picture to save'); return; } var a = D.createElement('a'); a.href = S.obj; a.download = fileName; D.body.appendChild(a); a.click(); a.remove(); toast('Picture saved ✓'); };
+    $('vshD').onclick = function(){ if(!S.blob){ toast('No picture to save'); return; } var a = D.createElement('a'); a.href = S.obj; a.download = nameOf(S.blob); D.body.appendChild(a); a.click(); a.remove(); toast('Picture saved ✓'); };
   }
 
   function reg(key, o){ REG[key] = o; return key; }
   function go(key){ var o = REG[key]; if(o) open(o); return false; }
   /* share button HTML: kind 'fab' sits on a photo corner, 'pill' is a text button */
   function btn(key, kind, label){ return kind === 'fab' ? '<button type="button" class="vsh-fab" onclick="event.stopPropagation();VelosShare.go(\'' + esc(key) + '\')" aria-label="Share">' + ICON + '</button>' : '<button type="button" class="vsh-btn" onclick="event.stopPropagation();VelosShare.go(\'' + esc(key) + '\')" aria-label="Share">' + ICON + ' ' + esc(label || 'Share') + '</button>'; }
-  W.VelosShare = {open:open, reg:reg, go:go, btn:btn, message:message, makeImage:makeImage, close:close, icon:ICON};
+  function site(){ open({kind:'store', title:'The Velos Group', image:'og-image.jpg', desc:'Shop electronics, fashion and home goods, order food from top restaurants, book verified technicians and more. Delivered across Uganda, with Kenya and Rwanda coming.', url:location.origin && /^http/.test(location.origin) ? location.origin + '/' : 'https://thevelosgroup.com/', noBrand:true}); }
+  W.VelosShare = {site:site, open:open, reg:reg, go:go, btn:btn, message:message, makeImage:makeImage, close:close, icon:ICON};
 })();
