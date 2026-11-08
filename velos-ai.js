@@ -93,4 +93,6 @@
       c.querySelector('.go').onclick = open;
       c.querySelectorAll('.ch a').forEach(function(a){ a.onclick = function(){ open(); setTimeout(function(){ if(W.sendChat) W.sendChat(a.getAttribute('data-q')); }, 450); }; }); }
   });
+  /* seasons + feedback load on every public page that has the assistant */
+  ['velos-season.js?v=1','velos-feedback.js?v=1'].forEach(function(f){ var s = document.createElement('script'); s.src = f; s.async = true; s.onerror = function(){}; (document.body || document.documentElement).appendChild(s); });
 })();

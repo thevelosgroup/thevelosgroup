@@ -96,6 +96,7 @@ async function mfaConfirm(){ const code = $('#mfaC').value.replace(/\D/g,''); if
   const c = await db.auth.mfa.challenge({factorId:MFA_F}); if(c.error) return toast(c.error.message, true);
   const v = await db.auth.mfa.verify({factorId:MFA_F, challengeId:c.data.id, code}); if(v.error) return toast('That code is not right. Try the new one.', true);
   toast('Two-step login is now ON ✓'); go('mysec'); }
+async function fbMark(id, h){ const note = h ? (prompt('Short note on what was done (optional)') || '') : ''; const r = await db.rpc('admin_site_feedback_mark', {p_id:id, p_handled:h, p_note:note}); toast(r.error ? r.error.message : 'Saved ✓', !!r.error); go('fback'); }
 async function mfaOff(id){ if(!confirm('Turn off two-step login? Your account becomes easier to break into.')) return; const r = await db.auth.mfa.unenroll({factorId:id}); toast(r.error ? r.error.message : 'Two-step login turned off', !!r.error); go('mysec'); }
 async function pwChange(){ const a = $('#np1').value, b = $('#np2').value; if(a.length < 12) return toast('Use at least 12 characters', true); if(a !== b) return toast('The two passwords do not match', true);
   const r = await db.auth.updateUser({password:a}); toast(r.error ? r.error.message : 'Password changed ✓', !!r.error); if(!r.error){ $('#np1').value = ''; $('#np2').value = ''; } }
@@ -108,12 +109,12 @@ async function boot(){
   if(!['admin','manager','staff'].includes(p.role)){ location.href = 'team.html'; return; }
   me = p; $('#who').textContent = p.full_name || p.role; show(true); try { VelosPush.mount(db); } catch(e){}
   const {data} = await db.from('categories').select('*').order('sort_order'); cats = data || [];
-  const hide = ({manager:['team','settings','frules'], staff:['audit','emails','report','products','agents','leads','team','import','export','security','applinks','promos','bundles','photos','docs','careers','bizset','settings','fmenu','supplies','fvendors','friders','frules']})[p.role] || [];
+  const hide = ({manager:['team','settings','frules'], staff:['audit','fback','emails','report','products','agents','leads','team','import','export','security','applinks','promos','bundles','photos','docs','careers','bizset','settings','fmenu','supplies','fvendors','friders','frules']})[p.role] || [];
   window.TB = TABS.filter(t => !hide.includes(t[0]));
   go('home'); startAlerts();
 }
 
-const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['bookings','Table bookings'],['docs','Invoices & quotes'],['customers','Customers'],['phones','Phone checks'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['cleanup','Clean-up & fees'],['proof','Proof photos'],['partners','Partners'],['pporders','Partner orders'],['inq','Inquiries'],['team','Team'],['emails','Emails'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['bundles','Combos & bundles'],['careers','Careers'],['bizset','Business profile'],['photos','Photos'],['settings','Settings'],['import','Import'],['mysec','Account security'],['audit','Activity log']];
+const TABS = [['home','Home'],['orders','Orders'],['payments','Payments'],['bookings','Table bookings'],['docs','Invoices & quotes'],['customers','Customers'],['phones','Phone checks'],['report','Sales'],['agents','Agents'],['leads','Leads'],['gifts','Gifts & Sourcing'],['designs','Designs'],['products','Products'],['techs','Technicians'],['service','Services'],['security','Security'],['forders','Food orders'],['fmenu','Food menu'],['supplies','Supplies'],['fvendors','Restaurants'],['friders','Riders'],['frules','Food rules'],['cleanup','Clean-up & fees'],['proof','Proof photos'],['partners','Partners'],['pporders','Partner orders'],['inq','Inquiries'],['team','Team'],['emails','Emails'],['messages','Messages'],['export','Export'],['applinks','App links'],['promos','Promotions'],['bundles','Combos & bundles'],['careers','Careers'],['bizset','Business profile'],['photos','Photos'],['settings','Settings'],['import','Import'],['mysec','Account security'],['audit','Activity log'],['fback','Customer feedback']];
 function alCopy(i){ const u = AL[i][1]; (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('Link copied'), () => { prompt('Copy this link', u); }); }
 function alShare(i){ const a = AL[i]; if(navigator.share) navigator.share({title:a[0], text:'Install the Velos '+a[0], url:a[1]}).catch(()=>{}); else alCopy(i); }
 async function savePromos(){
@@ -721,6 +722,22 @@ const VIEWS = {
         ${on ? `<p>✅ Two-step login is <b>on</b> for your account.</p><button class="ghost" onclick="mfaOff('${ver[0].id}')">Turn off</button>` : `<button onclick="mfaOn()">Turn on two-step login</button>`}<div id="mfaSetup"></div></div>
       <div class="card"><b>Change your password</b><p class="mut">Use at least 12 characters. Do not reuse it anywhere else and never share it.</p><div class="vu-form"><div><label>New password</label><input id="np1" type="password" autocomplete="new-password"></div><div><label>Repeat it</label><input id="np2" type="password" autocomplete="new-password"></div></div><button style="margin-top:10px" onclick="pwChange()">Save new password</button></div>
       <div class="card"><b>Safety rules for staff</b><ul class="mut" style="margin:6px 0 0 18px"><li>One person, one login. Never share a login.</li><li>Sign out on shared or public computers.</li><li>Approve a payment only after you saw the same transaction ID in your MTN or Airtel messages.</li><li>Report any strange sign-in or lost phone to the admin at once.</li></ul></div>`;
+  },
+  async fback(){
+    const r = await db.rpc('admin_site_feedback_list', {p_limit:300});
+    if(r.error){ $('#view').innerHTML = VelosUI.head('Customer feedback') + `<p class="bad">${esc(/function|schema cache/i.test(r.error.message) ? 'Run velos-upgrade-47.sql in Supabase first.' : r.error.message)}</p>`; return; }
+    const rows = r.data || [], n = rows.length, avg = n ? rows.reduce((a, x) => a + x.rating, 0) / n : 0, cnt = [1,2,3,4,5].map(k => rows.filter(x => x.rating === k).length);
+    const open = rows.filter(x => x.rating <= 3 && !x.handled).length, F = window.FBF || '';
+    const list = rows.filter(x => F === 'low' ? x.rating <= 3 : F === 'open' ? (x.rating <= 3 && !x.handled) : true);
+    const star = k => '<span style="color:#f3c74a">' + '★'.repeat(k) + '</span><span style="opacity:.3">' + '★'.repeat(5 - k) + '</span>';
+    $('#view').innerHTML = VelosUI.head('Customer feedback', 'What visitors and customers told us. Low ratings come with a note so you can fix the problem and reply.', n)
+      + VelosUI.stats([{label:'Average rating', value: n ? avg.toFixed(1) + ' / 5' : '—'}, {label:'Total ratings', value:n}, {label:'Happy (4-5)', value:cnt[3] + cnt[4]}, {label:'Needs attention', value:open}])
+      + `<div class="card"><b>Rating spread</b>${[5,4,3,2,1].map(k => `<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><span style="width:70px">${star(k)}</span><div style="flex:1;background:#18224a;border-radius:99px;height:10px"><div style="width:${n ? Math.round(cnt[k-1] / n * 100) : 0}%;background:${k >= 4 ? '#3fbf7f' : k === 3 ? '#e8c766' : '#e0645a'};height:10px;border-radius:99px"></div></div><span class="mut" style="width:30px;text-align:right">${cnt[k-1]}</span></div>`).join('')}</div>`
+      + `<div class="row" style="justify-content:flex-start;gap:8px;margin:10px 0"><select class="sm" onchange="FBF=this.value;go('fback')"><option value="">All feedback</option><option value="low" ${F==='low'?'selected':''}>Low ratings (1-3)</option><option value="open" ${F==='open'?'selected':''}>Low and not handled</option></select></div>`
+      + VelosUI.table([{label:'When', fn:x => dt(x.created_at)}, {label:'Rating', fn:x => star(x.rating), html:true}, {label:'Where', fn:x => `<span class="mut">${esc(({order:'After order', browse:'While browsing', manual:'Asked'})[x.context] || x.context || '')}<br>${esc(x.page || '')}</span>`, html:true},
+        {label:'Message', fn:x => esc(x.message || '—') + (x.note ? `<br><span class="mut">Note: ${esc(x.note)}</span>` : ''), html:true},
+        {label:'Contact', fn:x => x.phone ? `<a href="https://wa.me/${esc(String(x.phone).replace(/\D/g, ''))}" target="_blank" rel="noopener">${esc(x.phone)}</a>` : '<span class="mut">—</span>', html:true},
+        {label:'Status', fn:x => x.handled ? VelosUI.badge('approved', 'Handled') : (x.rating <= 3 ? `<button class="sm" onclick="fbMark(${x.id}, true)">Mark handled</button>` : '<span class="mut">—</span>'), html:true}], list, {empty:{icon:'⭐', title:'No feedback yet', text:'Ratings appear here after visitors browse or order.'}});
   },
   async audit(){
     const q = window.AUQ || ''; const r = await db.rpc('admin_audit_list', {p_table:q || null, p_limit:200});
