@@ -21,10 +21,11 @@
     css(); var n = ++uid, id = function(x){ return 'vl' + x + n; };
     box.innerHTML = '<div class="vl"><b class="t">📍 ' + esc(o.title || 'Exact location') + '</b><div class="m" style="font-size:13px;opacity:.85">' + (o.receiver ? 'Ordering for someone else? Just search <b>their</b> area, street or landmark, or paste a location link they shared. You do not need to be there.' : 'Search your area, use GPS, or drag the pin to your exact door.') + ' Velos riders use this pin to work out the distance and the delivery fee.</div>'
       + '<div class="r"><input id="' + id('q') + '" placeholder="' + (o.receiver ? 'Search their area or landmark, e.g. Bukoto, Kampala' : 'Search e.g. Nakasero Market, Kampala') + '" autocomplete="off"><button type="button" id="' + id('s') + '" class="g">Search</button><button type="button" id="' + id('g') + '" class="g">' + (o.receiver ? '📍 I am here now' : '📍 GPS') + '</button></div>'
-      + '<div class="mp" id="' + id('m') + '"></div><input id="' + id('t') + '" placeholder="Building, floor, landmark or directions *" value="' + esc(o.text || '') + '"><div class="st no" id="' + id('x') + '">Not pinned yet. Search above, tap the map or use GPS.</div><div id="' + id('r') + '"></div></div>';
+      + '<div class="mp" id="' + id('m') + '"></div><input id="' + id('t') + '" placeholder="Building, floor, landmark or directions *" value="' + esc(o.text || '') + '"><div class="st no" id="' + id('x') + '">Not pinned yet. Search above, tap the map or use GPS.</div><div id="' + id('n') + '"></div><div id="' + id('r') + '"></div></div>';
     var st = {lat: o.lat != null ? +o.lat : null, lng: o.lng != null ? +o.lng : null}, map, pin;
     function status(){ var e = $(id('x')); if(!e) return; if(st.lat == null){ e.className = 'st no'; e.textContent = 'Not pinned yet. Tap the map or use GPS.'; } else { e.className = 'st ok'; e.textContent = '✔ Pinned at ' + st.lat.toFixed(5) + ', ' + st.lng.toFixed(5); } if(o.onChange) o.onChange(st); }
-    function put(a, b, zoom, quiet){ st.lat = a; st.lng = b; pin.setLatLng([a, b]); map.setView([a, b], zoom || map.getZoom()); status();
+    var noch = 0;
+    function put(a, b, zoom, quiet){ st.lat = a; st.lng = b; if(W.VelosPlaces && !noch && $(id('n'))) W.VelosPlaces.chips($(id('n')), a, b, function(x){ noch = 1; $(id('t')).value = x.label + (x.sub ? ' (' + x.sub + ')' : ''); put(x.lat, x.lng, 18, true); noch = 0; }); pin.setLatLng([a, b]); map.setView([a, b], zoom || map.getZoom()); status();
       if(!quiet && !$(id('t')).value){ rev(a, b); } }
     function rev(a, b){ var f = function(){ if(W.VelosPlaces) W.VelosPlaces.reverse(a, b).then(function(t){ if(t && !$(id('t')).value) $(id('t')).value = t; }); }; if(W.VelosPlaces) f(); else lp(f); }
     leaflet(function(bad){

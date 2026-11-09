@@ -22,8 +22,9 @@
     for(var i = 0; i < pats.length; i++){ m = t.match(pats[i]); if(m && ok(+m[1], +m[2])) return {lat:+m[1], lng:+m[2]}; }
     return null; }
 
-  function j(url, opt){ return fetch(url, opt).then(function(r){ if(!r.ok) throw new Error('http ' + r.status); return r.json(); }); }
-  function uniq(list){ var seen = {}, out = []; list.forEach(function(x){ var k = (x.label + '|' + x.lat.toFixed(3) + '|' + x.lng.toFixed(3)).toLowerCase(); if(!seen[k]){ seen[k] = 1; out.push(x); } }); return out; }
+  var lastErr = '';
+  function j(url, opt){ return fetch(url, opt).then(function(r){ if(!r.ok) return r.text().then(function(t){ var m = ''; try { var e = JSON.parse(t).error || {}; m = (e.status || ('http ' + r.status)) + ': ' + (e.message || ''); } catch(x){ m = 'http ' + r.status; } throw new Error(m); }); return r.json(); }); }
+  function uniq(list){ var seen = {}, out = []; list.forEach(function(x){ var k = (x.label + '|' + (x.pid || (isFinite(x.lat) ? x.lat.toFixed(3) + '|' + x.lng.toFixed(3) : x.sub || ''))).toLowerCase(); if(!seen[k]){ seen[k] = 1; out.push(x); } }); return out; }
   function kmTo(c, x){ var dx = (x.lng - c[1]) * 111 * Math.cos(c[0] * Math.PI / 180), dy = (x.lat - c[0]) * 111; return Math.sqrt(dx * dx + dy * dy); }
 
   function google(q, c){ var K = key(); if(!K) return Promise.reject();
@@ -39,9 +40,13 @@
 
   function search(q, center, ctx){ q = String(q || '').trim(); var c = center || KLA; ctx = String(ctx || '').split(',')[0].trim(); if(q.length < 2) return Promise.resolve([]);
     var p = parse(q); if(p) return Promise.resolve([{label:'Shared location', sub:p.lat.toFixed(5) + ', ' + p.lng.toFixed(5), lat:p.lat, lng:p.lng, exact:true}]);
-    var jobs = key() ? [google(ctx && !/,/.test(q) ? q + ' ' + ctx : q, c), ctx ? google(q, c) : Promise.resolve([])] : [photon(q, c), ctx ? photon(q + ' ' + ctx, c) : Promise.resolve([]), /kampala|entebbe|wakiso|mukono|jinja|nairobi|kigali/i.test(q) ? Promise.resolve([]) : photon(q + ' Kampala', c), nomi(ctx ? q + ' ' + ctx : q, c), ctx ? nomi(q, c) : Promise.resolve([]), q.split(/\s+/).length > 1 ? photon(q.split(/\s+/)[0] + (ctx ? ' ' + ctx : ' Kampala'), c) : Promise.resolve([])];
-    return Promise.all(jobs.map(function(x){ return x.catch(function(){ return []; }); })).then(function(rs){ var all = uniq([].concat.apply([], rs));
-      if(!key()) all.sort(function(a, b){ return kmTo(c, a) - kmTo(c, b); }); return all.slice(0, 7); }); }
+    var osm = function(){ return [photon(q, c), ctx ? photon(q + ' ' + ctx, c) : Promise.resolve([]), /kampala|entebbe|wakiso|mukono|jinja|nairobi|kigali/i.test(q) ? Promise.resolve([]) : photon(q + ' Kampala', c), nomi(ctx ? q + ' ' + ctx : q, c), ctx ? nomi(q, c) : Promise.resolve([]), q.split(/\s+/).length > 1 ? photon(q.split(/\s+/)[0] + (ctx ? ' ' + ctx : ' Kampala'), c) : Promise.resolve([])]; };
+    var run = function(jobs, sortIt){ return Promise.all(jobs.map(function(x){ return x.catch(function(){ return []; }); })).then(function(rs){ var all = uniq([].concat.apply([], rs)); if(sortIt) all.sort(function(a, b){ return kmTo(c, a) - kmTo(c, b); }); return all.slice(0, 7); }); };
+    if(!key()) return run(osm(), true);
+    lastErr = '';
+    var gj = [google(ctx && !/,/.test(q) ? q + ' ' + ctx : q, c)]; if(ctx) gj.push(google(q, c));
+    return Promise.all(gj.map(function(x){ return x.catch(function(e){ lastErr = (e && e.message) || 'unknown error'; return []; }); })).then(function(rs){ var all = uniq([].concat.apply([], rs)).slice(0, 7);
+      if(all.length) return all; return run(osm(), true); }); }
   var typedOK = function(q){ return q.length >= 3 && !parse(q); };
   function pick(x){ return x.pid ? googleDetail(x.pid).then(function(d){ return d; }) : Promise.resolve(x); }
   function reverse(a, b){ var K = key();
@@ -54,8 +59,9 @@
     function hide(){ dd.style.display = 'none'; sel = -1; }
     function choose(x){ hide(); if(x.typed){ if(o.onTyped) o.onTyped(x.label); return; } pick(x).then(function(d){ if(!d) return; inp.value = d.exact ? '' : (d.label + (d.sub ? ', ' + d.sub.split(',').slice(0, 2).join(',') : '')); if(o.onPick) o.onPick(d.lat, d.lng, d.label, d); }).catch(function(){ if(o.onError) o.onError('We could not open that place. Try another name or tap the map.'); }); }
     function render(list, q){ if(o.asTyped && typedOK(q)) list = list.concat([{typed:true, label:q, sub:'Keep exactly what I typed. I will tap the map to place the pin.'}]); cur = list; sel = -1; if(!list.length && /goo\.gl|maps\.app/i.test(q)){ dd.innerHTML = '<div class="vh">This short link cannot be read here. Ask them to use WhatsApp &gt; Share &gt; <b>Location</b> and copy the long link, or search their area name instead.</div>'; dd.style.display = ''; return; }
+      if(!list.length && W.VelosPlaces && W.VelosPlaces.lastError()){ dd.innerHTML = '<div class="vh">Google search problem: ' + esc(W.VelosPlaces.lastError()).slice(0, 200) + '<br>Tell Velos support this message. You can still tap the map to place your pin.</div>'; dd.style.display = ''; return; }
       if(!list.length){ dd.innerHTML = '<div class="vh">Not on the map yet. Try the area name, a nearby landmark, or paste a shared location link. You can always tap the map to place the pin yourself.</div>'; dd.style.display = ''; return; }
-      dd.innerHTML = list.map(function(x, i){ return '<div data-i="' + i + '">' + (x.typed ? '📝 Use “' : '📍 ') + '<b>' + esc(x.label) + '</b>' + (x.typed ? '”' : '') + (x.sub ? '<small>' + esc(x.sub) + '</small>' : '') + '</div>'; }).join('') + '<div class="vh">Not the right place? Add more detail, or drag the pin on the map.</div>'; dd.style.display = '';
+      dd.innerHTML = list.map(function(x, i){ return '<div data-i="' + i + '">' + (x.typed ? '📝 Use “' : '📍 ') + '<b>' + esc(x.label) + '</b>' + (x.typed ? '”' : '') + (x.sub ? '<small>' + esc(x.sub) + '</small>' : '') + '</div>'; }).join('') + '<div class="vh">' + (W.VelosPlaces && W.VelosPlaces.lastError() ? 'Google search problem: ' + esc(W.VelosPlaces.lastError()).slice(0, 160) + ' (showing free map results)' : 'Not the right place? Add more detail, or drag the pin on the map.') + '</div>'; dd.style.display = '';
       dd.querySelectorAll('[data-i]').forEach(function(e){ e.onmousedown = e.ontouchstart = function(ev){ ev.preventDefault(); choose(cur[+e.getAttribute('data-i')]); }; }); }
     function run(){ var q = inp.value.trim(), my = ++seq; if(q.length < 3 && !parse(q)){ hide(); return; } search(q, cenOf(), ctxOf()).then(function(l){ if(my === seq) render(l, q); }); }
     inp.addEventListener('input', function(){ clearTimeout(T); T = setTimeout(run, 320); });
@@ -73,5 +79,14 @@
     return {get:function(){ return {on:on.checked, name:box.querySelector('#vpr-n').value.trim(), phone:box.querySelector('#vpr-p').value.trim()}; },
       label:function(){ var r = this.get(); return r.on ? 'For ' + r.name + ' (' + r.phone + ')' : ''; },
       error:function(){ var r = this.get(); if(!r.on) return ''; if(r.name.length < 2 || r.phone.replace(/\D/g, '').length < 7) return 'Please add the receiver\'s name and phone number.'; return ''; }}; }
-  W.VelosPlaces = {attach:attach, search:search, parse:parse, reverse:reverse, receiver:receiver, hasGoogle:function(){ return !!key(); }};
+  /* places near a pin (Google only): petrol stations, supermarkets, malls, schools, banks, hospitals, restaurants */
+  function nearby(a, b){ if(!key()) return Promise.resolve([]);
+    return j('https://places.googleapis.com/v1/places:searchNearby', {method:'POST', headers:{'Content-Type':'application/json', 'X-Goog-Api-Key':key(), 'X-Goog-FieldMask':'places.displayName,places.location,places.primaryTypeDisplayName'},
+      body:JSON.stringify({includedTypes:['gas_station', 'supermarket', 'shopping_mall', 'school', 'bank', 'hospital', 'restaurant', 'church', 'mosque', 'pharmacy', 'hotel'], maxResultCount:12, rankPreference:'DISTANCE', locationRestriction:{circle:{center:{latitude:a, longitude:b}, radius:700}}})}).then(function(r){
+      return (r.places || []).map(function(p){ return {label:(p.displayName && p.displayName.text) || '', sub:(p.primaryTypeDisplayName && p.primaryTypeDisplayName.text) || '', lat:p.location.latitude, lng:p.location.longitude}; }).filter(function(x){ return x.label; }); }).catch(function(e){ lastErr = (e && e.message) || ''; return []; }); }
+  function chips(box, a, b, onPick){ if(!box) return; box.innerHTML = ''; if(!key()) return; var my = box.__n = (box.__n || 0) + 1; box.innerHTML = '<div style="font-size:12.5px;color:#9fb0e0;margin:6px 0">Looking for places near this pin…</div>';
+    nearby(a, b).then(function(L){ if(my !== box.__n) return; if(!L.length){ box.innerHTML = ''; return; } css();
+      box.innerHTML = '<div style="font-size:12.5px;color:#9fb0e0;margin:6px 0">Near this pin. Tap one to use it as your landmark:</div><div style="display:flex;gap:6px;flex-wrap:wrap">' + L.map(function(x, i){ return '<button type="button" data-n="' + i + '" style="width:auto;margin:0;padding:7px 11px;border-radius:99px;border:1px solid #3a4a85;background:#0a1130;color:#f4f1ea;font-size:13px;cursor:pointer">' + esc(x.label) + (x.sub ? ' <span style="color:#9fb0e0">· ' + esc(x.sub) + '</span>' : '') + '</button>'; }).join('') + '</div>';
+      box.querySelectorAll('[data-n]').forEach(function(e){ e.onclick = function(){ onPick(L[+e.getAttribute('data-n')]); }; }); }); }
+  W.VelosPlaces = {nearby:nearby, chips:chips, lastError:function(){ return lastErr; }, attach:attach, search:search, parse:parse, reverse:reverse, receiver:receiver, hasGoogle:function(){ return !!key(); }};
 })(window, document);
