@@ -34,6 +34,7 @@
       setTimeout(function(){ map.invalidateSize(); }, 300); status();
       $(id('g')).onclick = function(){ if(!navigator.geolocation){ alert('GPS is not available. Search or tap the map.'); return; } navigator.geolocation.getCurrentPosition(function(p){ put(p.coords.latitude, p.coords.longitude, 18); }, function(){ alert('Could not get your location. Search or tap the map.'); }, {enableHighAccuracy:true, timeout:15000}); };
       var attachIt = function(){ if(!W.VelosPlaces) return; var A = W.VelosPlaces.attach($(id('q')), {center:function(){ return map ? [map.getCenter().lat, map.getCenter().lng] : null; }, onPick:function(a, b, label){ put(a, b, 17, true); if(!$(id('t')).value && label) $(id('t')).value = label; $(id('x')).textContent = '✔ Found. Drag the pin to the exact gate or door if needed.'; }, onError:function(m){ alert(m); }});
+        var T2 = W.VelosPlaces.attach($(id('t')), {asTyped:true, center:function(){ return [st.lat != null ? st.lat : map.getCenter().lat, st.lng != null ? st.lng : map.getCenter().lng]; }, context:function(){ return $(id('q')).value; }, onPick:function(a, b, label){ put(a, b, 18, true); $(id('t')).value = label; }, onTyped:function(t){ $(id('t')).value = t; }, onError:function(m){ alert(m); }});
         $(id('s')).onclick = function(){ if(A) A.go(); }; }; if(W.VelosPlaces) attachIt(); else lp(attachIt);
     });
     var rc = null; if(o.receiver){ var rf = function(){ if(W.VelosPlaces){ rc = W.VelosPlaces.receiver($(id('r'))); } }; if(W.VelosPlaces) rf(); else lp(rf); }

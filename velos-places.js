@@ -37,33 +37,34 @@
   function nomi(q, c){ return j('https://nominatim.openstreetmap.org/search?format=json&limit=6&addressdetails=1&countrycodes=ug,ke,tz,rw,bi,ss,cd&viewbox=32.35,0.55,32.85,0.05&q=' + encodeURIComponent(q)).then(function(r){
     return (r || []).map(function(x){ var a = x.address || {}, parts = (x.display_name || '').split(','); return {label:parts[0].trim(), sub:parts.slice(1, 4).join(',').trim(), lat:+x.lat, lng:+x.lon}; }); }); }
 
-  function search(q, center){ q = String(q || '').trim(); var c = center || KLA; if(q.length < 2) return Promise.resolve([]);
+  function search(q, center, ctx){ q = String(q || '').trim(); var c = center || KLA; ctx = String(ctx || '').split(',')[0].trim(); if(q.length < 2) return Promise.resolve([]);
     var p = parse(q); if(p) return Promise.resolve([{label:'Shared location', sub:p.lat.toFixed(5) + ', ' + p.lng.toFixed(5), lat:p.lat, lng:p.lng, exact:true}]);
-    var jobs = key() ? [google(q, c)] : [photon(q, c), /kampala|entebbe|wakiso|mukono|jinja|nairobi|kigali/i.test(q) ? Promise.resolve([]) : photon(q + ' Kampala', c), nomi(q, c)];
+    var jobs = key() ? [google(ctx && !/,/.test(q) ? q + ' ' + ctx : q, c), ctx ? google(q, c) : Promise.resolve([])] : [photon(q, c), ctx ? photon(q + ' ' + ctx, c) : Promise.resolve([]), /kampala|entebbe|wakiso|mukono|jinja|nairobi|kigali/i.test(q) ? Promise.resolve([]) : photon(q + ' Kampala', c), nomi(ctx ? q + ' ' + ctx : q, c), ctx ? nomi(q, c) : Promise.resolve([]), q.split(/\s+/).length > 1 ? photon(q.split(/\s+/)[0] + (ctx ? ' ' + ctx : ' Kampala'), c) : Promise.resolve([])];
     return Promise.all(jobs.map(function(x){ return x.catch(function(){ return []; }); })).then(function(rs){ var all = uniq([].concat.apply([], rs));
       if(!key()) all.sort(function(a, b){ return kmTo(c, a) - kmTo(c, b); }); return all.slice(0, 7); }); }
+  var typedOK = function(q){ return q.length >= 3 && !parse(q); };
   function pick(x){ return x.pid ? googleDetail(x.pid).then(function(d){ return d; }) : Promise.resolve(x); }
   function reverse(a, b){ var K = key();
     if(K) return j('https://maps.googleapis.com/maps/api/geocode/json?latlng=' + a + ',' + b + '&key=' + K).then(function(r){ return (r.results && r.results[0] && r.results[0].formatted_address || '').split(',').slice(0, 3).join(',').trim(); }).catch(function(){ return ''; });
     return j('https://nominatim.openstreetmap.org/reverse?format=json&zoom=18&lat=' + a + '&lon=' + b).then(function(r){ return (r && r.display_name || '').split(',').slice(0, 3).join(',').trim(); }).catch(function(){ return ''; }); }
 
-  function attach(inp, o){ if(!inp || inp.__vpl) return; inp.__vpl = 1; o = o || {}; css();
+  function attach(inp, o){ if(!inp || inp.__vpl) return; inp.__vpl = 1; o = o || {}; css(); var ctxOf = function(){ return typeof o.context === 'function' ? o.context() : (o.context || ''); }, cenOf = function(){ return o.center && (typeof o.center === 'function' ? o.center() : o.center); };
     var wrap = D.createElement('div'); wrap.className = 'vpl'; inp.parentNode.insertBefore(wrap, inp); wrap.appendChild(inp); var dd = D.createElement('div'); dd.className = 'vpl-dd'; dd.style.display = 'none'; wrap.appendChild(dd);
     inp.setAttribute('autocomplete', 'off'); var T, seq = 0, cur = [], sel = -1;
     function hide(){ dd.style.display = 'none'; sel = -1; }
-    function choose(x){ hide(); pick(x).then(function(d){ if(!d) return; inp.value = d.exact ? '' : (d.label + (d.sub ? ', ' + d.sub.split(',').slice(0, 2).join(',') : '')); if(o.onPick) o.onPick(d.lat, d.lng, d.label, d); }).catch(function(){ if(o.onError) o.onError('We could not open that place. Try another name or tap the map.'); }); }
-    function render(list, q){ cur = list; sel = -1; if(!list.length && /goo\.gl|maps\.app/i.test(q)){ dd.innerHTML = '<div class="vh">This short link cannot be read here. Ask them to use WhatsApp &gt; Share &gt; <b>Location</b> and copy the long link, or search their area name instead.</div>'; dd.style.display = ''; return; }
-      if(!list.length){ dd.innerHTML = '<div class="vh">No match yet. Try the area name, a nearby landmark or shop, or paste a shared location link.</div>'; dd.style.display = ''; return; }
-      dd.innerHTML = list.map(function(x, i){ return '<div data-i="' + i + '">📍 <b>' + esc(x.label) + '</b>' + (x.sub ? '<small>' + esc(x.sub) + '</small>' : '') + '</div>'; }).join('') + '<div class="vh">Not the right place? Add more detail, or drag the pin on the map.</div>'; dd.style.display = '';
+    function choose(x){ hide(); if(x.typed){ if(o.onTyped) o.onTyped(x.label); return; } pick(x).then(function(d){ if(!d) return; inp.value = d.exact ? '' : (d.label + (d.sub ? ', ' + d.sub.split(',').slice(0, 2).join(',') : '')); if(o.onPick) o.onPick(d.lat, d.lng, d.label, d); }).catch(function(){ if(o.onError) o.onError('We could not open that place. Try another name or tap the map.'); }); }
+    function render(list, q){ if(o.asTyped && typedOK(q)) list = list.concat([{typed:true, label:q, sub:'Keep exactly what I typed. I will tap the map to place the pin.'}]); cur = list; sel = -1; if(!list.length && /goo\.gl|maps\.app/i.test(q)){ dd.innerHTML = '<div class="vh">This short link cannot be read here. Ask them to use WhatsApp &gt; Share &gt; <b>Location</b> and copy the long link, or search their area name instead.</div>'; dd.style.display = ''; return; }
+      if(!list.length){ dd.innerHTML = '<div class="vh">Not on the map yet. Try the area name, a nearby landmark, or paste a shared location link. You can always tap the map to place the pin yourself.</div>'; dd.style.display = ''; return; }
+      dd.innerHTML = list.map(function(x, i){ return '<div data-i="' + i + '">' + (x.typed ? '📝 Use “' : '📍 ') + '<b>' + esc(x.label) + '</b>' + (x.typed ? '”' : '') + (x.sub ? '<small>' + esc(x.sub) + '</small>' : '') + '</div>'; }).join('') + '<div class="vh">Not the right place? Add more detail, or drag the pin on the map.</div>'; dd.style.display = '';
       dd.querySelectorAll('[data-i]').forEach(function(e){ e.onmousedown = e.ontouchstart = function(ev){ ev.preventDefault(); choose(cur[+e.getAttribute('data-i')]); }; }); }
-    function run(){ var q = inp.value.trim(), my = ++seq; if(q.length < 3 && !parse(q)){ hide(); return; } search(q, o.center && (typeof o.center === 'function' ? o.center() : o.center)).then(function(l){ if(my === seq) render(l, q); }); }
+    function run(){ var q = inp.value.trim(), my = ++seq; if(q.length < 3 && !parse(q)){ hide(); return; } search(q, cenOf(), ctxOf()).then(function(l){ if(my === seq) render(l, q); }); }
     inp.addEventListener('input', function(){ clearTimeout(T); T = setTimeout(run, 320); });
     inp.addEventListener('focus', function(){ if(cur.length && inp.value.trim().length >= 3) dd.style.display = ''; });
     inp.addEventListener('blur', function(){ setTimeout(hide, 180); });
     inp.addEventListener('keydown', function(e){ var it = dd.querySelectorAll('[data-i]');
       if(e.key === 'ArrowDown' && it.length){ e.preventDefault(); sel = Math.min(it.length - 1, sel + 1); it.forEach(function(x, i){ x.className = i === sel ? 'on' : ''; }); }
       else if(e.key === 'ArrowUp' && it.length){ e.preventDefault(); sel = Math.max(0, sel - 1); it.forEach(function(x, i){ x.className = i === sel ? 'on' : ''; }); }
-      else if(e.key === 'Enter'){ e.preventDefault(); if(sel >= 0 && cur[sel]) choose(cur[sel]); else search(inp.value, o.center && (typeof o.center === 'function' ? o.center() : o.center)).then(function(l){ if(l[0]) choose(l[0]); else if(o.onError) o.onError('Place not found. Try the area or a landmark, or tap the map.'); }); } });
+      else if(e.key === 'Enter'){ e.preventDefault(); if(sel >= 0 && cur[sel]) choose(cur[sel]); else search(inp.value, cenOf(), ctxOf()).then(function(l){ if(l[0]) choose(l[0]); else if(o.onError) o.onError('Place not found. Try the area or a landmark, or tap the map.'); }); } });
     return {go:function(){ inp.dispatchEvent(new KeyboardEvent('keydown', {key:'Enter'})); }}; }
 
   /* "this order is for someone else" */
