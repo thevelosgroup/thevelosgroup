@@ -20,7 +20,6 @@ async function run(){$('o').innerHTML='';
   else{var e=a.j.error||{};row(false,'Address search is blocked ('+(e.status||a.status)+')',(e.message?'<i>'+e.message+'</i><br><br>':'')+hint(e.message+' '+JSON.stringify(e.details||'')))}}catch(x){row(false,'Could not reach Google','Check your internet connection. '+x.message)}
  try{var n=await call('https://places.googleapis.com/v1/places:searchNearby',{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':K,'X-Goog-FieldMask':'places.displayName'},body:JSON.stringify({includedTypes:['gas_station','supermarket'],maxResultCount:3,locationRestriction:{circle:{center:{latitude:0.3523,longitude:32.6001},radius:800}}})});
   if(n.ok)row(true,'"Near this pin" suggestions work',(n.j.places||[]).map(function(p){return p.displayName.text}).join(', ')||'No places returned for this test spot.');else{var e2=n.j.error||{};row(false,'"Near this pin" is blocked ('+(e2.status||n.status)+')',(e2.message?'<i>'+e2.message+'</i><br><br>':'')+hint(e2.message))}}catch(x){row(false,'Nearby test failed',x.message)}
- try{var g=await call('https://maps.googleapis.com/maps/api/geocode/json?latlng=0.3523,32.6001&key='+K);
-  if(g.j.status==='OK')row(true,'Pin to address works',g.j.results[0].formatted_address);else row(false,'Pin to address is blocked ('+g.j.status+')',(g.j.error_message?'<i>'+g.j.error_message+'</i><br><br>':'')+hint(g.j.error_message||g.j.status))}catch(x){row(false,'Geocoding test failed',x.message)}
+ row(true,'Pin to address','Handled with free map data. Google Geocoding is not needed (it cannot be used with a website-restricted key).');
 }
 </script></body></html>

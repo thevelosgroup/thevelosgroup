@@ -27,11 +27,13 @@
   function uniq(list){ var seen = {}, out = []; list.forEach(function(x){ var k = (x.label + '|' + (x.pid || (isFinite(x.lat) ? x.lat.toFixed(3) + '|' + x.lng.toFixed(3) : x.sub || ''))).toLowerCase(); if(!seen[k]){ seen[k] = 1; out.push(x); } }); return out; }
   function kmTo(c, x){ var dx = (x.lng - c[1]) * 111 * Math.cos(c[0] * Math.PI / 180), dy = (x.lat - c[0]) * 111; return Math.sqrt(dx * dx + dy * dy); }
 
-  function google(q, c){ var K = key(); if(!K) return Promise.reject();
+  var SESS = '';
+  function newSess(){ SESS = (Date.now().toString(36) + Math.random().toString(36).slice(2, 12)); return SESS; }
+  function google(q, c){ var K = key(); if(!K) return Promise.reject(); if(!SESS) newSess();
     return j('https://places.googleapis.com/v1/places:autocomplete', {method:'POST', headers:{'Content-Type':'application/json', 'X-Goog-Api-Key':K, 'X-Goog-FieldMask':'suggestions.placePrediction.placeId,suggestions.placePrediction.structuredFormat'},
-      body:JSON.stringify({input:q, includedRegionCodes:['ug', 'ke', 'rw', 'tz'], locationBias:{circle:{center:{latitude:c[0], longitude:c[1]}, radius:40000}}})}).then(function(r){
+      body:JSON.stringify({input:q, sessionToken:SESS, includedRegionCodes:['ug', 'ke', 'rw', 'tz'], locationBias:{circle:{center:{latitude:c[0], longitude:c[1]}, radius:40000}}})}).then(function(r){
       return (r.suggestions || []).filter(function(s){ return s.placePrediction; }).slice(0, 6).map(function(s){ var p = s.placePrediction, f = p.structuredFormat || {}; return {label:(f.mainText && f.mainText.text) || '', sub:(f.secondaryText && f.secondaryText.text) || '', pid:p.placeId}; }); }); }
-  function googleDetail(pid){ return j('https://places.googleapis.com/v1/places/' + encodeURIComponent(pid), {headers:{'X-Goog-Api-Key':key(), 'X-Goog-FieldMask':'location,displayName,formattedAddress'}}).then(function(r){ return {lat:r.location.latitude, lng:r.location.longitude, label:(r.displayName && r.displayName.text) || '', sub:r.formattedAddress || ''}; }); }
+  function googleDetail(pid){ var st = SESS; SESS = ''; return j('https://places.googleapis.com/v1/places/' + encodeURIComponent(pid) + (st ? '?sessionToken=' + encodeURIComponent(st) : ''), {headers:{'X-Goog-Api-Key':key(), 'X-Goog-FieldMask':'location,displayName,formattedAddress'}}).then(function(r){ return {lat:r.location.latitude, lng:r.location.longitude, label:(r.displayName && r.displayName.text) || '', sub:r.formattedAddress || ''}; }); }
   function photon(q, c){ return j('https://photon.komoot.io/api/?limit=8&lang=en&bbox=' + BBOX + '&lat=' + c[0] + '&lon=' + c[1] + '&q=' + encodeURIComponent(q)).then(function(r){
     return (r.features || []).map(function(f){ var p = f.properties || {}, g = f.geometry && f.geometry.coordinates; if(!g) return null; var name = p.name || [p.housenumber, p.street].filter(Boolean).join(' ') || p.suburb || p.district || p.city || '';
       var sub = [p.street && p.name ? p.street : '', p.suburb || p.district, p.city || p.county, p.country].filter(Boolean).join(', '); return name ? {label:name, sub:sub, lat:g[1], lng:g[0]} : null; }).filter(Boolean); }); }
@@ -44,14 +46,14 @@
     var run = function(jobs, sortIt){ return Promise.all(jobs.map(function(x){ return x.catch(function(){ return []; }); })).then(function(rs){ var all = uniq([].concat.apply([], rs)); if(sortIt) all.sort(function(a, b){ return kmTo(c, a) - kmTo(c, b); }); return all.slice(0, 7); }); };
     if(!key()) return run(osm(), true);
     lastErr = '';
-    var gj = [google(ctx && !/,/.test(q) ? q + ' ' + ctx : q, c)]; if(ctx) gj.push(google(q, c));
+    var gj = [google(ctx && !/,/.test(q) ? q + ' ' + ctx : q, c)];
     return Promise.all(gj.map(function(x){ return x.catch(function(e){ lastErr = (e && e.message) || 'unknown error'; return []; }); })).then(function(rs){ var all = uniq([].concat.apply([], rs)).slice(0, 7);
       if(all.length) return all; return run(osm(), true); }); }
   var typedOK = function(q){ return q.length >= 3 && !parse(q); };
   function pick(x){ return x.pid ? googleDetail(x.pid).then(function(d){ return d; }) : Promise.resolve(x); }
-  function reverse(a, b){ var K = key();
-    if(K) return j('https://maps.googleapis.com/maps/api/geocode/json?latlng=' + a + ',' + b + '&key=' + K).then(function(r){ return (r.results && r.results[0] && r.results[0].formatted_address || '').split(',').slice(0, 3).join(',').trim(); }).catch(function(){ return ''; });
-    return j('https://nominatim.openstreetmap.org/reverse?format=json&zoom=18&lat=' + a + '&lon=' + b).then(function(r){ return (r && r.display_name || '').split(',').slice(0, 3).join(',').trim(); }).catch(function(){ return ''; }); }
+  function reverse(a, b){
+    return j('https://nominatim.openstreetmap.org/reverse?format=json&zoom=18&lat=' + a + '&lon=' + b).then(function(r){ return (r && r.display_name || '').split(',').slice(0, 3).join(',').trim(); }).catch(function(){ return ''; }).then(function(t){ if(t || !key()) return t;
+      return nearby(a, b).then(function(L){ return L[0] ? 'Near ' + L[0].label : ''; }); }); }
 
   function attach(inp, o){ if(!inp || inp.__vpl) return; inp.__vpl = 1; o = o || {}; css(); var ctxOf = function(){ return typeof o.context === 'function' ? o.context() : (o.context || ''); }, cenOf = function(){ return o.center && (typeof o.center === 'function' ? o.center() : o.center); };
     var wrap = D.createElement('div'); wrap.className = 'vpl'; inp.parentNode.insertBefore(wrap, inp); wrap.appendChild(inp); var dd = D.createElement('div'); dd.className = 'vpl-dd'; dd.style.display = 'none'; wrap.appendChild(dd);
@@ -64,7 +66,7 @@
       dd.innerHTML = list.map(function(x, i){ return '<div data-i="' + i + '">' + (x.typed ? '📝 Use “' : '📍 ') + '<b>' + esc(x.label) + '</b>' + (x.typed ? '”' : '') + (x.sub ? '<small>' + esc(x.sub) + '</small>' : '') + '</div>'; }).join('') + '<div class="vh">' + (W.VelosPlaces && W.VelosPlaces.lastError() ? 'Google search problem: ' + esc(W.VelosPlaces.lastError()).slice(0, 160) + ' (showing free map results)' : 'Not the right place? Add more detail, or drag the pin on the map.') + '</div>'; dd.style.display = '';
       dd.querySelectorAll('[data-i]').forEach(function(e){ e.onmousedown = e.ontouchstart = function(ev){ ev.preventDefault(); choose(cur[+e.getAttribute('data-i')]); }; }); }
     function run(){ var q = inp.value.trim(), my = ++seq; if(q.length < 3 && !parse(q)){ hide(); return; } search(q, cenOf(), ctxOf()).then(function(l){ if(my === seq) render(l, q); }); }
-    inp.addEventListener('input', function(){ clearTimeout(T); T = setTimeout(run, 320); });
+    inp.addEventListener('input', function(){ clearTimeout(T); T = setTimeout(run, 500); });
     inp.addEventListener('focus', function(){ if(cur.length && inp.value.trim().length >= 3) dd.style.display = ''; });
     inp.addEventListener('blur', function(){ setTimeout(hide, 180); });
     inp.addEventListener('keydown', function(e){ var it = dd.querySelectorAll('[data-i]');
