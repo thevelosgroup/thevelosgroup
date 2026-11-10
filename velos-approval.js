@@ -10,7 +10,7 @@
   function clean(s){return String(s==null?'':s).replace(/[^\x20-\x7E -ÿ]/g,'').trim()}
   async function build(d,o){
     o=o||{};var CO=o.co||DEF_CO;await lib();
-    var logo=await img('icon-512.png','jpeg',256),sig=await img('signature.png','png');
+    var logo=await img('logo-doc.png','jpeg',256),sig=await img('signature.png','png');
     var J=W.jspdf.jsPDF,doc=new J({unit:'mm',format:'a4'}),page=1;
     var no=d.approval_no||'DRAFT',name=clean(d.name)||'Restaurant',owner=clean(d.owner)||'Authorised representative';
     function foot(p){doc.setFillColor(NV[0],NV[1],NV[2]);doc.rect(0,284,PW,13,'F');doc.setFillColor(GD[0],GD[1],GD[2]);doc.rect(0,284,PW,.8,'F');doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(232,199,102);doc.text((CO.foot||DEF_CO.foot)+(CO.tag?'  |  '+CO.tag:''),PW/2,291,{align:'center'});doc.setTextColor(180,190,215);doc.text('Page '+p,195,291,{align:'right'})}

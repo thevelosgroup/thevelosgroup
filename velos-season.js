@@ -101,6 +101,7 @@
   function go(){ var id = pick(); if(!id) return; var S = SEASONS[id];
     var cols = S.flag ? FLAGS[S.flag].map(function(c){ return c === '#000000' ? '#ffffff' : c; }) : (S.colors || ['#ffd166', '#ff6b6b', '#4cc9f0', '#b8f2e6', '#c77dff']);
     deco(id, S);
+    try { var pv = {t:S.t, e:S.e, fx:S.fx, accent:S.accent}; localStorage.setItem('v_season', JSON.stringify({day:new Date().toISOString().slice(0,10), S:pv})); if(W.VelosSplashTheme) W.VelosSplashTheme(pv); } catch(e){}
     if(!D.getElementById('vth-bar') && W.VelosTheme){ try { VelosTheme.init({}); } catch(e){} }
     var reduce = W.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     if(S.splash && !reduce && !D.getElementById('vse-sp')) splash(id, S);

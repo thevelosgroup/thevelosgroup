@@ -15,7 +15,7 @@
   async function build(o) {
     await lib();
     var J = W.jspdf.jsPDF, doc = new J({ unit: 'mm', format: 'a4' }), Wd = 210;
-    var logo = await img('icon-512.png', 'jpeg', 256), sig = await img('signature.png', 'png');
+    var logo = await img('logo-doc.png', 'jpeg', 256), sig = await img('signature.png', 'png');
     doc.setFillColor(NV[0], NV[1], NV[2]); doc.rect(0, 0, Wd, 40, 'F'); doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 40, Wd, 1.4, 'F');
     if (logo) { try { doc.addImage(logo, 'JPEG', 15, 8, 24, 24); } catch (e) {} }
     doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(17); doc.text('The Velos Group', 44, 17);

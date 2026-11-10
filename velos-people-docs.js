@@ -1,5 +1,5 @@
 /* Velos people documents: standard agreements (already counter-signed by Velos) and photo ID cards
-   for riders, sales agents and technicians. Uses jsPDF, signature.png and icon-512.png.
+   for riders, sales agents and technicians. Uses jsPDF, signature.png and logo-doc.png.
    VelosPeople.agreement(kind, p)  -> {doc, file, name, no}
    VelosPeople.idCard(kind, p)     -> {doc, file, name, no}
    VelosPeople.save(r)  VelosPeople.share(r)
@@ -66,14 +66,14 @@
   async function agreement(kind, p) {
     await lib();
     var J = W.jspdf.jsPDF, doc = new J({ unit: 'mm', format: 'a4' }), page = 1;
-    var logo = await img('icon-512.png', 'jpeg', 256), sig = await img('signature.png', 'png');
+    var logo = await img('logo-doc.png', 'jpeg', 256), sig = await img('signature.png', 'png');
     var no = ref(kind, p), name = clean(p.name) || ROLE[kind], issued = dmy(p.issued_at);
     function foot(n) { doc.setFillColor(NV[0], NV[1], NV[2]); doc.rect(0, 284, 210, 13, 'F'); doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 284, 210, .8, 'F'); doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(232, 199, 102); doc.text('The Velos Group  |  Anything. Anywhere. Precisely.', 105, 291, { align: 'center' }); doc.setTextColor(180, 190, 215); doc.text('Page ' + n, 195, 291, { align: 'right' }); }
     doc.setFillColor(NV[0], NV[1], NV[2]); doc.rect(0, 0, 210, 40, 'F'); doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 40, 210, 1.4, 'F');
     if (logo) pic(doc, logo, 15, 8, 24, 24);
     doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(17); doc.text('The Velos Group', 44, 17);
     doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(232, 199, 102); doc.text('Anything. Anywhere. Precisely.', 44, 23);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(190, 200, 225); doc.text('Kampala, Uganda', 44, 29); doc.text('Tel / WhatsApp: ' + PHONE + '  |  ' + SITE.replace('https://', ''), 44, 33);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(190, 200, 225); doc.text('Uganda', 44, 29); doc.text('Tel / WhatsApp: ' + PHONE + '  |  ' + SITE.replace('https://', ''), 44, 33);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(232, 199, 102); doc.text(doc.splitTextToSize(TITLE[kind], 70), 195, 13, { align: 'right' });
     doc.setFontSize(10); doc.setTextColor(255, 255, 255); doc.text('Ref ' + no, 195, 31, { align: 'right' }); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.text('Approved ' + issued, 195, 36, { align: 'right' });
     var y = 54; doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(TX[0], TX[1], TX[2]);
@@ -112,7 +112,7 @@
   async function idCard(kind, p) {
     await lib(); var hasQr = await qrlib();
     var J = W.jspdf.jsPDF, doc = new J({ unit: 'mm', format: [85.6, 54], orientation: 'landscape' });
-    var logo = await img('icon-512.png', 'jpeg', 256);
+    var logo = await img('logo-doc.png', 'jpeg', 256);
     var no = ref(kind, p), name = clean(p.name) || ROLE[kind], issued = new Date(p.issued_at || Date.now()), until = new Date(issued); until.setFullYear(until.getFullYear() + 1);
     var mm = function (d) { return ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear(); };
     /* front */

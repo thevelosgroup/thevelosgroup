@@ -5,6 +5,16 @@
    label: 'OFFICIAL' (default) | 'PAID' | 'RECEIVED' | 'APPROVED' | 'VERIFIED' */
 (function (W) {
   var INK = '#1b2f86', cache = {};
+  /* the real Velos emblem (logo-mark.png) is turned into a one-colour ink mark, so the stamp carries the logo instead of a letter */
+  var MARK = null, MARKP = null;
+  function loadMark() { if (MARKP) return MARKP;
+    MARKP = new Promise(function (ok) { var im = new Image(); im.onload = function () { try {
+      var w = 360, h = Math.round(360 * im.naturalHeight / im.naturalWidth), cv = document.createElement('canvas'); cv.width = w; cv.height = h; var x = cv.getContext('2d'); x.drawImage(im, 0, 0, w, h);
+      var d = x.getImageData(0, 0, w, h), p = d.data, i, r = 27, g = 47, b = 134;
+      for (i = 0; i < p.length; i += 4) { var a = p[i + 3]; if (!a) continue; var white = p[i] > 190 && p[i + 1] > 190 && p[i + 2] > 190; p[i] = r; p[i + 1] = g; p[i + 2] = b; p[i + 3] = white ? a : Math.round(a * 0.5); }
+      x.putImageData(d, 0, 0); MARK = cv; } catch (e) { MARK = null; } ok(); };
+      im.onerror = function () { ok(); }; im.src = 'logo-mark.png'; });
+    return MARKP; }
   var MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   function when(d) {
     var x = d ? new Date(d) : new Date(); if (isNaN(x)) x = new Date();
@@ -31,10 +41,11 @@
     c.lineWidth = 3 * u; c.beginPath(); c.arc(m, m, 282 * u, 0, 7); c.stroke();
     c.lineWidth = 3 * u; c.beginPath(); c.arc(m, m, 178 * u, 0, 7); c.stroke();
     arc(c, 'THE VELOS GROUP', m, m, 232 * u, -Math.PI / 2, false, 50 * u, 0.153);
-    arc(c, 'KAMPALA - UGANDA', m, m, 244 * u, Math.PI / 2, true, 40 * u, 0.118);
+    arc(c, 'UGANDA', m, m, 244 * u, Math.PI / 2, true, 44 * u, 0.2);
     [-Math.PI, 0].forEach(function (a) { c.save(); c.translate(m + 232 * u * Math.cos(a), m + 232 * u * Math.sin(a)); c.beginPath(); for (var i = 0; i < 5; i++) { var t = -Math.PI / 2 + i * 4 * Math.PI / 5; c.lineTo(Math.cos(t) * 20 * u, Math.sin(t) * 20 * u); } c.closePath(); c.fill(); c.restore(); });
     c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.font = '700 ' + 92 * u + 'px Georgia, "Times New Roman", serif'; c.fillText('V', m, m - 92 * u);
+    if (MARK) { var lw = 168 * u, lh = lw * MARK.height / MARK.width; c.drawImage(MARK, m - lw / 2, m - 96 * u - lh / 2, lw, lh); }
+    else { c.font = '700 ' + 92 * u + 'px Georgia, "Times New Roman", serif'; c.fillText('V', m, m - 92 * u); }
     c.fillRect(m - 120 * u, m - 38 * u, 240 * u, 5 * u);
     c.font = '700 ' + (label.length > 8 ? 40 : 50) * u + 'px Arial, Helvetica, sans-serif'; c.fillText(label, m, m + 4 * u);
     c.fillRect(m - 120 * u, m + 38 * u, 240 * u, 5 * u);
@@ -44,7 +55,7 @@
     for (var i = 0; i < 160; i++) { c.beginPath(); c.arc(Math.random() * S, Math.random() * S, (1 + Math.random() * 2.2) * u, 0, 7); c.fillStyle = 'rgba(0,0,0,' + (0.25 + Math.random() * 0.4) + ')'; c.fill(); }
     cache[key] = cv.toDataURL('image/png'); return cache[key];
   }
-  function png(o) { return new Promise(function (ok) { try { ok(draw(o)); } catch (e) { ok(null); } }); }
+  function png(o) { return loadMark().then(function () { try { return draw(o); } catch (e) { return null; } }); }
   function place(doc, x, y, mm, o) { return png(o).then(function (d) { if (!d) return false; try { doc.addImage(d, 'PNG', x, y, mm || 32, mm || 32); return true; } catch (e) { return false; } }); }
   function html(o, px) { return png(o).then(function (d) { return d ? '<img alt="Velos official stamp" src="' + d + '" style="width:' + (px || 130) + 'px;height:' + (px || 130) + 'px;opacity:.92">' : ''; }); }
   W.VelosStamp = { png: png, place: place, html: html, dateText: when };

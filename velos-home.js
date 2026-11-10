@@ -10,6 +10,7 @@
     ['🍽️','Foods','Restaurants','foods.html','food restaurant meal dish eat lunch dinner pizza chicken'],
     ['🛍️','Velos Shop','Electronics','shop.html','shop phone laptop tv electronics appliance'],
     ['👗','Fashion','Style & beauty','fashion.html','fashion dress suit wig perfume bag beauty shoes clothes'],
+    ['🧸','Velos Little Stars','Kids, toys & baby','kids.html','kids children baby toys toy school clothes shoes diapers nappy'],
     ['🏪','Stores','Local vendors','marketplace.html','store vendor marketplace shop partner'],
     ['🛒','Retail','Single items','marketplace.html#/m/retail','retail single item'],
     ['📦','Wholesale','Bulk buying','marketplace.html#/m/wholesale','wholesale bulk carton sack'],

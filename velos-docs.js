@@ -22,13 +22,13 @@
   async function make(kind, o) {
     var K = KINDS[kind]; if (!K) throw Error('Unknown document');
     await lib(); var J = W.jspdf.jsPDF, doc = new J({ unit: 'mm', format: 'a4' }), Wd = 210, T = totals(o), c = o.customer || {}, date = o.date || new Date();
-    var logo = await img('icon-512.png', 'jpeg', 256), sig = await img('signature.png', 'png'), P = kind === 'receipt' ? {} : await payInfo(), no = docNo(kind, o);
+    var logo = await img('logo-doc.png', 'jpeg', 256), sig = await img('signature.png', 'png'), P = kind === 'receipt' ? {} : await payInfo(), no = docNo(kind, o);
     function head() {
       doc.setFillColor(NV[0], NV[1], NV[2]); doc.rect(0, 0, Wd, 40, 'F'); doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 40, Wd, 1.4, 'F');
       if (logo) { try { doc.addImage(logo, 'JPEG', 15, 8, 24, 24); } catch (e) {} }
       doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(17); doc.text('The Velos Group', 44, 17);
       doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(232, 199, 102); doc.text('Anything. Anywhere. Precisely.', 44, 23);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(190, 200, 225); doc.text('Kampala, Uganda', 44, 29); doc.text('info@thevelosgroup.com  |  thevelosgroup.com', 44, 33);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(190, 200, 225); doc.text('Uganda', 44, 29); doc.text('info@thevelosgroup.com  |  thevelosgroup.com', 44, 33);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(232, 199, 102); doc.text(K.title, 195, 18, { align: 'right' });
       doc.setFontSize(10); doc.setTextColor(255, 255, 255); doc.text('No. ' + no, 195, 26, { align: 'right' }); doc.setFont('helvetica', 'normal'); doc.text('Date: ' + dmy(date), 195, 32, { align: 'right' });
     }

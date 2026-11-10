@@ -5,6 +5,7 @@
    Use:  VelosShare.reg('key', {...}); then a button with onclick="VelosShare.go('key')"  or  VelosShare.open({...}). */
 (function(){ var W = window, D = document;
   if(W.VelosShare) return;
+  if(!W.VELOS_SITE){ try { var cs = D.createElement('script'); cs.src = 'velos-site-config.js'; D.head.appendChild(cs); } catch(e){} }
   var REG = {}, LAST = null;
   var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
   var money = function(n){ return 'UGX ' + Math.round(+n || 0).toLocaleString('en-US'); };
@@ -58,7 +59,9 @@
     L.push('', '✅ Order online, pay safely and track every step.', '👉 ' + url, '', '_The Velos Group · Anything. Anywhere. Precisely._');
     return L.join('\n'); }
 
-  function urlFor(o, add){ var u = (add && o.addUrl) ? o.addUrl : o.url; u = abs(u || location.href); try { var ref = new URLSearchParams(location.search).get('ref'); if(ref && !/[?&]ref=/.test(u)){ var h = u.split('#'), q = h[0].indexOf('?') > -1 ? '&' : '?'; u = h[0] + q + 'ref=' + encodeURIComponent(ref) + (h[1] != null ? '#' + h[1] : ''); } } catch(e){} return u; }
+  function urlFor(o, add){ var u = (add && o.addUrl) ? o.addUrl : o.url; u = abs(u || location.href); try { var ref = new URLSearchParams(location.search).get('ref'); if(ref && !/[?&]ref=/.test(u)){ var h = u.split('#'), q = h[0].indexOf('?') > -1 ? '&' : '?'; u = h[0] + q + 'ref=' + encodeURIComponent(ref) + (h[1] != null ? '#' + h[1] : ''); } } catch(e){}
+    try { var sb = (W.VELOS_SITE && VELOS_SITE.shareBase) || ''; if(sb && o.kind !== 'store' && !o.noBrand){ var P = ['u=' + encodeURIComponent(u), 't=' + encodeURIComponent(o.title || '')]; if(o.image) P.push('i=' + encodeURIComponent(abs(o.image))); if(o.price) P.push('p=' + encodeURIComponent(o.price)); if(o.desc) P.push('d=' + encodeURIComponent(String(o.desc).slice(0, 150))); u = sb.replace(/\/+$/, '') + '/s?' + P.join('&'); } } catch(e){}
+    return u; }
 
   function close(){ var b = D.getElementById('vshB'); if(b) b.remove(); if(LAST && LAST.obj) try { URL.revokeObjectURL(LAST.obj); } catch(e){} LAST = null; }
   function toast(t){ var e = D.getElementById('vshT'); if(!e){ e = D.createElement('div'); e.id = 'vshT'; e.style.cssText = 'position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#e8c766;color:#080d1f;font:700 14px system-ui;padding:10px 18px;border-radius:99px;z-index:2147483300;box-shadow:0 8px 24px rgba(0,0,0,.4)'; D.body.appendChild(e); } e.textContent = t; e.style.display = 'block'; clearTimeout(e._t); e._t = setTimeout(function(){ e.style.display = 'none'; }, 2200); }

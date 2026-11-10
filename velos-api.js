@@ -28,6 +28,7 @@ catP.then(function(res){
   if(!cs || !cs.length || !ps || !ps.length) return;
   var WC = window.WING_CATS;
   if(WC){ cs = cs.filter(function(c){ return WC.indexOf(c.key) > -1; }); ps = ps.filter(function(p){ return WC.indexOf(p.category_key) > -1; }); }
+  var KK = ['kids-clothing','kids-shoes','toys-games','baby-essentials','school-learning']; if(!WC){ cs = cs.filter(function(c){ return KK.indexOf(c.key) < 0; }); ps = ps.filter(function(p){ return KK.indexOf(p.category_key) < 0; }); }
   var EX = window.SHOP_EXCLUDE; if(EX){ cs = cs.filter(function(c){ return EX.indexOf(c.key) < 0; }); ps = ps.filter(function(p){ return EX.indexOf(p.category_key) < 0; }); }
   var order = {}; cs.forEach(function(c, i){ order[c.key] = i; });
   ps.sort(function(a, b){ return (order[a.category_key] - order[b.category_key]) || a.id.localeCompare(b.id, undefined, {numeric:true}); });

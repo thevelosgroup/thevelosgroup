@@ -2,7 +2,7 @@
    product cards. Works on shop.html and fashion.html; sits on top of app-core.js (nothing there is changed). */
 (function(){
   if(window.__vj) return; window.__vj = 1;
-  var WK = 'velosWish', FASH = !!window.WING_CATS;
+  var WK = 'velosWish', KIDS = !!window.KIDS_PAGE, FASH = !!window.WING_CATS && !KIDS;
   function $(i){ return document.getElementById(i); }
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function wish(){ try { return JSON.parse(localStorage.getItem(WK) || '[]'); } catch(e){ return []; } }
@@ -63,8 +63,8 @@
   /* ---------- banner slider ---------- */
   function slides(){ var wa = 'https://wa.me/256755215751?text=' + encodeURIComponent('Hello Velos, I would like help sourcing a product.');
     return [
-      {k:'a', img:FASH ? 'fashion-hero.jpg' : 'shop-hero.jpg', t:FASH ? 'Fashion & beauty, curated' : 'Premium products. Sourced with precision.', s:FASH ? 'Dresses, wigs, perfumes, bags, suits and grooming for ladies and men.' : 'Verified suppliers, transparent prices and reliable delivery across Kampala.', b:'Shop now', h:'#vj-cats'},
-      {k:'b', img:FASH ? 'shop-hero.jpg' : 'fashion-hero.jpg', t:FASH ? 'Looking for electronics?' : 'Fashion & beauty', s:FASH ? 'Phones, laptops, TVs and home appliances in Velos Global Shop.' : 'Ladies and men: dresses, wigs, perfumes, bags, suits and grooming.', b:FASH ? 'Visit the shop' : 'Explore fashion', h:FASH ? 'shop.html' : 'fashion.html'},
+      {k:'a', img:KIDS ? 'kids-hero.svg' : FASH ? 'fashion-hero.jpg' : 'shop-hero.jpg', t:KIDS ? 'Everything for your little stars' : FASH ? 'Fashion & beauty, curated' : 'Premium products. Sourced with precision.', s:KIDS ? 'Kids clothes, shoes, toys, baby essentials and school supplies.' : FASH ? 'Dresses, wigs, perfumes, bags, suits and grooming for ladies and men.' : 'Verified suppliers, transparent prices and reliable delivery across Kampala.', b:'Shop now', h:'#vj-cats'},
+      {k:'b', img:(FASH || KIDS) ? 'shop-hero.jpg' : 'fashion-hero.jpg', t:(FASH || KIDS) ? 'Looking for electronics?' : 'Fashion & beauty', s:(FASH || KIDS) ? 'Phones, laptops, TVs and home appliances in Velos Global Shop.' : 'Ladies and men: dresses, wigs, perfumes, bags, suits and grooming.', b:(FASH || KIDS) ? 'Visit the shop' : 'Explore fashion', h:(FASH || KIDS) ? 'shop.html' : 'fashion.html'},
       {k:'c', t:'Buying from abroad?', s:'We handle sourcing, shipping, customs and delivery for you.', b:'Ask on WhatsApp', h:wa, x:1},
       {k:'d', food:1, t:'Hungry? Velos Foods delivers', s:'Restaurants, groceries and fresh supplies to your door.', b:'Order food', h:'foods.html'}]; }
   function slider(){ var S = slides(); return '<div class="vj-sl" id="vj-sl">' + S.map(function(x, i){ return '<a class="vj-s vj-s-' + x.k + '"' + (x.food ? ' id="vj-food"' : '') + ' href="' + esc(x.h) + '"' + (x.x ? ' target="_blank" rel="noopener"' : '') + (x.img ? ' style="background-image:linear-gradient(90deg,rgba(2,8,28,.9) 0,rgba(2,8,28,.5) 60%,rgba(2,8,28,.15) 100%),url(\'' + x.img + '\');background-size:cover;background-position:center"' : '') + '><div><b>' + esc(x.t) + '</b><span>' + esc(x.s) + '</span><i>' + esc(x.b) + ' ›</i></div></a>'; }).join('') + '</div><div class="vj-dots" id="vj-dots">' + S.map(function(_, i){ return '<i class="' + (i ? '' : 'on') + '"></i>'; }).join('') + '</div>'; }
