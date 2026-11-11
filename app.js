@@ -9,7 +9,7 @@
     'velos-money.js?v=14',
     'velos-site-config.js?v=2',
     'app-core.js',
-    'velos-share.js?v=4',
+    'velos-share.js?v=5',
     'velos-api.js?v=19',
     'velos-assistant.js?v=2',
     'velos-push.js?v=1'
