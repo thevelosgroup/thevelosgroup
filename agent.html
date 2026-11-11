@@ -101,4 +101,5 @@ function fillRt(n){var e=document.getElementById('rt');if(!e){if((n||0)<20)setTi
   var f=function(n){return 'UGX '+Math.round(n).toLocaleString('en-US')};
   e.innerHTML='<b>How your commission works</b><table><tr><th>Completed order</th><th>You earn</th></tr><tr><td>Under '+f(t.cut_small)+'</td><td><b>'+t.small+'%</b></td></tr><tr><td>'+f(t.cut_small)+' to '+f(t.cut_mid-1)+'</td><td><b>'+t.mid+'%</b></td></tr><tr><td>'+f(t.cut_mid)+' to '+f(t.cut_big-1)+'</td><td><b>'+t.high+'%</b></td></tr><tr><td>Far-away deliveries</td><td><b>'+t.far+'%</b></td></tr><tr><td>'+f(t.cut_big)+' and above</td><td><b>'+t.big+'% fixed</b></td></tr></table><p class="m">Paid every week for orders completed that week.</p>'})}
 </script><script src="velos-pw.js"></script>
-<script src="velos-theme.js"></script><script>try{VelosTheme.init({db:(typeof db!=="undefined"?db:null),role:"agent",name:function(){try{return ''}catch(e){return""}}})}catch(e){}</script></body></html>
+<script src="velos-theme.js"></script><script>try{VelosTheme.init({db:(typeof db!=="undefined"?db:null),role:"agent",name:function(){try{return ''}catch(e){return""}}})}catch(e){}</script><script src="velos-appsettings.js?v=1"></script>
+</body></html>
