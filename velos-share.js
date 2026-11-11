@@ -59,8 +59,14 @@
     L.push('', '✅ Order online, pay safely and track every step.', '👉 ' + url, '', '_The Velos Group · Anything. Anywhere. Precisely._');
     return L.join('\n'); }
 
+  /* Short links: the code is made from the item's address, so it is always the same for the same item. It is saved once in Velos so the share worker can show that item's photo. */
+  var SEEN = {};
+  function shortCode(u){ var h1 = 0x811c9dc5, h2 = 5381; for(var i = 0; i < u.length; i++){ var c = u.charCodeAt(i); h1 ^= c; h1 = Math.imul(h1, 16777619) >>> 0; h2 = (Math.imul(h2, 33) + c) >>> 0; } var a = h1.toString(36), b = h2.toString(36); return (a + b).replace(/[^a-z0-9]/g, '').slice(0, 4) + (b + a).replace(/[^a-z0-9]/g, '').slice(0, 4); }
+  function register(code, u, o){ if(SEEN[code]) return; SEEN[code] = 1;
+    var go = function(){ var S = W.VELOS_SUPABASE; if(!S || !S.url) return; try { fetch(S.url + '/rest/v1/rpc/make_short_link', {method:'POST', headers:{apikey:S.key, Authorization:'Bearer ' + S.key, 'Content-Type':'application/json'}, body:JSON.stringify({p_code:code, p_url:u, p_title:String(o.title || '').slice(0, 120), p_image:o.image ? abs(o.image) : null, p_price:o.price ? String(o.price).slice(0, 40) : null, p_desc:String(o.desc || '').slice(0, 190)})}).catch(function(){}); } catch(e){} };
+    if(W.VELOS_SUPABASE) go(); else { var sc = D.createElement('script'); sc.src = 'supabase-config.js'; sc.onload = go; D.head.appendChild(sc); } }
   function urlFor(o, add){ var u = (add && o.addUrl) ? o.addUrl : o.url; u = abs(u || location.href); try { var ref = new URLSearchParams(location.search).get('ref'); if(ref && !/[?&]ref=/.test(u)){ var h = u.split('#'), q = h[0].indexOf('?') > -1 ? '&' : '?'; u = h[0] + q + 'ref=' + encodeURIComponent(ref) + (h[1] != null ? '#' + h[1] : ''); } } catch(e){}
-    try { var sb = (W.VELOS_SITE && VELOS_SITE.shareBase) || ''; if(sb && o.kind !== 'store' && !o.noBrand){ var P = ['u=' + encodeURIComponent(u), 't=' + encodeURIComponent(o.title || '')]; if(o.image) P.push('i=' + encodeURIComponent(abs(o.image))); if(o.price) P.push('p=' + encodeURIComponent(o.price)); if(o.desc) P.push('d=' + encodeURIComponent(String(o.desc).slice(0, 150))); u = sb.replace(/\/+$/, '') + '/s?' + P.join('&'); } } catch(e){}
+    try { var sb = (W.VELOS_SITE && VELOS_SITE.shareBase) || ''; if(sb && o.kind !== 'store' && !o.noBrand){ var code = shortCode(u); register(code, u, o); u = sb.replace(/\/+$/, '') + '/s/' + code; } } catch(e){}
     return u; }
 
   function close(){ var b = D.getElementById('vshB'); if(b) b.remove(); if(LAST && LAST.obj) try { URL.revokeObjectURL(LAST.obj); } catch(e){} LAST = null; }
