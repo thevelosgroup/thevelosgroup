@@ -298,7 +298,7 @@ window.shareContent = async function(title, bodyText, waLink, pageLink, imgSrc, 
 };
 window.shareProduct = function(id){
   var p = PRODUCTS.find(function(x){ return x.id === id; }); if(!p) return;
-  var eff = effPrice(p), d = PROMO[id], base = siteUrl('shop.html') + '?p=' + encodeURIComponent(id), combo = /^bd/.test(String(id)) || /^Bundle/i.test(p.sub || '');
+  var eff = effPrice(p), d = PROMO[id], fashionCats = ['women-fashion','women-beauty','men-fashion','men-grooming'], page = fashionCats.indexOf(p.cat) > -1 ? 'fashion.html' : 'shop.html', base = siteUrl(page) + '?p=' + encodeURIComponent(id), combo = /^bd/.test(String(id)) || /^Bundle/i.test(p.sub || '');
   var o = {kind:combo ? 'combo' : (d ? 'promo' : 'product'), title:p.name, price:eff || null, oldPrice:d ? p.price : null, discount:d || 0, image:p.img, store:'Velos Global Shop',
     desc:combo ? String(p.sub || '').replace(/^Bundle\s*·\s*/i, '') : (p.sub || ''), url:base, addUrl:base + '&add=1'};
   if(window.VelosShare) return VelosShare.open(o);
