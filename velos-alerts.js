@@ -17,12 +17,12 @@
   };
   function pref(k, d){ try { return localStorage.getItem(k) || d; } catch(e){ return d; } }
   function vol(){ var v = parseFloat(pref('va_vol', '1')); return isNaN(v) ? 1 : Math.max(.1, Math.min(1, v)); }
-  function tone(f, d, w, v, type){ var c = ctx(); if(!c || c.state !== 'running') return; try { var o = c.createOscillator(), g = c.createGain(), t = c.currentTime + (w || 0), pk = (v || .35) * vol(); o.type = type || 'sine'; o.frequency.value = f; o.connect(g); g.connect(c.destination); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(pk, t + .015); g.gain.exponentialRampToValueAtTime(.0001, t + d); o.start(t); o.stop(t + d + .05); } catch(e){} }
+  function tone(f, d, w, v, type){ if(pref('va_mute','') === '1') return; var c = ctx(); if(!c || c.state !== 'running') return; try { var o = c.createOscillator(), g = c.createGain(), t = c.currentTime + (w || 0), pk = (v || .35) * vol(); o.type = type || 'sine'; o.frequency.value = f; o.connect(g); g.connect(c.destination); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(pk, t + .015); g.gain.exponentialRampToValueAtTime(.0001, t + d); o.start(t); o.stop(t + d + .05); } catch(e){} }
   function play(id){ var s = SOUNDS[id] || SOUNDS.bell; s.p.forEach(function(x){ tone(x[0], x[1], x[2], x[4], x[3]); }); }
   function custom(){ var d = pref('va_custom', ''); if(!d) return false; try { var a = new Audio(d); a.volume = vol(); a.play(); return true; } catch(e){ return false; } }
   function beep(kind){ var id = pref('va_sound', 'bell');
     if(kind === 'warn') play('pulse'); else if(id === 'custom' && custom()){} else play(id === 'custom' ? 'bell' : id);
-    try { if(navigator.vibrate) navigator.vibrate(kind === 'warn' ? [300,100,300,100,300] : [200,100,200]); } catch(e){} }
+    try { if(navigator.vibrate && pref('va_vibe','1') !== '0') navigator.vibrate(kind === 'warn' ? [300,100,300,100,300] : [200,100,200]); } catch(e){} }
   function settings(db){ css(); var old = D.getElementById('vas'); if(old) old.remove(); var cur = pref('va_sound', 'bell'), supported = 'Notification' in W, perm = supported ? Notification.permission : 'unsupported';
     var m = D.createElement('div'); m.id = 'vas'; m.style.cssText = 'position:fixed;inset:0;z-index:2147483100;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:14px';
     var st1 = perm === 'granted' ? '<b style="color:#4ade80">ON ✓</b> Alerts can pop up on this device.' : perm === 'denied' ? '<b style="color:#f87171">BLOCKED</b> by this browser. Tap the padlock (or the settings icon) next to the website address, open <b>Notifications</b> (or Site settings) and choose <b>Allow</b>, then reload this page and come back here.' : perm === 'unsupported' ? 'This browser cannot show notifications. Use Chrome or Edge, or install the app.' : '<b style="color:#e8c766">NOT YET ON</b> Tap the button below and choose <b>Allow</b> when your browser asks.';

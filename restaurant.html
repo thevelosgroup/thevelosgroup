@@ -140,4 +140,5 @@ async function pay(){var r=await db.rpc('vendor_statement'),p=r.data||[];var tot
   +VelosUI.table([{label:'Period',fn:function(x){return VelosUI.date(x.period_start)+' → '+VelosUI.date(x.period_end)}},{label:'Orders',k:'orders_count',r:true},{label:'Gross',k:'gross_base_ugx',money:true},{label:'Commission',k:'commission_ugx',money:true},{label:'Penalties',k:'penalties_ugx',money:true},{label:'Net',fn:function(x){return '<b>'+ugx(x.net_ugx)+'</b>'},html:true,r:true},{label:'Status',k:'status',badge:true}],p,{empty:{icon:'💳',title:'No statements yet',text:'Your first weekly statement appears after your first delivered orders.'}})}
 boot();
 </script><script src="velos-pw.js"></script><script src="velos-change.js"></script>
-<script src="velos-theme.js"></script><script>try{VelosTheme.init({db:(typeof db!=="undefined"?db:null),role:"restaurant",name:function(){try{return typeof ME!=='undefined'&&ME?(ME.name||ME.business_name):''}catch(e){return""}}})}catch(e){}</script></body></html>
+<script src="velos-theme.js"></script><script>try{VelosTheme.init({db:(typeof db!=="undefined"?db:null),role:"restaurant",name:function(){try{return typeof ME!=='undefined'&&ME?(ME.name||ME.business_name):''}catch(e){return""}}})}catch(e){}</script><script src="velos-appsettings.js?v=1"></script>
+</body></html>
