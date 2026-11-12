@@ -62,19 +62,22 @@ async function saveProfile(){
   if(r.error)$('er').textContent=r.error.message;else boot();
 }
 async function dash(a){
-  var R=await Promise.all([db.rpc('agent_stats'),db.from('agent_payouts').select('amount_ugx,paid_at,reference').order('paid_at',{ascending:false}),db.from('leads').select('*').order('created_at',{ascending:false}).limit(100),db.rpc('agent_business_stats')]);
-  var biz=(R[3]&&R[3].data)||[],bc=0,bm=0;
+  var R=await Promise.all([db.rpc('agent_stats'),db.from('agent_payouts').select('amount_ugx,paid_at,reference').order('paid_at',{ascending:false}),db.from('leads').select('*').order('created_at',{ascending:false}).limit(100),db.rpc('agent_business_stats'),db.rpc('agent_extra_earnings')]);
+  var biz=(R[3]&&R[3].data)||[],bc=0,bm=0,xe=(R[4]&&R[4].data)||[],xc=0,xm=0,xcur=null;
   var rows=R[0].data||[],pay=R[1].data||[],leads=R[2].data||[],now=new Date(),cm=now.getFullYear()+'-'+('0'+(now.getMonth()+1)).slice(-2);
   var M={},tr=0,tc=0,mr=0,mc=0,paid=0;
   rows.forEach(function(r){var m=M[r.month]=M[r.month]||{n:0,rev:0,com:0};m.n+=Number(r.n);m.rev+=Number(r.revenue);m.com+=Number(r.commission);tr+=Number(r.revenue);tc+=Number(r.commission);if(r.month===cm){mr+=Number(r.revenue);mc+=Number(r.commission)}});
   pay.forEach(function(p){paid+=Number(p.amount_ugx)});
-  biz.forEach(function(r){bc+=Number(r.commission);if(r.month===cm)bm+=Number(r.commission)});tc+=bc;mc+=bm;
+  biz.forEach(function(r){bc+=Number(r.commission);if(r.month===cm)bm+=Number(r.commission)});
+  xe.forEach(function(r){var v=Number(r.override_ugx)+Number(r.bonus_earned);xc+=v;if(r.month===cm){xm+=v;xcur=r}});
+  tc+=bc+xc;mc+=bm+xm;
   var base=location.href.replace(/agent\.html.*$/,''),link=base+'?ref='+a.agent_code;
   var msg='Shop electronics, home appliances and book verified technicians with Velos: '+link;
   var months=Object.keys(M).sort().reverse();
   var ovH=VelosUI.stats([{label:'Sales this month',value:ugx(mr)},{label:'Commission this month',value:ugx(mc)},{label:'Total commission earned',value:ugx(tc)},{label:'Paid to you',value:ugx(paid),tone:'good'},{label:'Balance due',value:ugx(tc-paid),tone:'warn'}])
   +'<div class="c"><b>Your personal link</b><p class="m">Share this link. Every customer who orders or books through it, within 30 days, is credited to you automatically.</p><input id="lk" readonly value="'+esc(link)+'">'
    +'<button onclick="cp()">Copy link</button> <a class="b g" target="_blank" rel="noopener" href="https://wa.me/?text='+encodeURIComponent(msg)+'">Share on WhatsApp</a></div>'
+   +(function(){var T=a.role==='team_leader',kind=T?'team':'your own',cur=xcur?(T?Number(xcur.team_revenue):Number(xcur.own_revenue)):0,tg=xcur?Number(xcur.target_ugx):0,bn=xcur?Number(xcur.bonus_ugx):0;if(!xcur&&!tg){tg=0}var pc=tg>0?Math.min(100,Math.round(cur/tg*100)):0;return '<div class="c"><b>This month\'s target</b><p class="m">'+(tg>0?(T?'Your team has completed ':'You have completed ')+ugx(cur)+' of '+ugx(tg)+'. Reach the target to earn a bonus of '+ugx(bn)+'.':'Your target for this month will appear here once Velos has set it.')+'</p>'+(tg>0?'<div style="height:10px;border-radius:99px;background:#1b2550;overflow:hidden"><div style="height:100%;width:'+pc+'%;background:#e8c766"></div></div><p class="m">'+pc+'% there'+(xcur&&Number(xcur.bonus_earned)>0?' · <b>Bonus earned: '+ugx(xcur.bonus_earned)+'</b>':'')+'</p>':'')+(T&&xcur?'<p class="m">Team override this month: <b>'+ugx(xcur.override_ugx)+'</b> (a share of your agents\' commission, paid by Velos on top of their pay).</p>':'')+'</div>'})()
    +'<div class="c" id="rt"><b>How your commission works</b><p class="m">Loading your rates…</p></div>'
    +'<div class="c m">Commission is counted when work is completed (orders delivered, services and designs completed) and is paid by our team to your payout number. You can only see your own customers and earnings.</div>';
   var addH='<div><h2>Add a customer or lead</h2><div class="c"><input id="ln" placeholder="Customer name *"><input id="lp" type="tel" placeholder="Customer phone *"><input id="lm" type="email" placeholder="Email (optional)"><input id="ll" placeholder="Location (town / area)">'
