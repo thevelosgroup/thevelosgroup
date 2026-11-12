@@ -36,22 +36,40 @@ function applyForm(email){
     + '<div class="row2"><select id="co"><option>Uganda</option><option>Kenya</option><option>Rwanda</option><option>Tanzania</option><option>Burundi</option><option>South Sudan</option><option>DR Congo</option><option>Ethiopia</option><option>Somalia</option></select><input id="ci" placeholder="City / town *"></div><input id="ad" placeholder="Shop or premises address *"><textarea id="ds" placeholder="Tell customers about your business in one or two lines"></textarea></div>'
     + '<div class="c"><h2>3. Pin your exact location</h2><p class="m">This is how customers see how far you are and how delivery is priced. Pin your exact shop door.</p><div id="locBox"></div></div>'
     + '<div class="c"><h2>4. Tax and payout details</h2><input id="tin" placeholder="TIN (Tax Identification Number) *"><label class="m">How should Velos pay you? (paid in UGX)</label><select id="pm" onchange="pmChange()"><option value="mtn">MTN Mobile Money</option><option value="airtel">Airtel Money</option><option value="bank">Bank account</option></select><input id="pb" placeholder="Bank name" style="display:none"><input id="pa" placeholder="Mobile money number *"><input id="pn" placeholder="Name on the account / wallet *"><p class="m">We pay your sales into this account after each delivery, minus the Velos commission.</p></div>'
+    + '<div class="c" id="delBox"><h2>5. Delivery</h2><p class="m">Customers choose your shop and ask how the order arrives. Velos delivers by default. If you have your own vehicles or delivery team, for example to carry bulk orders, tell us here.</p>' + delHtml() + '</div>'
     + '<div class="c"><button class="full" onclick="applySend()">Submit my application</button><p id="er" class="m bad"></p><p class="m">Next you will pay the one-time registration fee (' + ugx(ST.partner_reg_fee || 75000) + '), then download, sign and upload your partner agreement.</p></div><button class="g" onclick="out()">Sign out</button>');
-  LOC = VelosLoc.field('locBox');
+  LOC = VelosLoc.field('locBox'); delChange();
 }
 var LOC = null;
-function pickCat(k){ SEL.k = k; VCATS.forEach(function(c){ var b = $('cb-' + c.k); if(b) b.className = c.k === k ? 'on' : ''; }); var c = vcat(k); $('modeBox').style.display = c.kind === 'goods' ? '' : 'none'; }
+function pickCat(k){ SEL.k = k; VCATS.forEach(function(c){ var b = $('cb-' + c.k); if(b) b.className = c.k === k ? 'on' : ''; }); var c = vcat(k); $('modeBox').style.display = c.kind === 'goods' ? '' : 'none'; if($('delBox')) $('delBox').style.display = c.kind === 'goods' ? '' : 'none'; }
 function pmChange(){ var b = $('pm').value === 'bank'; $('pb').style.display = b ? '' : 'none'; $('pa').placeholder = b ? 'Bank account number *' : 'Mobile money number *'; }
 async function applySend(){
   var g = function(i){ return $(i).value.trim(); }, c = vcat(SEL.k);
   if(!SEL.k){ $('er').textContent = 'Please choose what your business deals in.'; return; }
   if(g('bn').length < 2 || g('ow').length < 2 || g('ph').length < 7 || !g('ci') || !g('ad') || g('tin').length < 5 || g('pa').length < 5 || g('pn').length < 2){ $('er').textContent = 'Please complete all fields marked *.'; return; }
   var lv = LOC && LOC.get(); if(!lv){ $('er').textContent = 'Please pin your exact shop location on the map.'; return; } if(lv.text.length < 3){ $('er').textContent = 'Add a building or landmark next to the map pin.'; return; }
+  var dv = c.kind === 'goods' ? delRead() : null; if(dv && dv.err){ $('er').textContent = dv.err; return; }
   var r = await db.rpc('partner_apply', {p_business:g('bn'), p_owner:g('ow'), p_category:SEL.k, p_kind:c.kind, p_mode:c.kind === 'goods' ? $('md').value : 'retail', p_country:$('co').value, p_city:g('ci'), p_address:g('ad'), p_phone:g('ph'), p_email:g('em2'), p_tin:g('tin'), p_payout_method:$('pm').value, p_payout_bank:g('pb'), p_payout_account:g('pa'), p_payout_name:g('pn'), p_description:g('ds')});
   if(r.error){ $('er').textContent = r.error.message; return; }
   try{ await db.rpc('partner_set_location', {p_lat:lv.lat, p_lng:lv.lng, p_text:lv.text}); }catch(e){}
+  if(dv && dv.args.p_mode !== 'velos'){ try{ await db.rpc('partner_set_delivery', dv.args); }catch(e){} }
   toast('Application received ✓'); boot();
 }
+
+
+/* ---------- delivery choices ---------- */
+function delHtml(m){ m = m || {}; var dm = m.delivery_mode || 'velos', fm = m.own_fee_mode || 'quote', sel = function(a, b){ return a === b ? ' selected' : ''; };
+  return '<label class="m">Do you have your own delivery?</label><select id="d_m" onchange="delChange()"><option value="velos"' + sel('velos', dm) + '>No. Velos delivers all my orders</option><option value="bulk_own"' + sel('bulk_own', dm) + '>Yes. I deliver bulk orders myself, Velos delivers the small ones</option><option value="all_own"' + sel('all_own', dm) + '>Yes. I deliver all my orders myself</option></select>'
+    + '<div id="d_more"><div id="d_bulk"><label class="m">What counts as a bulk order? Fill one or both.</label><div class="row2"><input id="d_bu" type="number" min="0" placeholder="Minimum order value (UGX)" value="' + (m.bulk_min_ugx || '') + '"><input id="d_bq" type="number" min="0" placeholder="Or minimum quantity of one item" value="' + (m.bulk_min_qty || '') + '"></div></div>'
+    + '<label class="m">How do you charge for your delivery?</label><select id="d_fm" onchange="delChange()"><option value="quote"' + sel('quote', fm) + '>I agree the fee with the customer</option><option value="fixed"' + sel('fixed', fm) + '>A fixed delivery fee</option><option value="free"' + sel('free', fm) + '>Free delivery</option></select><input id="d_fu" type="number" min="0" placeholder="Your delivery fee (UGX)" value="' + (m.own_fee_ugx || '') + '">'
+    + '<input id="d_ar" placeholder="Areas you deliver to (e.g. Kampala, Wakiso, anywhere in Uganda)" value="' + esc(m.own_areas || '') + '"><input id="d_ds" placeholder="How soon do you deliver? (e.g. same day, within 2 days)" value="' + esc(m.own_days || '') + '">'
+    + '<p class="m">Velos still collects the customer\'s payment and pays you after delivery. Your delivery fee is arranged with the customer and paid to you directly. Orders below your bulk limit are delivered by Velos riders.</p></div>'; }
+function delChange(){ var m = $('d_m').value; $('d_more').style.display = m === 'velos' ? 'none' : ''; $('d_bulk').style.display = m === 'bulk_own' ? '' : 'none'; $('d_fu').style.display = $('d_fm').value === 'fixed' ? '' : 'none'; }
+function delRead(){ var n = function(i){ return Number($(i).value) || 0; }, m = $('d_m').value, f = $('d_fm').value;
+  if(m === 'bulk_own' && !(n('d_bu') > 0 || n('d_bq') > 0)) return {err:'Tell us what counts as a bulk order: a minimum value or a minimum quantity.'};
+  if(m !== 'velos' && f === 'fixed' && !(n('d_fu') > 0)) return {err:'Enter your delivery fee.'};
+  return {args:{p_mode:m, p_bulk_ugx:n('d_bu'), p_bulk_qty:n('d_bq'), p_fee_mode:f, p_fee_ugx:n('d_fu'), p_areas:$('d_ar').value, p_days:$('d_ds').value}}; }
+async function saveDelivery(){ var d = delRead(); if(d.err){ $('d_er').textContent = d.err; return; } var r = await db.rpc('partner_set_delivery', d.args); if(r.error){ $('d_er').textContent = r.error.message; return; } ME = r.data; $('d_er').textContent = ''; toast('Delivery choices saved ✓'); }
 
 /* ---------- onboarding: fee + agreement + wait for approval ---------- */
 function onboarding(){
@@ -160,15 +178,15 @@ async function setState(id, s){ if(s === 'permanent' && !confirm('Mark this prod
 async function orders(){
   if(ME && ME.kind !== 'goods') return stays();
   bd().innerHTML = '<p class="m">Loading…</p>'; var L = (await db.rpc('partner_orders_mine')).data || []; window.PO = L;
-  var nw = L.filter(function(o){ return o.status === 'placed' || o.status === 'confirmed'; }), rest = L.filter(function(o){ return !(o.status === 'placed' || o.status === 'confirmed'); });
-  var card = function(o){ var nx = o.status === 'placed' || o.status === 'confirmed', at = {placed:0, confirmed:0, packed:1, out_for_delivery:2, in_transit:2, delivered:3}[o.status];
+  var act0 = function(o){ return o.status === 'placed' || o.status === 'confirmed' || (o.delivered_by === 'seller' && (o.status === 'packed' || o.status === 'dispatched')); }, nw = L.filter(act0), rest = L.filter(function(o){ return !act0(o); });
+  var card = function(o){ var nx = o.status === 'placed' || o.status === 'confirmed', at = {placed:0, confirmed:0, packed:1, dispatched:2, out_for_delivery:2, in_transit:2, delivered:3}[o.status], mine = o.delivered_by === 'seller';
     return VelosUI.order({no:o.order_no, status:o.status, isNew:nx, sub:o.created_at ? VelosUI.date(o.created_at, 1) : '',
-      steps:(o.status === 'cancelled' || o.status === 'rejected') ? null : {list:['To pack','Packed','With rider','Delivered'], at:at == null ? 0 : at},
-      meta:[['Customer', o.customer_name || ''], ['Payment', 'Confirmed by Velos']],
+      steps:(o.status === 'cancelled' || o.status === 'rejected') ? null : {list:['To pack','Packed',mine ? 'Out for delivery' : 'With rider','Delivered'], at:at == null ? 0 : at},
+      meta:[['Customer', o.customer_name || ''], ['Payment', 'Confirmed by Velos']].concat(mine ? [['Delivery', 'YOU deliver this order'], ['Deliver to', (o.address || '') + (o.customer_phone ? ' · ☎ ' + o.customer_phone : '') + (o.distance_km ? ' · about ' + o.distance_km + ' km' : '')], ['Delivery fee', o.seller_fee_mode === 'fixed' ? ugx(o.seller_fee_ugx) + ', collect from the customer' : o.seller_fee_mode === 'free' ? 'Free delivery' : 'Agree the fee with the customer']] : [['Delivery', 'Velos rider']]),
       items:(o.items || []).map(function(i){ return {qty:i.qty, name:i.name, amount:i.price * i.qty}; }),
       totals:[['Order value', o.subtotal_ugx], ['Velos commission', '− ' + ugx(o.commission_ugx), 'neg'], ['You receive', o.you_get_ugx, 's']],
-      actions:nx ? '<button onclick="pack(' + o.order_no + ')">✅ Packed and ready for the rider</button> <button class="g" onclick="chgP(' + o.order_no + ')">⚠️ Item unavailable</button>' : ''}); };
-  bd().innerHTML = VelosUI.head('Orders', 'You see an order here once Velos has confirmed the customer\'s payment. Pack it and press Packed. A Velos rider collects it.', L.length)
+      actions:nx ? '<button onclick="pack(' + o.order_no + ')">' + (mine ? '✅ Packed' : '✅ Packed and ready for the rider') + '</button> <button class="g" onclick="chgP(' + o.order_no + ')">⚠️ Item unavailable</button>' : (mine && o.status === 'packed' ? '<button onclick="sdel(' + o.order_no + ',\'dispatched\')">🚚 Out for delivery</button> <button class="g" onclick="sdel(' + o.order_no + ',\'delivered\')">✅ Delivered to the customer</button>' : (mine && o.status === 'dispatched' ? '<button onclick="sdel(' + o.order_no + ',\'delivered\')">✅ Delivered to the customer</button>' : ''))}); };
+  bd().innerHTML = VelosUI.head('Orders', 'You see an order here once Velos has confirmed the customer\'s payment. Pack it and press Packed. A Velos rider collects it, unless it is marked YOU deliver this order (your bulk orders), which you deliver yourself.', L.length)
     + '<div style="margin:0 0 10px"><button class="g" onclick="VelosChange.history(db)">📋 Change requests</button></div>' + (L.length ? (nw.length ? VelosUI.sec('To pack now (' + nw.length + ')') + nw.map(card).join('') : '') + (rest.length ? VelosUI.sec('Earlier orders') + rest.map(card).join('') : '') : VelosUI.empty('📦', 'No orders yet', 'New orders appear here the moment a customer pays.'));
 }
 
@@ -199,6 +217,7 @@ async function stAct(n, a){
 }
 function chgS(n){ var o = (window.SY || []).filter(function(x){ return x.order_no === n; })[0]; if(o) VelosChange.open({db:db, kind:'partner', no:n, items:o.items, nights:o.nights, stay:{in:o.stay_in, out:o.stay_out}, done:stays}); }
 function chgP(n){ var o = (window.PO || []).filter(function(x){ return x.order_no === n; })[0]; if(o) VelosChange.open({db:db, kind:'partner', no:n, items:o.items, done:orders}); }
+async function sdel(n, st){ if(st === 'delivered' && !confirm('Confirm that the customer has received this order?')) return; var r = await db.rpc('partner_order_set', {p_no:n, p_status:st}); if(r.error) return toast(r.error.message, true); toast(st === 'delivered' ? 'Marked delivered ✓' : 'Marked out for delivery ✓'); orders(); }
 async function pack(n){ var r = await db.rpc('partner_order_set', {p_no:n, p_status:'packed'}); if(r.error) return toast(r.error.message, true); toast('Marked packed ✓'); orders(); }
 async function earnings(){
   bd().innerHTML = '<p class="m">Loading…</p>'; var d = (await db.rpc('partner_dashboard')).data || {}, P = (await db.rpc('partner_payouts_mine')).data || [];
@@ -229,8 +248,10 @@ function askDelPromo(id){ var p = PM.filter(function(x){ return x.id === id; })[
 function storeTab(){
   bd().innerHTML = '<h2>My store</h2><div class="c"><label class="m">About your store</label><textarea id="sd">' + esc(ME.description) + '</textarea><div class="row2"><div><label class="m">Phone</label><input id="sp" value="' + esc(ME.phone) + '"></div><div><label class="m">Address</label><input id="sa" value="' + esc(ME.address) + '"></div></div><label class="m">Logo</label>' + (ME.logo_url ? '<img src="' + esc(ME.logo_url) + '" style="height:60px;display:block" alt="">' : '') + '<input type="file" id="sl" accept="image/*"><label class="m">Cover photo</label>' + (ME.cover_url ? '<img src="' + esc(ME.cover_url) + '" style="height:80px;display:block;border-radius:8px" alt="">' : '') + '<input type="file" id="sc" accept="image/*"></div>'
     + '<div class="c"><b>Payout details</b><select id="spm"><option value="mtn"' + (ME.payout_method === 'mtn' ? ' selected' : '') + '>MTN Mobile Money</option><option value="airtel"' + (ME.payout_method === 'airtel' ? ' selected' : '') + '>Airtel Money</option><option value="bank"' + (ME.payout_method === 'bank' ? ' selected' : '') + '>Bank account</option></select><input id="spb" placeholder="Bank name" value="' + esc(ME.payout_bank) + '"><input id="spa" placeholder="Account / wallet number" value="' + esc(ME.payout_account) + '"><input id="spn" placeholder="Name on the account" value="' + esc(ME.payout_name) + '"><p class="m">TIN: ' + esc(ME.tin) + '. To change your TIN, contact Velos.</p></div>'
+    + (ME.kind === 'goods' ? '<div class="c"><b>Delivery</b><p class="m">Change who delivers your orders at any time.</p>' + delHtml(ME) + '<button class="full" onclick="saveDelivery()">Save delivery choices</button><p id="d_er" class="m bad"></p></div>' : '')
     + '<div id="locCard"></div>'
     + '<div class="c"><b>Fees and receipts</b><div id="myrc"></div></div><button class="full" onclick="saveStore()">Save changes</button><p id="se" class="m"></p><div class="c"><b>Partner agreement</b><p class="m">Agreement ' + esc(ME.agreement_no) + (ME.agreement_signed_path ? ' · signed copy on file' : '') + '</p><button class="g" onclick="agreementPdf()">📄 Download my agreement</button></div>';
+  if($('d_m')) delChange();
   try{ VelosMyReceipts.mount(db, 'myrc'); }catch(e){}
   try{ VelosLoc.card('locCard', {title:'Exact store location', get:async function(){ var r = await db.rpc('partner_get_location'); return r.data; }, save:async function(a, b, t){ var r = await db.rpc('partner_set_location', {p_lat:a, p_lng:b, p_text:t}); if(r.error) throw r.error; }}); }catch(e){}
 }

@@ -8,5 +8,9 @@ Disallow: /partner.html
 Disallow: /account.html
 Disallow: /reset.html
 Disallow: /track.html
+Disallow: /team.html
+Disallow: /pay.html
+Disallow: /order-change.html
+Disallow: /maps-test.html
 Disallow: /receipt.html
 Sitemap: https://thevelosgroup.com/sitemap.xml
