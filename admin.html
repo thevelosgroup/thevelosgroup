@@ -333,7 +333,7 @@ const pdfBtns = (t, id) => `<div class="row" style="justify-content:flex-start;g
 async function go(k){
   navFor(k);
   $('#view').innerHTML = '<p class="mut">Loading…</p>';
-  try { await VIEWS[k](); } catch(e){ $('#view').innerHTML = '<p style="color:var(--bad)">'+esc(e.message)+'</p>'; }
+  try { await VIEWS[k](); } catch(e){ const m = String((e && e.message) || e); $('#view').innerHTML = /schema cache|Could not find the function|does not exist/i.test(m) ? '<div class="card"><b>This page needs a database update first</b><p class="mut">In Supabase open <b>SQL Editor</b>, run the newest velos-upgrade files you were sent (56, 57 and 58, in that order), then refresh this page.</p><p class="mut">Technical note: '+esc(m)+'</p></div>' : '<p style="color:var(--bad)">'+esc(m)+'</p>'; }
 }
 
 async function st(table, id, v){

@@ -10,9 +10,9 @@
   function $(i){ return document.getElementById(i); }
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function leaflet(cb){
-    if(W.L) return cb();
+    if(W.L) return cb(false);
     if(!document.getElementById('vl-css-l')){ var l = document.createElement('link'); l.id = 'vl-css-l'; l.rel = 'stylesheet'; l.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css'; document.head.appendChild(l); }
-    var s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js'; s.onload = cb; s.onerror = function(){ cb(true); }; document.head.appendChild(s);
+    var s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js'; s.onload = function(){ cb(false); }; s.onerror = function(){ cb(true); }; document.head.appendChild(s);
   }
   function css(){ if(document.getElementById('vl-css')) return; var s = document.createElement('style'); s.id = 'vl-css'; s.textContent = CSS; document.head.appendChild(s); }
   function lp(cb){ if(W.VelosPlaces) return cb(); var s = document.createElement('script'); s.src = 'velos-places.js?v=1'; s.onload = cb; document.head.appendChild(s); }
@@ -25,17 +25,18 @@
     var st = {lat: o.lat != null ? +o.lat : null, lng: o.lng != null ? +o.lng : null}, map, pin;
     function status(){ var e = $(id('x')); if(!e) return; if(st.lat == null){ e.className = 'st no'; e.textContent = 'Not pinned yet. Tap the map or use GPS.'; } else { e.className = 'st ok'; e.textContent = '✔ Pinned at ' + st.lat.toFixed(5) + ', ' + st.lng.toFixed(5); } if(o.onChange) o.onChange(st); }
     var noch = 0;
-    function put(a, b, zoom, quiet){ st.lat = a; st.lng = b; if(W.VelosPlaces && !noch && $(id('n'))) W.VelosPlaces.chips($(id('n')), a, b, function(x){ noch = 1; $(id('t')).value = x.label + (x.sub ? ' (' + x.sub + ')' : ''); put(x.lat, x.lng, 18, true); noch = 0; }); pin.setLatLng([a, b]); map.setView([a, b], zoom || map.getZoom()); status();
+    function put(a, b, zoom, quiet){ st.lat = a; st.lng = b; if(!pin){ status(); if(!quiet && $(id('t')) && !$(id('t')).value) rev(a, b); return; } if(W.VelosPlaces && !noch && $(id('n'))) W.VelosPlaces.chips($(id('n')), a, b, function(x){ noch = 1; $(id('t')).value = x.label + (x.sub ? ' (' + x.sub + ')' : ''); put(x.lat, x.lng, 18, true); noch = 0; }); pin.setLatLng([a, b]); map.setView([a, b], zoom || map.getZoom()); status();
       if(!quiet && !$(id('t')).value){ rev(a, b); } }
     function rev(a, b){ var f = function(){ if(W.VelosPlaces) W.VelosPlaces.reverse(a, b).then(function(t){ if(t && !$(id('t')).value) $(id('t')).value = t; }); }; if(W.VelosPlaces) f(); else lp(f); }
     leaflet(function(bad){
-      var m = $(id('m')); if(!m) return; if(bad || !W.L){ m.innerHTML = '<p class="m" style="padding:12px">The map could not load. Check your internet and reload this page.</p>'; return; }
-      map = L.map(m).setView(st.lat != null ? [st.lat, st.lng] : K, st.lat != null ? 17 : 12); L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
+      var m = $(id('m')); if(!m) return; var nomap = !!(bad || !W.L);
+      if(nomap){ m.style.height = 'auto'; m.innerHTML = '<p class="m" style="padding:8px">The map picture could not load, but you can still pin your location: type your area and tap <b>Search</b>, or tap <b>GPS</b>.</p>'; }
+      if(!nomap){ map = L.map(m).setView(st.lat != null ? [st.lat, st.lng] : K, st.lat != null ? 17 : 12); L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
       pin = L.marker(st.lat != null ? [st.lat, st.lng] : K, {draggable:true}).addTo(map); pin.on('dragend', function(){ var p = pin.getLatLng(); put(p.lat, p.lng, null); }); map.on('click', function(e){ put(e.latlng.lat, e.latlng.lng, null); });
-      setTimeout(function(){ map.invalidateSize(); }, 300); status();
+      setTimeout(function(){ map.invalidateSize(); }, 300); } status();
       $(id('g')).onclick = function(){ if(!navigator.geolocation){ alert('GPS is not available. Search or tap the map.'); return; } navigator.geolocation.getCurrentPosition(function(p){ put(p.coords.latitude, p.coords.longitude, 18); }, function(){ alert('Could not get your location. Search or tap the map.'); }, {enableHighAccuracy:true, timeout:15000}); };
       var attachIt = function(){ if(!W.VelosPlaces) return; var A = W.VelosPlaces.attach($(id('q')), {center:function(){ return map ? [map.getCenter().lat, map.getCenter().lng] : null; }, onPick:function(a, b, label){ put(a, b, 17, true); if(!$(id('t')).value && label) $(id('t')).value = label; $(id('x')).textContent = '✔ Found. Drag the pin to the exact gate or door if needed.'; }, onError:function(m){ alert(m); }});
-        var T2 = W.VelosPlaces.attach($(id('t')), {asTyped:true, center:function(){ return [st.lat != null ? st.lat : map.getCenter().lat, st.lng != null ? st.lng : map.getCenter().lng]; }, context:function(){ return $(id('q')).value; }, onPick:function(a, b, label){ put(a, b, 18, true); $(id('t')).value = label; }, onTyped:function(t){ $(id('t')).value = t; }, onError:function(m){ alert(m); }});
+        var T2 = W.VelosPlaces.attach($(id('t')), {asTyped:true, center:function(){ return map ? [st.lat != null ? st.lat : map.getCenter().lat, st.lng != null ? st.lng : map.getCenter().lng] : (st.lat != null ? [st.lat, st.lng] : null); }, context:function(){ return $(id('q')).value; }, onPick:function(a, b, label){ put(a, b, 18, true); $(id('t')).value = label; }, onTyped:function(t){ $(id('t')).value = t; }, onError:function(m){ alert(m); }});
         $(id('s')).onclick = function(){ if(A) A.go(); }; }; if(W.VelosPlaces) attachIt(); else lp(attachIt);
     });
     var rc = null; if(o.receiver){ var rf = function(){ if(W.VelosPlaces){ rc = W.VelosPlaces.receiver($(id('r'))); } }; if(W.VelosPlaces) rf(); else lp(rf); }
