@@ -27,3 +27,29 @@ table{width:100%;border-collapse:collapse}td,th{padding:8px 6px;border-bottom:1p
 
 /* Restaurant marketplace and logo refinements */
 .hero-food{padding:24px 20px;border:1px solid #35416c;border-radius:20px;background:radial-gradient(circle at 90% 10%,rgba(232,199,102,.18),transparent 35%),linear-gradient(120deg,#101a3b,#080d1f 72%);margin:4px 0 18px}.hero-food h1{font-size:clamp(28px,5vw,42px);line-height:1.12;max-width:720px}.eyebrow{display:block;color:var(--gold);font-size:11px;letter-spacing:.16em;font-weight:800;margin-bottom:8px}.vendor-choice{display:flex;align-items:center;gap:9px;padding:8px 12px;min-height:54px;border-radius:14px;background:var(--card);border:1px solid var(--line);color:var(--txt)}.vendor-choice img,.vendor-mark{width:34px;height:34px;object-fit:contain;border-radius:9px;background:#fff;flex:none}.vendor-mark{display:grid;place-items:center;background:#1b294a}.vendor-choice small{color:var(--gold)}.brandrow{display:flex;align-items:center;gap:12px}.vendor-logo{width:64px;height:64px;object-fit:contain;background:#fff;border-radius:14px;padding:5px;border:1px solid var(--line)}.vendor-logo.empty{display:grid;place-items:center;background:#18213d;font-size:24px}.brandrow h1{margin-bottom:4px}
+
+/* ---- Velos refinement layer (Update 54): calmer, more consistent look ---- */
+:root{color-scheme:dark}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;-webkit-tap-highlight-color:transparent}
+img{max-width:100%}
+h1,h2,h3{letter-spacing:-.01em;line-height:1.2}
+.top{position:sticky;top:0;z-index:30;flex-wrap:nowrap;background:rgba(8,13,31,.92);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);margin:0 -14px;padding:8px 14px;border-bottom:1px solid var(--line)}
+.top>a{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.04em;white-space:nowrap}
+.top>a img{height:32px!important;width:auto;margin:0!important}
+.top>div{display:flex;gap:6px 14px;flex-wrap:wrap;justify-content:flex-end;font-size:14px;line-height:1.3}
+.c{border-radius:16px;box-shadow:0 6px 20px rgba(0,0,0,.18)}
+input,select,textarea{border-radius:10px;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--gold);box-shadow:0 0 0 3px rgba(232,199,102,.22)}
+button,a.b{border-radius:10px;transition:transform .12s,filter .12s,box-shadow .12s}
+button:not(:disabled):hover,a.b:hover{filter:brightness(1.07)}
+button:not(:disabled):active,a.b:active{transform:translateY(1px)}
+button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.pill{border-radius:99px;padding:3px 10px}
+::selection{background:rgba(232,199,102,.35)}
+@media(max-width:640px){.w{padding-left:14px;padding-right:14px}h1{font-size:23px}.top>div{font-size:13px;gap:4px 10px}}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+.hd{position:sticky;top:0;z-index:30;flex-wrap:nowrap!important;background:rgba(8,13,31,.92);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);margin:0 -14px;padding:8px 14px!important;border-bottom:1px solid var(--line)}
+.hd>a{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.04em;white-space:nowrap;color:var(--gold);text-decoration:none}
+.hd>a img{height:30px!important;width:auto!important}
+.hd>div{display:flex;gap:4px 14px;flex-wrap:wrap;justify-content:flex-end;font-size:14px;line-height:1.3}.hd>div a{color:var(--gold);text-decoration:none}
