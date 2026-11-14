@@ -4,3 +4,7 @@
 @media (min-width:1000px){.nav-desktop .nav-tab{display:inline-flex}.nav-desktop{gap:4px}}
 @media (min-width:1000px) and (max-width:1180px){.nav-desktop .nav-tab{padding:7px 9px;font-size:12.5px}.nav-cta{font-size:12.5px}}
 @media (min-width:1000px) and (max-width:1260px){.brand-text .tag{display:none}.brand-text .name{white-space:nowrap;font-size:14px}}
+
+/* Update 55: calmer phone header and footer */
+@media(max-width:520px){header .brand-text .tag{display:none!important}header .brand img{height:40px!important;width:auto!important}}
+footer, footer *{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif!important;letter-spacing:.01em!important;text-transform:none!important}

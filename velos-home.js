@@ -84,11 +84,19 @@
   document.querySelectorAll('.hm-run').forEach(function(box){ var k = box.firstElementChild; if(!k) return; runner(box, k.id === 'hm-tr' ? 38 : 34, k.classList.contains('slow') ? -1 : 1); });
 
   /* ---------- real pictures on the running cards ---------- */
-  function setPhoto(label, url){ if(!url) return; var im = new Image(); im.onload = function(){ document.querySelectorAll('.hm-t[data-k="' + label + '"]').forEach(function(a){ a.classList.add('ph'); a.style.backgroundImage = 'url("' + String(url).replace(/"/g, '%22') + '")'; }); }; im.src = url; }
+  /* Card photos are now stable: a photo that has loaded once is remembered on this phone and shown instantly next time,
+     a tile-*.jpg you upload always wins, and the live database photo is only a fallback (never replaces a working one). */
+  var LK = 'velos_tilephotos', MEM = {}; try { MEM = JSON.parse(localStorage.getItem(LK) || '{}') || {}; } catch(e){}
+  function keep(label, url){ MEM[label] = url; try { localStorage.setItem(LK, JSON.stringify(MEM)); } catch(e){} }
+  function paint(label, url){ document.querySelectorAll('.hm-t[data-k="' + label + '"]').forEach(function(a){ a.classList.add('ph'); a.style.backgroundImage = 'url("' + String(url).replace(/"/g, '%22') + '")'; }); }
+  var LOCK = {};
+  function setPhoto(label, url, own){ if(!url || (!own && (LOCK[label] || MEM[label]))) return; var im = new Image(); im.onload = function(){ if(LOCK[label] && !own) return; if(own) LOCK[label] = 1; paint(label, url); keep(label, url); }; im.src = url; }
+  function restore(){ Object.keys(MEM).forEach(function(k){ var u = MEM[k], im = new Image(); im.onload = function(){ if(!LOCK[k]) paint(k, u); }; im.onerror = function(){ delete MEM[k]; try { localStorage.setItem(LK, JSON.stringify(MEM)); } catch(e){} }; im.src = u; }); }
+  restore();
   function realImg(u){ u = String(u || ''); return u && !/^data:/.test(u) && u.indexOf('ph-') < 0 && !/(^|\/)(logo|icon|favicon)[^\/]*\.(png|svg)/i.test(u); }
   function photos(){
     /* 1. a file you upload yourself wins: tile-foods.jpg, tile-services.jpg ... (name = card title, lowercase, no spaces) */
-    TILES.forEach(function(t){ setPhoto(t[1], 'tile-' + t[1].toLowerCase().replace(/[^a-z]/g, '') + '.jpg'); });
+    TILES.forEach(function(t){ setPhoto(t[1], 'tile-' + t[1].toLowerCase().replace(/[^a-z]/g, '') + '.jpg', true); });
     var c = S(); if(!c) return;
     function get(path){ return fetch(c.url + '/rest/v1/' + path, {headers:{apikey:c.key}}).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }); }
     var FASH = /^(women-fashion|women-beauty|men-fashion|men-grooming)/;
@@ -97,9 +105,9 @@
       var food = [], m = a[1]; if(m && m.vendors) m.vendors.forEach(function(v){ if(realImg(v.cover_url)) food.push(v.cover_url); (v.categories || []).forEach(function(k){ (k.items || []).forEach(function(i){ if(realImg(i.image) && food.length < 30) food.push(i.image); }); }); });
       var st = (a[2] || []).filter(function(p){ return realImg(p.cover_url) || realImg(p.logo_url); });
       function any(L, n){ return L.length ? L[n % L.length] : null; }
-      if(food.length) setPhoto('Foods', any(food, 0));
-      if(shop.length) setPhoto('Velos Shop', any(shop, 0).image_url);
-      if(fash.length) setPhoto('Fashion', any(fash, 0).image_url);
+      if(food.length && !MEM.Foods) setPhoto('Foods', any(food, 0));
+      if(shop.length && !MEM['Velos Shop']) setPhoto('Velos Shop', any(shop, 0).image_url);
+      if(fash.length && !MEM.Fashion) setPhoto('Fashion', any(fash, 0).image_url);
       var cv = function(p){ return realImg(p.cover_url) ? p.cover_url : p.logo_url; };
       if(st.length){ setPhoto('Stores', cv(any(st, 0))); setPhoto('Retail', cv(any(st, 1))); setPhoto('Wholesale', cv(any(st, 2)));
         var h = st.filter(function(p){ return /hotel/i.test(p.category || ''); }), v = st.filter(function(p){ return /venue/i.test(p.category || ''); }); if(h.length) setPhoto('Hotels', cv(h[0])); if(v.length) setPhoto('Venues', cv(v[0])); }

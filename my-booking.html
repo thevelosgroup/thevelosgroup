@@ -65,4 +65,4 @@ async function printIt(){
     + '<p style="margin-top:12px"><b>Cancellation:</b> ' + esc((V.POL[b.cancel_policy] || V.POL.flexible)[1]) + '</p><div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:20px"><div style="font-size:12px">Present this confirmation and a valid ID at check-in.<br>Issued ' + new Date(b.created_at).toLocaleDateString('en-GB') + ' by Velos Stays.</div>' + stamp + '</div>';
   setTimeout(function(){ window.print(); }, 200); }
 if(Q.get('ref')) $('rf').value = Q.get('ref'); if(Q.get('email')) $('em').value = Q.get('email'); if(Q.get('ref') && Q.get('email')) look();
-</script></body></html>
+</script><script src="velos-tabbar.js?v=1" defer></script></body></html>
