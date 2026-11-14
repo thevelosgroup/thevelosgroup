@@ -1,0 +1,68 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My booking | Velos Stays</title><meta name="robots" content="noindex, nofollow"><link rel="icon" href="favicon.png">
+<link rel="stylesheet" href="foods.css">
+<style>
+.ln{display:flex;justify-content:space-between;gap:10px;padding:4px 0}.ln.t{border-top:1px solid var(--line);margin-top:6px;padding-top:8px;font-size:17px}
+.pill{display:inline-block;border-radius:99px;padding:3px 12px;font-size:13px;font-weight:700;background:var(--line);color:var(--txt)}.pill.ok{background:var(--ok);color:#06210f}.pill.bad{background:var(--bad);color:#fff}.pill.wait{background:var(--gold);color:#080d1f}
+.stars button{background:none;border:0;font-size:30px;color:var(--mut);padding:0 3px;width:auto;cursor:pointer}.stars button.on{color:var(--gold)}
+.pdoc{display:none}
+@media print{body{background:#fff!important;color:#000!important}.w>*:not(.pdoc){display:none!important}.pdoc{display:block!important;color:#000;font-family:Arial,sans-serif}.pdoc *{color:#000!important;border-color:#999!important}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-stays.js"></script><script src="velos-stamp.js"></script></head>
+<body><div class="w">
+<div class="top"><a href="index.html"><img src="logo-mark.png" alt="The Velos Group" style="height:38px;vertical-align:middle;margin-right:8px">Velos</a><div><a href="hotels.html">Find a stay</a></div></div>
+<h1>My booking</h1>
+<div id="lk" class="c"><p class="m">Enter your booking reference and the email you booked with.</p><label class="m" for="rf">Booking reference</label><input id="rf" placeholder="VB-XXXXXX" autocapitalize="characters"><label class="m" for="em">Email</label><input id="em" type="email" autocomplete="email"><button class="full" onclick="look()">Find my booking</button><p id="er" class="m bad"></p></div>
+<div id="bk"></div><div id="pd" class="pdoc"></div></div>
+<script>
+var S = window.VELOS_SUPABASE, db = supabase.createClient(S.url, S.key), $ = function(i){ return document.getElementById(i); }, V = VelosStays, esc = V.esc, B = null, RT = 0, Q = new URLSearchParams(location.search);
+function status(b){ var s = b.stay_status, ps = b.payment_status;
+  if(b.status === 'cancelled' || s === 'cancelled') return ['Cancelled', 'bad']; if(s === 'declined') return ['Declined by the property', 'bad']; if(s === 'completed') return ['Stay completed', 'ok'];
+  if(s === 'checked_in') return ['Checked in', 'ok']; if(s === 'confirmed') return ['Confirmed ✓', 'ok']; if(b.paid_ugx > 0 || ps === 'submitted' || ps === 'paid') return ['Payment received, awaiting confirmation', 'wait']; return ['Awaiting your deposit', 'wait']; }
+async function look(){
+  var ref = $('rf').value.trim().toUpperCase(), em = $('em').value.trim().toLowerCase(); $('er').textContent = '';
+  if(!ref || !em){ $('er').textContent = 'Enter both your booking reference and email.'; return; }
+  var r = await db.rpc('hotel_lookup', {p_ref:ref, p_email:em});
+  if(r.error || !r.data){ $('er').textContent = r.error ? 'Something went wrong. Please try again.' : 'We could not find a booking with that reference and email. Check both and try again.'; return; }
+  B = r.data; B._ref = ref; B._em = em; $('lk').style.display = 'none'; draw();
+}
+function draw(){
+  var b = B, st = status(b), it = (b.items || [])[0] || {}, cur = b.currency || 'UGX', h = '';
+  h += '<div class="c"><div class="row"><div><div class="m">Booking reference</div><div style="font-size:24px;font-weight:700;letter-spacing:2px" class="gold">' + esc(b.booking_ref) + '</div></div><span class="pill ' + st[1] + '">' + st[0] + '</span></div></div>';
+  h += '<div class="c"><h2 style="margin-top:0">' + esc(b.property) + '</h2><div class="m">' + esc([b.address, b.city, b.country_of_property].filter(Boolean).join(', ')) + '</div>' + (b.property_phone ? '<div class="m">Phone: <a class="gold" href="tel:' + esc(b.property_phone) + '">' + esc(b.property_phone) + '</a></div>' : '')
+    + '<div class="ln"><span>Check-in</span><b>' + V.fd(b.stay_in, 1) + ' (from ' + esc(b.checkin_from || '14:00') + ')</b></div><div class="ln"><span>Check-out</span><b>' + V.fd(b.stay_out, 1) + ' (until ' + esc(b.checkout_until || '11:00') + ')</b></div>'
+    + '<div class="ln"><span>Stay</span><b>' + b.nights + ' night' + (b.nights > 1 ? 's' : '') + ', ' + b.rooms + ' room' + (b.rooms > 1 ? 's' : '') + '</b></div><div class="ln"><span>Room</span><b>' + esc(it.name || '') + '</b></div><div class="ln"><span>Guests</span><b>' + b.adults + ' adult' + (b.adults > 1 ? 's' : '') + (b.children ? ', ' + b.children + ' child' + (b.children > 1 ? 'ren' : '') : '') + '</b></div><div class="ln"><span>Guest</span><b>' + esc(b.guest) + '</b></div>' + (b.arrival ? '<div class="ln"><span>Arrival</span><b>' + esc(b.arrival) + '</b></div>' : '') + '</div>';
+  var tot = b.total_ugx, dep = b.deposit_required_ugx, paid = b.paid_ugx || 0;
+  h += '<div class="c"><h2 style="margin-top:0">Payment</h2><div class="ln"><span>Total</span><b>' + V.ugx(tot) + '</b></div>' + (cur !== 'UGX' && b.fx_rate > 1 ? '<div class="ln"><span class="m">Approximate in ' + cur + ' (when booked)</span><span class="m">≈ ' + cur + ' ' + (tot / b.fx_rate).toFixed(2) + '</span></div>' : '')
+    + '<div class="ln"><span>Deposit to confirm</span><b>' + V.ugx(dep) + '</b></div><div class="ln"><span>Paid so far</span><b>' + V.ugx(paid) + '</b></div><div class="ln t"><span>Balance at the property</span><b class="gold">' + V.ugx(Math.max(0, tot - paid)) + '</b></div>'
+    + (b.refund_status && b.refund_status !== 'none' ? '<p class="m">Refund: <b>' + V.ugx(b.refund_ugx) + '</b> · ' + (b.refund_status === 'due' ? 'being processed by Velos' : 'paid') + '</p>' : '') + '</div>';
+  var pol = V.POL[b.cancel_policy] || V.POL.flexible;
+  h += '<div class="c"><b>' + esc(pol[0]) + ' cancellation</b><p class="m">' + esc(pol[1]) + '</p>' + (b.can_cancel ? '<p>If you cancel now you would receive <b>' + V.ugx(b.refund_now_ugx) + '</b> back (' + b.refund_pct_now + '% of what you have paid).</p><button class="g" onclick="cancelAsk()">Cancel this booking</button><p id="cx" class="m"></p>' : '') + '</div>';
+  if(b.can_review) h += '<div class="c"><h2 style="margin-top:0">How was your stay?</h2><div class="stars" id="sr">' + [1, 2, 3, 4, 5].map(function(n){ return '<button aria-label="' + n + ' stars" onclick="rate(' + n + ')">★</button>'; }).join('') + '</div><input id="rtl" placeholder="Title (optional)" maxlength="100"><textarea id="rbd" rows="3" placeholder="Tell other guests about your stay *" maxlength="1500"></textarea><button class="full" onclick="review()">Submit review</button><p id="rv" class="m"></p></div>';
+  else if(b.reviewed) h += '<div class="c m">Thank you for reviewing your stay ✓</div>';
+  h += '<div class="row" style="gap:8px;flex-wrap:wrap;margin:10px 0"><button onclick="printIt()">🖨️ Print confirmation</button><button class="g" onclick="ics()">📅 Add to calendar</button><a class="b g" href="https://wa.me/?text=' + encodeURIComponent('My booking ' + b.booking_ref + ' at ' + b.property + ', ' + V.fd(b.stay_in) + ' to ' + V.fd(b.stay_out)) + '" target="_blank" rel="noopener">Share</a></div><p class="m">Need help? Contact Velos on WhatsApp and quote <b>' + esc(b.booking_ref) + '</b>.</p>';
+  $('bk').innerHTML = h;
+}
+async function cancelAsk(){
+  if(!confirm('Cancel booking ' + B.booking_ref + '? You would be refunded ' + V.ugx(B.refund_now_ugx) + '. This cannot be undone.')) return;
+  var r = await db.rpc('hotel_cancel', {p_ref:B._ref, p_email:B._em}); if(r.error){ $('cx').className = 'm bad'; $('cx').textContent = r.error.message; return; }
+  var l = await db.rpc('hotel_lookup', {p_ref:B._ref, p_email:B._em}); if(l.data){ var k = {_ref:B._ref, _em:B._em}; B = l.data; B._ref = k._ref; B._em = k._em; } draw();
+}
+function rate(n){ RT = n; document.querySelectorAll('#sr button').forEach(function(b, i){ b.className = i < n ? 'on' : ''; }); }
+async function review(){ if(!RT){ $('rv').className = 'm bad'; $('rv').textContent = 'Choose 1 to 5 stars.'; return; }
+  var r = await db.rpc('hotel_review_submit', {p_ref:B._ref, p_email:B._em, p_rating:RT, p_title:$('rtl').value, p_body:$('rbd').value}); if(r.error){ $('rv').className = 'm bad'; $('rv').textContent = r.error.message; return; }
+  B.can_review = false; B.reviewed = true; draw(); }
+function ics(){ var b = B, d = function(s){ return s.replace(/-/g, ''); }, t = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Velos Stays//EN', 'BEGIN:VEVENT', 'UID:' + b.booking_ref + '@thevelosgroup.com', 'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z', 'DTSTART;VALUE=DATE:' + d(b.stay_in), 'DTEND;VALUE=DATE:' + d(b.stay_out),
+  'SUMMARY:Stay at ' + b.property.replace(/[,;]/g, ' '), 'LOCATION:' + [b.address, b.city].filter(Boolean).join(' ').replace(/[,;]/g, ' '), 'DESCRIPTION:Velos booking ' + b.booking_ref, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([t], {type:'text/calendar'})); a.download = b.booking_ref + '.ics'; a.click(); }
+async function printIt(){
+  var b = B, it = (b.items || [])[0] || {}, stamp = ''; try { stamp = await VelosStamp.html({label:b.stay_status === 'confirmed' ? 'CONFIRMED' : 'OFFICIAL', date:b.created_at}, 120); } catch(e){}
+  var row = function(a, c){ return '<tr><td style="padding:4px 0;width:38%">' + a + '</td><td style="padding:4px 0"><b>' + c + '</b></td></tr>'; };
+  $('pd').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #000;padding-bottom:10px"><div style="display:flex;align-items:center;gap:10px"><img src="logo-doc.png" alt="The Velos Group" style="height:54px"><div><b style="font-size:18px">The Velos Group</b><br>Uganda · thevelosgroup.com</div></div><div style="text-align:right"><b style="font-size:18px">BOOKING CONFIRMATION</b><br>Ref: <b>' + esc(b.booking_ref) + '</b></div></div>'
+    + '<h2 style="margin:14px 0 4px">' + esc(b.property) + '</h2><div>' + esc([b.address, b.city, b.country_of_property].filter(Boolean).join(', ')) + '</div><table style="width:100%;margin-top:10px;border-collapse:collapse">'
+    + row('Guest', esc(b.guest)) + row('Check-in', V.fd(b.stay_in, 1) + ' from ' + esc(b.checkin_from || '14:00')) + row('Check-out', V.fd(b.stay_out, 1) + ' until ' + esc(b.checkout_until || '11:00')) + row('Nights / rooms', b.nights + ' / ' + b.rooms) + row('Room', esc(it.name || '')) + row('Guests', b.adults + ' adult(s)' + (b.children ? ', ' + b.children + ' child(ren)' : ''))
+    + row('Total', V.ugx(b.total_ugx)) + row('Deposit required', V.ugx(b.deposit_required_ugx)) + row('Paid', V.ugx(b.paid_ugx || 0)) + row('Balance due at property', V.ugx(Math.max(0, b.total_ugx - (b.paid_ugx || 0)))) + row('Status', esc(status(b)[0])) + '</table>'
+    + '<p style="margin-top:12px"><b>Cancellation:</b> ' + esc((V.POL[b.cancel_policy] || V.POL.flexible)[1]) + '</p><div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:20px"><div style="font-size:12px">Present this confirmation and a valid ID at check-in.<br>Issued ' + new Date(b.created_at).toLocaleDateString('en-GB') + ' by Velos Stays.</div>' + stamp + '</div>';
+  setTimeout(function(){ window.print(); }, 200); }
+if(Q.get('ref')) $('rf').value = Q.get('ref'); if(Q.get('email')) $('em').value = Q.get('email'); if(Q.get('ref') && Q.get('email')) look();
+</script></body></html>

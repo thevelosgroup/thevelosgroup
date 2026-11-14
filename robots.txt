@@ -13,4 +13,6 @@ Disallow: /pay.html
 Disallow: /order-change.html
 Disallow: /maps-test.html
 Disallow: /receipt.html
+Disallow: /my-booking.html
 Sitemap: https://thevelosgroup.com/sitemap.xml
+Sitemap: https://thevelosgroup.com/sitemap-hotels.xml

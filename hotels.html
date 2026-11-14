@@ -1,0 +1,78 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Book Hotels, Lodges & Stays in Uganda and East Africa | Velos Stays</title>
+<meta name="description" content="Book trusted hotels, lodges, guest houses and apartments in Uganda and East Africa with Velos Stays. Clear prices in your currency, real availability, clear cancellation terms and verified guest reviews.">
+<meta name="robots" content="index, follow"><link rel="canonical" href="https://thevelosgroup.com/hotels.html"><link rel="icon" href="favicon.png">
+<meta property="og:type" content="website"><meta property="og:title" content="Book Hotels, Lodges & Stays in Uganda and East Africa | Velos Stays"><meta property="og:description" content="Real availability, clear prices in your currency, clear cancellation terms and verified guest reviews."><meta property="og:url" content="https://thevelosgroup.com/hotels.html"><meta property="og:image" content="https://thevelosgroup.com/og-image.jpg">
+<link rel="stylesheet" href="foods.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[
+{"@type":"WebPage","@id":"https://thevelosgroup.com/hotels.html#page","url":"https://thevelosgroup.com/hotels.html","name":"Velos Stays: hotels, lodges and stays in Uganda and East Africa","isPartOf":{"@type":"WebSite","name":"The Velos Group","url":"https://thevelosgroup.com/"},"inLanguage":"en"},
+{"@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"How do I book a hotel on Velos Stays?","acceptedAnswer":{"@type":"Answer","text":"Search a destination and your dates, choose a room, enter your details and pay the deposit. You receive a booking reference straight away and can manage the booking online with your reference and email."}},
+{"@type":"Question","name":"Can I book from outside Uganda?","acceptedAnswer":{"@type":"Answer","text":"Yes. Guests from any country can book. Prices can be shown in your own currency for reference, and bookings are charged in Uganda shillings."}},
+{"@type":"Question","name":"What is the cancellation policy?","acceptedAnswer":{"@type":"Answer","text":"Every property shows its cancellation policy (flexible, moderate, strict or non-refundable) before you book, together with exactly what you would be refunded."}},
+{"@type":"Question","name":"Are the reviews real?","acceptedAnswer":{"@type":"Answer","text":"Yes. Only guests who have completed a stay booked through Velos can leave a review."}}]}]}</script>
+<style>
+.hero{background:linear-gradient(135deg,#14265f,#080d1f);border:1px solid var(--line);border-radius:18px;padding:18px;margin:8px 0}.hero h1{font-size:28px;line-height:1.15}.hero p{margin:6px 0 12px;color:var(--mut)}
+.sf{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.sf label{font-size:12px;color:var(--mut)}.sf input,.sf select{margin:2px 0}
+.fl{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;align-items:center}.fl select,.fl label{width:auto;margin:0}.fl select{padding:8px}
+.rs{display:grid;gap:12px}.hc{display:grid;grid-template-columns:200px 1fr;gap:0;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;text-decoration:none;color:var(--txt)}
+.hc .im{background:#14265f center/cover no-repeat;min-height:170px}.hc .bd{padding:12px 14px;display:flex;flex-direction:column;gap:6px}.hc h3{margin:0;font-size:18px}
+.am{display:inline-block;font-size:12px;border:1px solid var(--line);border-radius:99px;padding:2px 8px;margin:2px 4px 2px 0;color:var(--mut)}.mu{color:var(--mut);font-size:13px;font-weight:400}
+.rt{display:inline-block;background:var(--gold);color:#080d1f;font-weight:700;border-radius:8px;padding:2px 8px;font-size:13px}.vf{color:var(--ok);font-size:12px}
+.pr{margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;gap:8px;flex-wrap:wrap}.pr .big{font-size:20px;color:var(--gold);font-weight:700}
+.so{opacity:.6}@media(max-width:640px){.hc{grid-template-columns:1fr}.hc .im{min-height:150px}}
+.seo{margin-top:26px;color:var(--mut)}.seo h2{color:var(--txt)}.seo details{border-top:1px solid var(--line);padding:8px 0}.seo summary{cursor:pointer;color:var(--txt)}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-stays.js"></script></head>
+<body><div class="w">
+<div class="top"><a href="index.html"><img src="logo-mark.png" alt="The Velos Group" style="height:38px;vertical-align:middle;margin-right:8px">Velos</a><div><a href="marketplace.html">Marketplace</a> &nbsp; <a href="my-booking.html">My booking</a> &nbsp; <a href="vendor.html">List your property</a></div></div>
+<div class="hero"><h1>Find your stay in Uganda and East Africa</h1><p>Hotels, lodges, guest houses and apartments with real availability, clear prices in your currency and clear cancellation terms.</p>
+<form class="sf" onsubmit="go(event)"><div style="grid-column:span 2"><label for="q">Where to?</label><input id="q" list="dl" placeholder="City, country or property" autocomplete="off"><datalist id="dl"></datalist></div>
+<div><label for="din">Check-in</label><input id="din" type="date"></div><div><label for="dout">Check-out</label><input id="dout" type="date"></div>
+<div><label for="ad">Adults</label><select id="ad"></select></div><div><label for="ch">Children</label><select id="ch"></select></div><div><label for="rm">Rooms</label><select id="rm"></select></div>
+<div style="display:flex;align-items:flex-end"><button class="full" style="margin:0">Search</button></div></form></div>
+<div class="fl"><select id="ty" onchange="draw()"><option value="">All property types</option></select><select id="so" onchange="draw()"><option value="rec">Recommended</option><option value="lo">Price: low to high</option><option value="hi">Price: high to low</option><option value="rt">Best rated</option></select><label class="m"><input type="checkbox" id="fc" onchange="draw()" style="width:auto"> Free cancellation</label><span id="cs" style="margin-left:auto"></span></div>
+<div id="cnt" class="m"></div><div class="rs" id="rs"><p class="m">Loading properties…</p></div>
+<div class="seo"><h2>Book trusted stays with Velos</h2><p>Velos Stays is the booking service of The Velos Group, Uganda. Search hotels, lodges, guest houses, apartments and event venues, see what is really available for your dates, and book with a clear total and clear cancellation terms. Guests from anywhere in the world are welcome: see prices in your own currency for reference, and manage your booking online with your reference and email.</p>
+<h2>Questions</h2><details><summary>How do I book?</summary><p>Search a destination and dates, choose a room, enter your details and pay the deposit. You get a booking reference immediately.</p></details><details><summary>Can I book from outside Uganda?</summary><p>Yes. Guests from any country can book. Bookings are charged in Uganda shillings, and other currencies are shown for reference.</p></details><details><summary>What if I need to cancel?</summary><p>Each property shows its cancellation policy and your refund before you book. You can cancel online from My booking.</p></details><details><summary>Are the reviews real?</summary><p>Only guests who completed a stay booked through Velos can review it.</p></details></div>
+</div><div id="toast" hidden></div>
+<script>
+var S = window.VELOS_SUPABASE, db = supabase.createClient(S.url, S.key), $ = function(i){ return document.getElementById(i); }, V = VelosStays, esc = V.esc, ALL = [], DATED = false, Q = new URLSearchParams(location.search);
+function opts(id, from, to, sel, fmt){ var h = ''; for(var i = from; i <= to; i++) h += '<option value="' + i + '"' + (i == sel ? ' selected' : '') + '>' + (fmt ? fmt(i) : i) + '</option>'; $(id).innerHTML = h; }
+function init(){
+  var t = V.today(); $('din').min = t; $('dout').min = V.addDays(t, 1);
+  $('din').onchange = function(){ var m = V.addDays($('din').value || t, 1); $('dout').min = m; if(!$('dout').value || $('dout').value < m) $('dout').value = m; };
+  opts('ad', 1, 12, Q.get('a') || 2); opts('ch', 0, 8, Q.get('c') || 0); opts('rm', 1, 9, Q.get('r') || 1);
+  $('q').value = Q.get('q') || ''; $('din').value = Q.get('in') || ''; $('dout').value = Q.get('out') || '';
+  $('ty').innerHTML += Object.keys(V.TYPES).map(function(k){ return '<option value="' + k + '">' + V.TYPES[k] + '</option>'; }).join('');
+  V.loadFx(db).then(function(){ $('cs').innerHTML = V.curSelect('cur', 'curChange(this.value)'); search(); });
+  db.rpc('hotel_destinations').then(function(r){ var seen = {}; $('dl').innerHTML = (r.data || []).map(function(d){ return [d.city, d.country].map(function(x){ if(seen[x]) return ''; seen[x] = 1; return '<option value="' + esc(x) + '">'; }).join(''); }).join(''); });
+}
+function curChange(c){ V.setCur(c); draw(); }
+function go(e){ e.preventDefault(); if($('din').value && !$('dout').value) $('dout').value = V.addDays($('din').value, 1); search(); }
+async function search(){
+  var a = {q:$('q').value.trim() || null, din:$('din').value || null, dout:$('dout').value || null, ad:+$('ad').value, ch:+$('ch').value, rm:+$('rm').value};
+  DATED = !!(a.din && a.dout && a.dout > a.din);
+  var p = new URLSearchParams(); if(a.q) p.set('q', a.q); if(DATED){ p.set('in', a.din); p.set('out', a.dout); } p.set('a', a.ad); p.set('c', a.ch); p.set('r', a.rm); try { history.replaceState(null, '', 'hotels.html?' + p.toString()); } catch(e){}
+  $('rs').innerHTML = '<p class="m">Searching…</p>';
+  var r = await db.rpc('hotel_search', {p_q:a.q, p_in:DATED ? a.din : null, p_out:DATED ? a.dout : null, p_adults:a.ad, p_children:a.ch, p_rooms:a.rm, p_type:null});
+  if(r.error){ $('rs').innerHTML = '<p class="bad">' + esc(/function|schema cache/i.test(r.error.message) ? 'Stays are being set up. Please try again soon.' : r.error.message) + '</p>'; return; }
+  ALL = r.data || []; draw(); jsonld();
+}
+function draw(){
+  var ty = $('ty').value, so = $('so').value, fc = $('fc').checked, L = ALL.filter(function(x){ return (!ty || x.type === ty || (ty === 'venue' && x.kind === 'venue')) && (!fc || x.cancel_policy === 'flexible' || x.cancel_policy === 'moderate'); });
+  L.sort(function(a, b){ if(so === 'lo') return (a.from_price || 9e15) - (b.from_price || 9e15); if(so === 'hi') return (b.from_price || 0) - (a.from_price || 0); if(so === 'rt') return (b.rating || 0) - (a.rating || 0);
+    return (a.sold_out ? 1 : 0) - (b.sold_out ? 1 : 0) || (b.rating || 0) - (a.rating || 0) || (b.verified ? 1 : 0) - (a.verified ? 1 : 0); });
+  $('cnt').textContent = L.length ? L.length + ' propert' + (L.length > 1 ? 'ies' : 'y') + ' found' + (DATED ? ' for ' + V.fd($('din').value) + ' to ' + V.fd($('dout').value) + ' (' + V.nights($('din').value, $('dout').value) + ' nights)' : '') : '';
+  var qs = new URLSearchParams(); if(DATED){ qs.set('in', $('din').value); qs.set('out', $('dout').value); } qs.set('a', $('ad').value); qs.set('c', $('ch').value); qs.set('r', $('rm').value);
+  $('rs').innerHTML = L.length ? L.map(function(x){ var pol = V.POL[x.cancel_policy] || ['', ''];
+    return '<a class="hc ' + (x.sold_out ? 'so' : '') + '" href="stay.html?id=' + x.id + '&' + qs.toString() + '"><div class="im" role="img" aria-label="' + esc(x.name) + '" style="' + (x.cover ? 'background-image:url(' + esc(x.cover) + ')' : '') + '"></div><div class="bd"><div class="row"><h3>' + esc(x.name) + '</h3>' + (x.rating ? '<span class="rt">' + x.rating + ' ★ <span style="font-weight:400">(' + x.reviews + ')</span></span>' : '') + '</div>'
+      + '<div class="m">' + V.stars(x.stars) + ' ' + esc(V.TYPES[x.type] || (x.kind === 'venue' ? 'Event venue' : 'Stay')) + ' · ' + esc([x.city, x.country].filter(Boolean).join(', ')) + (x.verified ? ' · <span class="vf">✔ Verified by Velos</span>' : '') + '</div>'
+      + '<div>' + V.amen(x.amenities, 5) + '</div><div class="m">' + (x.cancel_policy === 'flexible' || x.cancel_policy === 'moderate' ? '✔ Free cancellation available · ' : '') + esc(pol[0]) + ' cancellation</div>'
+      + '<div class="pr"><span class="m">' + (x.sold_out ? 'Sold out for these dates' : x.rooms_available ? x.rooms_available + ' room type' + (x.rooms_available > 1 ? 's' : '') + (DATED ? ' available' : '') : '') + '</span><span>' + (x.from_price && !x.sold_out ? '<span class="mu">from </span><span class="big">' + V.money(x.from_price) + '</span><span class="mu"> / night</span>' : '') + '</span></div></div></a>'; }).join('')
+    : '<div class="c"><b>No properties match yet</b><p class="m">Try other dates or another destination' + (ALL.length ? '' : '. New properties are joining Velos Stays every week') + '. Own a hotel, lodge or guest house? <a class="gold" href="vendor.html">List it on Velos</a>.</p></div>';
+}
+function jsonld(){ document.querySelectorAll('script[data-dyn]').forEach(function(e){ e.remove(); });
+  if(ALL.length) V.ld({'@context':'https://schema.org', '@type':'ItemList', name:'Hotels and stays on Velos Stays', itemListElement:ALL.slice(0, 30).map(function(x, i){ return {'@type':'ListItem', position:i + 1, url:'https://thevelosgroup.com/stay.html?id=' + x.id, name:x.name}; })}); }
+init();
+</script></body></html>

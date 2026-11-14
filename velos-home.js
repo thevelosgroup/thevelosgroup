@@ -14,7 +14,7 @@
     ['🏪','Stores','Local vendors','marketplace.html','store vendor marketplace shop partner'],
     ['🛒','Retail','Single items','marketplace.html#/m/retail','retail single item'],
     ['📦','Wholesale','Bulk buying','marketplace.html#/m/wholesale','wholesale bulk carton sack'],
-    ['🏨','Hotels','Rooms','marketplace.html#/c/hotels','hotel room accommodation stay book'],
+    ['🏨','Hotels','Rooms','hotels.html','hotel room accommodation stay book'],
     ['🏛️','Venues','Events','marketplace.html#/c/venues','venue hall event wedding conference'],
     ['🛠️','Services','Verified pros','services.html','service electrician plumber technician repair solar security cctv'],
     ['🎁','Gifts','Sourced for you','gifts.html','gift flowers present birthday'],

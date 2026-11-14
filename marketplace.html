@@ -27,7 +27,7 @@ function lsGet(k){ try{ return JSON.parse(localStorage.getItem(k) || 'null'); }c
 
 function route(){
   var h = location.hash.replace(/^#\/?/, ''), p = h.split('/');
-  if(p[0] === 's' && p[1]) return store(p[1], p[2] === 'p' ? p[3] : null, p[4] === 'add'); if(p[0] === 'q') return search(decodeURIComponent(p[1] || '')); if(p[0] === 'track') return track(); if(p[0] === 'c') CAT = p[1] || ''; else CAT = '';
+  if(p[0] === 's' && p[1]) return store(p[1], p[2] === 'p' ? p[3] : null, p[4] === 'add'); if(p[0] === 'q') return search(decodeURIComponent(p[1] || '')); if(p[0] === 'track') return track(); if(p[0] === 'c' && p[1] === 'hotels'){ location.replace('hotels.html'); return; } if(p[0] === 'c') CAT = p[1] || ''; else CAT = '';
   if(p[0] === 'm') MODE = p[1] === 'wholesale' ? 'wholesale' : 'retail';
   home();
 }
@@ -59,7 +59,7 @@ async function search(q){
 /* ---------- a store ---------- */
 async function store(id, focusId, autoAdd){
   V('<p class="m">Loading…</p>'); var r = await db.rpc('public_partner_catalog', {p_partner:id}); if(!r.data){ V('<div class="c"><p>This store is not open right now.</p><a class="b" href="#/">Back to all stores</a></div>'); return; }
-  STORE = r.data; CART = lsGet('velos_cart_' + id) || {}; var p = STORE.partner, c = vcat(p.category), hotel = p.kind !== 'goods', P = STORE.products, cats = {};
+  if(r.data.partner && r.data.partner.kind !== 'goods'){ location.replace('stay.html?id=' + id); return; } STORE = r.data; CART = lsGet('velos_cart_' + id) || {}; var p = STORE.partner, c = vcat(p.category), hotel = p.kind !== 'goods', P = STORE.products, cats = {};
   P.forEach(function(x){ var k = x.category || 'Items'; (cats[k] = cats[k] || []).push(x); });
   V('<p><a class="gold" href="#/">← All stores</a></p><div class="c" style="padding:0;overflow:hidden"><div style="height:140px;background:' + (p.cover_url ? 'url(' + esc(p.cover_url) + ') center/cover' : 'linear-gradient(135deg,#14265f,#080d1f)') + '"></div><div style="padding:14px"><h1>' + esc(p.business_name) + '</h1><div class="m">' + esc(c.l) + ' · ' + esc(p.city || '') + ', ' + esc(p.country) + '</div>' + (p.description ? '<p>' + esc(p.description) + '</p>' : '') + '</div></div>'
     + '<div id="ads"></div>' + (P.length >= 2 ? '<h2 style="margin:6px 0 0">Browse the shop</h2>' + marquee(P.filter(function(x){ return x.in_stock; }).map(function(x){ return '<div class="rc" onclick="chg(\'' + x.id + '\',1)">' + (x.image_url ? '<img src="' + esc(x.image_url) + '" alt="" loading="lazy">' : '<div class="ph">📦</div>') + '<div><b>' + esc(x.name) + '</b><span>' + ugx(x.price_ugx) + '</span></div></div>'; }), 50) + '<p class="m" style="margin:-4px 0 6px">' + (hotel ? 'Tap a room to book it.' : 'Tap a card to add it to your cart.') + '</p>' : '')
