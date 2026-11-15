@@ -243,7 +243,7 @@
   async function fill() {
     var box = document.getElementById('vpd'); if (!box || !ME) return;
     var k = ME.kind, d = { data: null }, fail = null; try { d = await DB().rpc('people_docs_me', { p_kind: k }); if (d.error) fail = d.error.message; } catch (e) { fail = e.message || String(e); }
-    if (fail || !d || d.data == null) { box.innerHTML = '<div class="c"><p>We could not load your documents just now.' + (fail ? ' <span class="m">(' + esc(fail).slice(0, 140) + ')</span>' : ' Your login may not be linked to a profile yet. Please tell Velos.') + '</p><button class="full" onclick="VelosPeople.retry()">Try again</button></div>'; return; }
+    if (fail || !d || d.data == null) { box.innerHTML = '<div class="c"><p>We could not load your documents just now.' + (fail ? ' <span class="m">(' + esc(fail).slice(0, 140) + ')</span>' : ' Your login may not be linked to a profile yet. Please tell Velos.') + '</p><button class="full" onclick="VelosPeople.retry()">Try again</button></div>'; box.setAttribute('data-f', '1'); return; }
     d = d.data || {};
     var inp = 'display:block;width:100%;margin:8px 0;padding:10px;border:1px dashed rgba(212,175,55,.5);border-radius:10px;background:rgba(255,255,255,.04);color:inherit';
     var h = '';
@@ -263,14 +263,17 @@
         '<div class="c"><p><b>Passport-size photo.</b> Plain light background, face clearly visible, no hat or sunglasses. ' + (d.photo_at ? ok('Received') : '') + '</p><input id="vpd-p" type="file" accept="image/*" style="' + inp + '"><button class="full" onclick="VelosPeople.up(\'photo\',\'vpd-p\')">⬆️ Upload photo</button></div>' +
         '<div class="c"><p><b>Your signature.</b> Sign your name in dark ink on plain white paper, then photograph or scan it flat and well lit. ' + (d.sig_at ? ok('Received') : '') + '</p><input id="vpd-g" type="file" accept="image/*" style="' + inp + '"><button class="full" onclick="VelosPeople.draw(\'sig\')">✍️ Draw my signature on screen</button><p class="m" style="text-align:center">or upload a photo of it</p><button class="full" onclick="VelosPeople.up(\'sig\',\'vpd-g\')">⬆️ Upload signature photo</button></div>';
     }
-    box.innerHTML = h;
+    box.innerHTML = h; box.setAttribute('data-f', '1');
   }
   /* panel(kind, p, active): HTML for the Documents page. p needs the person's details (see top). Works before and after approval. */
   function reqCard(kind, active) {
     if (active) return '';
     return '<div class="c"><h3 style="margin:0 0 6px">📋 Step 1: upload your documents</h3><p class="m">Velos verifies every ' + (kind === 'agent' ? 'sales agent' : kind === 'rider' ? 'rider' : 'technician') + ' before approval. Upload your ID, passport photo, account proof' + (kind === 'agent' ? ', qualification certificate, LC1 / local leader letter and CV' : kind === 'rider' ? ', riding permit, referees and residence letter' : ', trade certificate and good-conduct certificate') + '. Your documents are private.</p><a class="b" href="apply.html?kind=' + kind + '">Open my requirements checklist</a></div>';
   }
-  function panel(kind, p, active) { ME = { kind: kind, p: p, active: !!active }; setTimeout(fill, 30); return reqCard(kind, active) + '<div id="vpd"><div class="c"><p>Loading…</p></div></div>'; }
+  /* the Documents tab is drawn after panel() runs, so load it whenever it appears and has not loaded yet */
+  var fbusy = false; function ensure() { var b = document.getElementById('vpd'); if (b && ME && !b.getAttribute('data-f') && !fbusy) { fbusy = true; Promise.resolve(fill()).then(function () { fbusy = false; }, function () { fbusy = false; }); } }
+  try { new MutationObserver(ensure).observe(document.documentElement, { childList: true, subtree: true }); } catch (e) {}
+  function panel(kind, p, active) { ME = { kind: kind, p: p, active: !!active }; setTimeout(ensure, 30); return reqCard(kind, active) + '<div id="vpd"><div class="c"><p>Loading…</p></div></div>'; }
   async function mine(what) {
     try {
       if (!ME) return; var p = ME.p;
