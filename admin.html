@@ -33,7 +33,13 @@ main{padding:12px;max-width:900px;margin:auto}
 #drawer .dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}#drawer input{width:100%;margin-bottom:8px}
 .mgh{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:#a3adc6;margin:14px 4px 6px}
 .mi{display:flex;flex-direction:column;align-items:flex-start;width:100%;text-align:left;background:transparent;border:1px solid transparent;border-radius:10px;padding:10px 12px;margin:2px 0;color:#f4f1ea;font-size:1rem}.mi small{color:#a3adc6;font-size:.75rem;margin-top:2px}.mi:hover{background:#141d3b}.mi.on{background:var(--gold);color:#080d1a}.mi.on small{color:#3a3a2a}
-</style></head><body>
+</style><style>
+/* Update 56: tidier admin header (logo, room for the settings gear, no wrapped buttons) */
+.top{padding-right:58px!important}.top .alg{height:28px;width:auto;margin:0 4px 0 2px;vertical-align:middle}
+#mbtn,.top .ghost{white-space:nowrap}.top .atr{display:flex;align-items:center;gap:8px}
+@media(max-width:640px){.top .abr,.top #who{display:none}.top .alg{height:30px}.top .ghost{padding:8px 10px;font-size:13px}.top .atr{gap:6px}}
+</style>
+</head><body>
 
 <div id="login" class="box" hidden>
   <h1 class="gold">Velos Admin</h1><p class="mut">Staff sign-in only</p>
@@ -46,7 +52,7 @@ main{padding:12px;max-width:900px;margin:auto}
 
 <div id="app" hidden>
   <header>
-    <div class="top"><span class="tl"><button id="mbtn" onclick="menuOpen()" aria-label="Open menu">☰ Menu</button><b class="gold">VELOS ADMIN</b></span><span><span id="who" class="mut"></span> <button class="ghost" onclick="VelosAlerts.settings(db)" title="Notifications and alert sound">🔔 Alerts</button> <button class="ghost" onclick="signOut()">Sign out</button></span></div>
+    <div class="top"><span class="tl"><button id="mbtn" onclick="menuOpen()" aria-label="Open menu">☰ Menu</button><img src="logo-mark.png" alt="" class="alg"><b class="gold abr">VELOS ADMIN</b></span><span class="atr"><span id="who" class="mut"></span> <button class="ghost" onclick="VelosAlerts.settings(db)" title="Notifications and alert sound">🔔 Alerts</button> <button class="ghost" onclick="signOut()">Sign out</button></span></div>
     <div id="crumb"></div><nav id="nav2"></nav>
   </header>
   <div id="mscrim" onclick="menuClose()" hidden></div><aside id="drawer" hidden><div class="dh"><b class="gold">Velos back office</b><button class="ghost" onclick="menuClose()">✕</button></div><input id="mq" type="search" placeholder="Search a page…" oninput="menuFilter()"><div id="mlist"></div></aside>

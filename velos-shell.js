@@ -13,6 +13,15 @@
   + '#vs-bar{position:fixed;left:0;right:0;bottom:0;z-index:55;display:flex;background:rgba(8,13,31,.97);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-top:1px solid var(--line,#2a3560);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}'
   + '#vs-bar button{flex:1;background:none;border:0;color:var(--mut,#a3adc6);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;padding:4px 2px;position:relative;cursor:pointer}#vs-bar button .ic{font-size:20px}#vs-bar button.on{color:var(--gold,#e8c766)}#vs-bar .vs-bd{position:absolute;top:0;right:22%;font-size:10px;padding:0 6px}'
   + '#vs-page{padding-bottom:84px}@media(min-width:900px){#vs-bar{display:none}#vs-page{padding-bottom:30px}}';
+  var CSS2 = ''
+  + '#vs-top .lg{height:28px;width:auto;flex:none}'
+  + '@media(min-width:1000px){body.vs-on .w{max-width:1320px!important;margin:0!important;padding-left:304px!important;padding-right:36px!important}'
+  + 'body.vs-on #vs-top{margin:-16px -36px 14px -304px;padding-left:20px;padding-right:36px}body.vs-on #vs-top .l{width:268px}'
+  + 'body.vs-on #vs-menu,body.vs-on #vs-scrim,body.vs-on #vs-dr .hd button{display:none!important}'
+  + 'body.vs-on #vs-dr,body.vs-on #vs-dr[hidden]{display:block!important;animation:none;top:58px;width:272px;z-index:50;padding-top:12px;background:#0a1124}body.vs-on #vs-dr .hd .nm{display:none}'
+  + 'body.vs-on #vs-id h1{font-size:28px}body.vs-on #vs-crumb{margin-bottom:12px}}';
+  CSS2 += '@media(max-width:560px){#vs-top .br{display:none}#vs-so{white-space:nowrap}#vs-top .lg{height:30px}}#vs-so{white-space:nowrap}';
+  CSS += CSS2;
   var st = {items:[], cur:'', opts:null};
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function css(){ if(D.getElementById('vs-css')) return; var s = D.createElement('style'); s.id = 'vs-css'; s.textContent = CSS; D.head.appendChild(s); }
@@ -27,12 +36,12 @@
   /* frame: build the shell once. opts = {root, brand, title, pills, items:[{id,icon,label,note,short}], pick, signout, bodyId} */
   function frame(o){ css(); st.opts = o; st.items = o.items; var keep = st.cur && find(st.cur) ? st.cur : (o.start || o.items[0].id); st.cur = keep; var root = D.getElementById(o.root || 'v'), bid = o.bodyId || 'vs-body';
     var bar = o.items.length > 1 && o.items.length <= 5;
-    root.innerHTML = '<div id="vs-top"><div class="l"><button id="vs-menu" onclick="VS.open()" aria-label="Open menu">☰ Menu</button><span class="br">' + esc(o.brand || 'VELOS') + '</span></div><div class="r"><span id="vs-net"></span><button id="vs-so" onclick="' + (o.signout || 'out()') + '">Sign out</button></div></div>'
+    root.innerHTML = '<div id="vs-top"><div class="l"><button id="vs-menu" onclick="VS.open()" aria-label="Open menu">☰ Menu</button><img class="lg" src="logo-mark.png" alt=""><span class="br">' + esc(o.brand || 'VELOS') + '</span></div><div class="r"><span id="vs-net"></span><button id="vs-so" onclick="' + (o.signout || 'out()') + '">Sign out</button></div></div>'
       + '<div id="vs-id"><div><h1>' + esc(o.title || '') + '</h1></div><div class="pl">' + (o.pills || '') + '</div></div><div id="vs-crumb"></div><div id="vs-page"><div id="' + bid + '"></div></div>'
-      + (bar ? '<nav id="vs-bar"></nav>' : '') + '<div id="vs-scrim" hidden onclick="VS.close()"></div><aside id="vs-dr" hidden><div class="hd"><div><b>' + esc(o.brand || 'VELOS') + '</b><span>' + esc(o.who || '') + '</span></div><button class="g" onclick="VS.close()" style="padding:8px 12px">✕</button></div><div id="vs-list"></div><div class="vs-ft">'
+      + (bar ? '<nav id="vs-bar"></nav>' : '') + '<div id="vs-scrim" hidden onclick="VS.close()"></div><aside id="vs-dr" hidden><div class="hd"><div><b class="nm">' + esc(o.brand || 'VELOS') + '</b><span>' + esc(o.who || '') + '</span></div><button class="g" onclick="VS.close()" style="padding:8px 12px">✕</button></div><div id="vs-list"></div><div class="vs-ft">'
       + '<button class="vs-i" onclick="VS.close();try{VelosPWA.install()}catch(e){}"><span class="ic">📲</span><span class="tx">Install this app<small>Add it to your home screen</small></span></button>'
       + '<button class="vs-i" onclick="VS.close();' + (o.signout || 'out()') + '"><span class="ic">🚪</span><span class="tx">Sign out</span></button></div></aside>';
-    paint(); }
+    D.body.classList.add('vs-on'); paint(); }
   function active(id){ st.cur = id; paint(); }
   function badge(id, n){ var x = find(id); if(x){ x.badge = n || ''; paint(); } }
   /* page: for apps that render their whole screen as HTML. pages = [{id,icon,label,note,short,html,badge}] */
