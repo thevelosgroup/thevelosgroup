@@ -15,12 +15,15 @@
   css.textContent = '#vtb{display:none}@media(max-width:768px){#vtb{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:2147481000;background:rgba(8,13,31,.97);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-top:1px solid #2a3560;padding:6px 4px calc(6px + env(safe-area-inset-bottom))}'
     + '#vtb a{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;color:#a3adc6;font:600 11px/1.1 system-ui,-apple-system,Segoe UI,sans-serif;padding:4px 0;border-radius:10px}'
     + '#vtb svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}#vtb a.on{color:#e8c766}#vtb a.on svg{stroke-width:2.2}'
-    + 'body.vtb{padding-bottom:72px!important}body.vtb #vwa{bottom:150px!important}body.vtb #vaL{bottom:calc(84px + env(safe-area-inset-bottom))!important}body.vtb #vlang{bottom:84px!important}body.vtb #vft{padding-bottom:20px}}';
+    + 'body.vtb{padding-bottom:72px!important}body.vtb #vwa{bottom:150px!important}body.vtb #vaL{bottom:calc(84px + env(safe-area-inset-bottom))!important}body.vtb #vlang{bottom:84px!important}body.vtb #vft{padding-bottom:20px}body.vtb-hide{padding-bottom:0!important}body.vtb-hide #vtb{display:none!important}.sh .bx,.sheet .bx{max-height:92vh;max-height:92dvh;padding-bottom:calc(18px + env(safe-area-inset-bottom))!important;-webkit-overflow-scrolling:touch}}';
   D.head.appendChild(css);
   function build(){
     var n = D.createElement('nav'); n.id = 'vtb'; n.setAttribute('aria-label', 'Main');
     n.innerHTML = T.map(function(t){ return '<a href="' + t[2] + '"' + (t[0] === ON[p] ? ' class="on" aria-current="page"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true">' + I[t[0]] + '</svg><span>' + t[1] + '</span></a>'; }).join('');
     D.body.appendChild(n); D.body.classList.add('vtb');
   }
-  if(D.body) build(); else D.addEventListener('DOMContentLoaded', build);
+  /* hide the tab bar whenever a sheet, cart or pop-up is open so its buttons (Checkout, Pay, Book) are never covered */
+  function sync(){ var o = D.querySelector('.sh,.sheet,.vj-sheet,.cart-drawer.open,.modal.open,[role=dialog]'); D.body.classList.toggle('vtb-hide', !!o); }
+  function watch(){ sync(); try { new MutationObserver(sync).observe(D.body, {childList:true, subtree:true, attributes:true, attributeFilter:['class']}); } catch(e){} }
+  if(D.body) { build(); watch(); } else D.addEventListener('DOMContentLoaded', function(){ build(); watch(); });
 })();

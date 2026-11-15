@@ -112,7 +112,8 @@ async function boot(){
   if(!session) return show(false);
   if(await needStepUp()){ show(false); $('#mfaBox').hidden = false; $('#mfaCode').focus(); return; }
   const {data:p, error:pe} = await db.from('profiles').select('full_name,role').eq('id', session.user.id).maybeSingle();
-  if(!p){ await db.auth.signOut(); show(false); $('#err').textContent = pe ? 'Database error: ' + pe.message : 'This account is not authorised as staff. (login id ' + session.user.id + ')'; return; }
+  if(pe){ show(false); $('#err').textContent = 'Could not load your profile (' + pe.message + '). Check your connection and refresh. You were not signed out.'; return; }
+  if(!p){ await db.auth.signOut(); show(false); $('#err').textContent = 'This account is not authorised as staff. (login id ' + session.user.id + ')'; return; }
   if(!['admin','manager','staff'].includes(p.role)){ location.href = 'team.html'; return; }
   me = p; $('#who').textContent = p.full_name || p.role; show(true); try { VelosPush.mount(db); } catch(e){}
   const {data} = await db.from('categories').select('*').order('sort_order'); cats = data || [];

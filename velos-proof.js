@@ -21,7 +21,7 @@
       $('vpf-x').onclick = function(){ fin(false); }; if($('vpf-skip')) $('vpf-skip').onclick = function(){ fin(true); };
       $('vpf-ok').onclick = async function(){ var bt = this; if(!blob) return; bt.disabled = true; bt.textContent = 'Uploading…'; try {
           var ss = (await db.auth.getSession()).data.session, p = await pos0, path = o.stage + '/' + o.type + '-' + o.ref + '/' + ss.user.id + '-' + Date.now() + '.jpg';
-          var up = await db.storage.from('proof-photos').upload(path, blob, {contentType:'image/jpeg', upsert:true}); if(up.error) throw up.error;
+          var up = await db.storage.from('proof-photos').upload(path, blob, {contentType:'image/jpeg', upsert:false}); if(up.error) throw up.error;
           var r = await db.rpc('proof_add', {p_ref_type:o.type, p_ref:String(o.ref), p_stage:o.stage, p_path:path, p_lat:p ? p.lat : null, p_lng:p ? p.lng : null, p_note:$('vpf-n').value}); if(r.error) throw r.error; fin(true);
         } catch(e){ bt.disabled = false; bt.textContent = 'Try again'; $('vpf-m').style.color = '#f87171'; $('vpf-m').textContent = (/function|schema cache/i.test(e.message || '') ? 'Velos is still switching this on. Please tell Velos support. ' : '') + (e.message || 'Upload failed. Check your internet and try again.'); } };
     }

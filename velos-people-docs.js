@@ -164,7 +164,7 @@
       function go(url) {
         var i = new Image(); i.onload = function () {
           var k = Math.min(1, 1100 / Math.max(i.naturalWidth, i.naturalHeight)), w = Math.max(10, Math.round(i.naturalWidth * k)), h = Math.max(10, Math.round(i.naturalHeight * k));
-          var c = document.createElement('canvas'); c.width = w; c.height = h; var x = c.getContext('2d'); x.drawImage(i, 0, 0, w, h);
+          var c = document.createElement('canvas'); c.width = w; c.height = h; var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); x.drawImage(i, 0, 0, w, h);
           var d = x.getImageData(0, 0, w, h), px = d.data, lum = new Float32Array(w * h), hist = new Uint32Array(256), n = w * h, a;
           for (a = 0; a < n; a++) { var l = .299 * px[a * 4] + .587 * px[a * 4 + 1] + .114 * px[a * 4 + 2]; lum[a] = l; hist[l | 0]++; }
           var cum = 0, bg = 255; for (a = 0; a < 256; a++) { cum += hist[a]; if (cum >= n * .85) { bg = a; break; } }

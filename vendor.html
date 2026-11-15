@@ -123,9 +123,11 @@ async function agreementPdf(){
 }
 
 /* ---------- dashboard ---------- */
+function isStay(){ return ME && ME.kind !== 'goods'; }
 function show(){
+  var ST = isStay();
   VS.frame({brand:'VELOS PARTNER', title:ME.business_name, who:ME.business_name, bodyId:'body', signout:'out()', pills:'<span class="pill">' + esc(vcat(ME.category).l) + '</span> <span class="pill ok">● Store live</span>',
-    items:[{id:'home', icon:'📊', label:'Dashboard', short:'Home', note:'Sales and what needs you'}, {id:'prod', icon:'📦', label:'Products', short:'Products', note:'Add, edit, hide, delete'}, {id:'ord', icon:'🔔', label:'Orders', short:'Orders', note:'Orders to pack'}, {id:'pay', icon:'💰', label:'Earnings', short:'Money', note:'What Velos owes you'}, {id:'promo', icon:'📣', label:'Promotions', short:'Promos', note:'Ads on the Velos site'}, {id:'store', icon:'🏪', label:'My store', short:'Store', note:'Profile, logo, payout details'}].concat(ME.kind !== 'goods' ? [{id:'cal', icon:'📅', label:'Calendar and prices', short:'Calendar', note:'Availability, seasons, closed dates'}, {id:'rev', icon:'⭐', label:'Guest reviews', short:'Reviews', note:'Read and reply'}, {id:'prop', icon:'🏨', label:'Property details', short:'Property', note:'Photos, policies, facilities'}] : []),
+    items:[{id:'home', icon:'📊', label:'Dashboard', short:'Home', note:'Sales and what needs you'}, {id:'prod', icon:ST ? '🛏️' : '📦', label:ST ? 'Rooms and spaces' : 'Products', short:ST ? 'Rooms' : 'Products', note:ST ? 'Add, edit, hide your rooms and venues' : 'Add, edit, hide, delete'}, {id:'ord', icon:ST ? '🛎️' : '🔔', label:ST ? 'Bookings' : 'Orders', short:ST ? 'Bookings' : 'Orders', note:ST ? 'Guests and their dates' : 'Orders to pack'}, {id:'pay', icon:'💰', label:'Earnings', short:'Money', note:'What Velos owes you'}, {id:'promo', icon:'📣', label:'Promotions', short:'Promos', note:'Ads on the Velos site'}, {id:'store', icon:'🏪', label:'My store', short:'Store', note:'Profile, logo, payout details'}].concat(ME.kind !== 'goods' ? [{id:'cal', icon:'📅', label:'Calendar and prices', short:'Calendar', note:'Availability, seasons, closed dates'}, {id:'rev', icon:'⭐', label:'Guest reviews', short:'Reviews', note:'Read and reply'}, {id:'prop', icon:'🏨', label:'Property details', short:'Property', note:'Photos, policies, facilities'}] : []),
     start:TAB, pick:function(id){ tab(id); }});
   tab(TAB);
 }
@@ -133,6 +135,11 @@ function tab(t){ TAB = t; try { VelosChange.watch(db); } catch(e){} VS.active(t)
 function bd(){ return $('body'); }
 async function home(){
   bd().innerHTML = '<p class="m">Loading…</p>'; var d = (await db.rpc('partner_dashboard')).data || {};
+  if(isStay()){ var sr = await db.rpc('vendor_stays_mine'), SL = sr.data || [], td = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10), act = SL.filter(function(o){ return o.status !== 'cancelled' && o.status !== 'delivered'; });
+    var arr = act.filter(function(o){ return o.stay_in === td; }).length, req = act.filter(function(o){ return o.stay_status === 'requested'; }).length, inh = act.filter(function(o){ return o.stay_in <= td && o.stay_out > td; }).length;
+    bd().innerHTML = VelosUI.stats([{label:'Bookings to confirm', value:req, tone:(req ? 'warn' : '')}, {label:'Arriving today', value:arr}, {label:'Guests in house', value:inh}, {label:'Velos owes you', value:ugx(d.owed_now), tone:'good'}])
+      + '<div class="c"><div class="row"><b>Your rooms and spaces</b><span class="pill">' + (d.live_products || 0) + ' live of ' + (d.products || 0) + '</span></div><p class="m">Guests only see rooms and dates that are really free. Keep your rooms, prices and calendar up to date.</p><button onclick="tab(\'prod\')">Manage rooms and spaces</button> <button class="g" onclick="tab(\'ord\')">View bookings</button></div>'
+      + '<div class="c"><b>How Velos pays you</b><p class="m">Guests pay Velos. After the guest has stayed, the booking value minus Velos commission is added to what Velos owes you, then paid to your registered account.</p></div>'; return; }
   bd().innerHTML = VelosUI.stats([{label:'New orders to pack', value:d.new_orders || 0, tone:(d.new_orders ? 'warn' : '')}, {label:'Sales today', value:ugx(d.sales_today)}, {label:'Sales this month', value:ugx(d.sales_month)}, {label:'Velos owes you', value:ugx(d.owed_now), tone:'good'}])
     + '<div class="c"><div class="row"><b>Your catalogue</b><span class="pill">' + (d.live_products || 0) + ' live of ' + (d.products || 0) + '</span></div><p class="m">Customers see items that are active and in stock. Keep prices and stock up to date.</p><button onclick="tab(\'prod\')">Manage products</button></div>'
     + '<div id="ins"></div>'
