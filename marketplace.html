@@ -173,4 +173,4 @@ var LASTTRACK = null;
 function trackDoc(){ var o = LASTTRACK, c = lsGet('velos_cust') || {}; if(!o) return; var sub = 0, ls = (o.items || []).map(function(x){ sub += x.price * x.qty; return {name:x.name, qty:x.qty, unit:x.unit, price:x.price}; });
   VelosDocs.sheet({no:o.order_no, store:o.store, date:new Date(), mode:(o.total_ugx - sub) > 0 ? 'delivery' : 'pickup', delivery:Math.max(0, o.total_ugx - sub), customer:{name:c.n || '', phone:$('tp').value, email:c.e || '', address:''}, lines:ls, paid:o.payment_status === 'confirmed' ? o.amount_paid_ugx : 0}); }
 window.addEventListener('hashchange', route); route();
-</script><script src="velos-ai.js?v=1" defer></script><script src="velos-tabbar.js?v=1" defer></script></body></html>
+</script><script src="velos-ai.js?v=1" defer></script><script src="velos-tabbar.js?v=2" defer></script></body></html>

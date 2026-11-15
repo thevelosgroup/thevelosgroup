@@ -75,4 +75,4 @@ function draw(){
 function jsonld(){ document.querySelectorAll('script[data-dyn]').forEach(function(e){ e.remove(); });
   if(ALL.length) V.ld({'@context':'https://schema.org', '@type':'ItemList', name:'Hotels and stays on Velos Stays', itemListElement:ALL.slice(0, 30).map(function(x, i){ return {'@type':'ListItem', position:i + 1, url:'https://thevelosgroup.com/stay.html?id=' + x.id, name:x.name}; })}); }
 init();
-</script><script src="velos-tabbar.js?v=1" defer></script></body></html>
+</script><script src="velos-tabbar.js?v=2" defer></script></body></html>

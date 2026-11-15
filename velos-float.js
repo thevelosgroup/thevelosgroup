@@ -7,8 +7,8 @@
   css.textContent = '@media(max-width:768px){'
     + '#vlang>button{padding:0!important;width:40px;height:40px;justify-content:center;font-size:18px!important;gap:0!important}#vlang .lb{display:none}'
     + '#vlang{left:10px!important}#vlang .pp{bottom:48px!important}'
-    + '#vaL,#vwa,#vlang,#vtb{transition:opacity .2s ease,transform .2s ease}'
-    + 'body.vfl-hide #vaL,body.vfl-hide #vwa,body.vfl-hide #vlang,body.vfl-hide #vtb,body.vfl-hide .cartbtn.vfl-x{opacity:0!important;pointer-events:none!important;visibility:hidden}'
+    + '#vaL,#vwa,#vlang{transition:opacity .2s ease,transform .2s ease}'
+    + 'body.vfl-hide #vaL,body.vfl-hide #vwa,body.vfl-hide #vlang,body.vfl-hide .cartbtn.vfl-x{opacity:0!important;pointer-events:none!important;visibility:hidden}'
     + 'body.vfl-scroll #vaL,body.vfl-scroll #vwa,body.vfl-scroll #vlang{opacity:0;pointer-events:none}'
     + 'body.vfl-hide{padding-bottom:0!important}}';
   D.head.appendChild(css);

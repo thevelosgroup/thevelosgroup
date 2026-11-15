@@ -91,7 +91,7 @@ function fetchMenu(S){ function rp(n){ return fetch(S.url + '/rest/v1/rpc/' + n,
       + '<button onclick="toggleCart(true)"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.4 12.4a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="9" cy="20" r="1"/><circle cx="17" cy="20" r="1"/></svg>Cart<span class="vj-bg" id="vj-bc" hidden></span></button>'
       + '<button onclick="vjWish()"><svg viewBox="0 0 24 24"><path d="M12 21s-8-5.3-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.700-8 11-8 11z"/></svg>Wishlist<span class="vj-bg" id="vj-bw" hidden></span></button>'
       + '<a href="account.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Account</a>'; document.body.appendChild(n); document.body.classList.add('vj-has-nav'); }
-  function badges(){ var c = $('cartCount'), bc = $('vj-bc'), bw = $('vj-bw'), w = wish().length; if(bc){ var n = c ? parseInt(c.textContent, 10) || 0 : 0; bc.hidden = !n; bc.textContent = n; } if(bw){ bw.hidden = !w; bw.textContent = w; } }
+  function badges(){ var c = $('cartCount'), bc = $('vj-bc'), bw = $('vj-bw'), w = wish().length; if(bc){ var n = c ? parseInt(c.textContent, 10) || 0 : 0; bc.hidden = !n; bc.textContent = n; if(bc.parentNode) bc.parentNode.classList.toggle('vj-has', n > 0); } if(bw){ bw.hidden = !w; bw.textContent = w; } }
 
   /* ---------- build ---------- */
   function build(){ var sec = $('shop'); if(!sec || $('vj-bar')) return;

@@ -98,3 +98,7 @@ body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-ri
 .vj-more em{color:#e8c766;font-weight:700}
 .vj-cf{width:100%;box-sizing:border-box;margin:0 0 14px;padding:12px 16px;border-radius:99px;border:1px solid #2a3560;background:#080d1f;color:#f4f1ea;font:500 15px system-ui}
 .vj-box{color:#f4f1ea}.vj-bh b{color:#f4f1ea}.vj-cg button{color:#e9edf8}
+
+/* Update 61: sheets stop above the tab bar; Cart tab turns gold when it has items */
+@media(max-width:800px){body.vj-has-nav .vj-sheet{bottom:calc(66px + env(safe-area-inset-bottom))}body.vj-has-nav .vj-box{max-height:calc(100dvh - 80px - env(safe-area-inset-bottom))}}
+#vj-nav button.vj-has{color:var(--gold-1,#e8c766)}#vj-nav button.vj-has svg{fill:rgba(232,199,102,.22);stroke-width:2.2;animation:vjp 1.8s ease-in-out infinite}@keyframes vjp{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
