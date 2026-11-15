@@ -41,6 +41,7 @@
   + '.vu-h h2{margin:0;font-size:22px}.vu-h p{margin:3px 0 0;color:var(--mut,#a3adc6);font-size:13px;max-width:60ch}'
   + '.vu-cnt{background:#1a2550;color:var(--gold,#e8c766);border-radius:99px;font-size:12px;font-weight:800;padding:2px 9px;margin-left:6px;vertical-align:middle}'
   /* ---- order / record card ---- */
+  + '.vu-top{border-top:0!important;border-bottom:1px solid #26335f;background:rgba(232,199,102,.06)}.vu-chips{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 8px}.vu-chips button{padding:7px 12px!important;font-size:13px!important;border-radius:99px!important}'
   + '.vu-o{background:linear-gradient(180deg,#101a3a,#0d1630);border:1px solid #26335f;border-radius:16px;margin:0 0 14px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.2)}'
   + '.vu-o.new{border-color:var(--gold,#e8c766);box-shadow:0 0 0 1px rgba(232,199,102,.35),0 8px 24px rgba(232,199,102,.08)}'
   + '.vu-oh{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:13px 16px;background:#0c1431;border-bottom:1px solid #1f2b57}'
@@ -117,7 +118,7 @@
       meta:[['Customer','Sarah'],['Phone','07…'],['Pay','MTN MoMo'], ['Where','…','html']],
       items:[{qty, name, amount}], totals:[['Subtotal',12000],['Delivery',4000],['Total',16000,'s']] (3rd: 's' strong, 'neg', 'pos'),
       steps:{list:[...], at:1}, note, warn, extra:'<html>', actions:'<button>…</button>'} */
-  function order(o){ var h = '<div class="vu-o' + (o.isNew ? ' new' : '') + '"' + (o.id ? ' id="' + esc(o.id) + '"' : '') + '><div class="vu-oh"><div class="vu-no">' + esc(o.prefix == null ? '#' : o.prefix) + esc(o.no) + (o.sub ? '<small>' + esc(o.sub) + '</small>' : '') + '</div>' + (o.status != null && !o.headRight ? badge(o.status, o.statusLabel) : '') + (o.headRight || '') + '</div><div class="vu-ob">';
+  function order(o){ var h = '<div class="vu-o' + (o.isNew ? ' new' : '') + '"' + (o.id ? ' id="' + esc(o.id) + '"' : '') + '><div class="vu-oh"><div class="vu-no">' + esc(o.prefix == null ? '#' : o.prefix) + esc(o.no) + (o.sub ? '<small>' + esc(o.sub) + '</small>' : '') + '</div>' + (o.status != null && !o.headRight ? badge(o.status, o.statusLabel) : '') + (o.headRight || '') + '</div>' + (o.actions && o.actionsTop ? '<div class="vu-act vu-top">' + o.actions + '</div>' : '') + '<div class="vu-ob">';
     if(o.steps) h += steps(o.steps.list, o.steps.at);
     if(o.meta && o.meta.length) h += '<div class="vu-meta">' + o.meta.filter(function(m){ return m && m[1] != null && m[1] !== ''; }).map(function(m){ return '<div><span>' + esc(m[0]) + '</span><b>' + (m[2] === 'html' ? m[1] : esc(m[1])) + '</b></div>'; }).join('') + '</div>';
     if(o.items && o.items.length) h += '<div class="vu-items">' + o.items.map(function(i){ return '<div class="vu-it"><span class="vu-q">' + esc(i.qty) + (i.unit === 'kg' ? ' kg' : '×') + '</span><span class="vu-n">' + esc(i.name) + (i.sub ? '<br><small style="color:var(--mut,#a3adc6)">' + esc(i.sub) + '</small>' : '') + '</span>' + (i.amount != null ? '<span class="vu-a">' + esc(ugx(i.amount)) + '</span>' : '') + '</div>'; }).join('') + '</div>';
@@ -125,7 +126,7 @@
     if(o.warn) h += '<div class="vu-bad">' + o.warn + '</div>';
     if(o.extra) h += o.extra;
     if(o.totals && o.totals.length) h += '<div class="vu-tot">' + o.totals.map(function(t){ return '<div class="vu-tr ' + (t[2] || '') + '"><span>' + esc(t[0]) + '</span><b>' + (typeof t[1] === 'number' ? esc(ugx(t[1])) : esc(t[1])) + '</b></div>'; }).join('') + '</div>';
-    h += '</div>' + (o.actions ? '<div class="vu-act">' + o.actions + '</div>' : '') + '</div>'; return h; }
+    h += '</div>' + (o.actions && !o.actionsTop ? '<div class="vu-act">' + o.actions + '</div>' : '') + '</div>'; return h; }
 
   W.VelosUI = { esc: esc, ugx: ugx, date: date, badge: badge, head: head, sec: sec, empty: empty, stats: stats, kv: kv, steps: steps, table: table, order: order, inject: inject };
 })();
