@@ -18,7 +18,11 @@ button.g{background:none;border:1px solid var(--line);color:var(--txt)}button:di
 </style></head><body><div class="w"><div id="v"><p class="m">Loading…</p></div></div><div id="toast" hidden></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script>
 <script>
-var S=window.VELOS_SUPABASE,db=supabase.createClient(S.url,S.key),$=function(i){return document.getElementById(i)},Q=new URLSearchParams(location.search);
+var S=window.VELOS_SUPABASE,Q=new URLSearchParams(location.search),$=function(i){return document.getElementById(i)};
+/* each portal keeps its own login, so open the one that matches this application (rider, agent, vendor, restaurant, technician) */
+var KEYS={agent:['velos-agent-auth'],rider:['velos-rider-auth'],vendor:['velos-vendor-auth','velos-partner-auth'],restaurant:['velos-restaurant-auth'],technician:['velos-team-auth',null]};
+function mk(k){return supabase.createClient(S.url,S.key,k?{auth:{storageKey:k,persistSession:true,autoRefreshToken:true}}:{})}
+var db=mk((KEYS[Q.get('kind')]||KEYS.agent)[0]);
 var KIND=['agent','rider','technician','vendor','restaurant'].indexOf(Q.get('kind'))>-1?Q.get('kind'):'agent';
 var LOGIN={agent:'agent.html',rider:'rider.html',technician:'technicians.html',vendor:'vendor.html',restaurant:'restaurant.html'};
 var COUNTRIES=['Uganda','Kenya','Rwanda','Tanzania','South Sudan','DR Congo','Burundi','Other'];
@@ -27,6 +31,7 @@ function toast(m,b){var t=$('toast');t.textContent=m;t.style.background=b?'#b326
 var ST={country:Q.get('country')||'Uganda',variant:Q.get('variant')||'licensed',details:{},files:[],spec:null,uid:null};
 async function boot(){
   var s=(await db.auth.getSession()).data.session;
+  if(!s){var ks=KEYS[Q.get('kind')]||KEYS.agent;for(var i=1;i<ks.length&&!s;i++){var c=mk(ks[i]),r0=(await c.auth.getSession()).data.session;if(r0){db=c;s=r0}}}
   if(!s){$('v').innerHTML='<h1>Requirements and documents</h1><div class="c"><p>Please sign in first, so your documents are saved safely to your own application.</p><a class="b" href="'+LOGIN[KIND]+'">Sign in or create a login</a><p class="m">After you sign in, open the link in your portal that says <b>Upload my documents</b>.</p></div>';return}
   ST.uid=s.user.id;
   var r=await db.rpc('apply_mine',{p_kind:KIND});if(r.error){$('v').innerHTML='<div class="c bad">'+esc(r.error.message)+'<p class="m">If this says the function does not exist, Velos still needs to finish the latest database update.</p></div>';return}
