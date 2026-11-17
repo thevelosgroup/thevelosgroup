@@ -8,7 +8,7 @@
   var H = W.HT = {
     /* ---------- rooms ---------- */
     async rooms(){
-      bd().innerHTML = '<p class="m">Loading…</p>'; var r = await db.rpc('partner_products_mine'); RM = (r.data || []).filter(function(x){ return x.category === 'room' || ME.kind === 'hotel' || ME.kind === 'venue'; });
+      bd().innerHTML = '<p class="m">Loading…</p>'; var r = await db.rpc('partner_products_mine'); RM = (r.data || []).map(function(p){ if(p.base_price_ugx != null) p.price_ugx = p.base_price_ugx; return p; }).filter(function(x){ return x.category === 'room' || ME.kind === 'hotel' || ME.kind === 'venue'; });
       bd().innerHTML = '<div class="row"><h2 style="margin:0">Rooms and venues</h2><button onclick="HT.edit(null)">+ Add a room</button></div><p class="m">Add each type of room once, then say how many of that type you have. Guests only see dates that are really free.</p><div id="edbox"></div>'
         + (RM.length ? RM.map(function(x){ return '<div class="c" style="' + (x.active ? '' : 'opacity:.55') + '"><div class="row"><div style="display:flex;gap:10px;align-items:center">' + (x.image_url ? '<img src="' + V.esc(x.image_url) + '" alt="" style="width:70px;height:54px;object-fit:cover;border-radius:8px">' : '') + '<div><b>' + V.esc(x.name) + '</b><div class="m">' + V.ugx(x.price_ugx) + ' / night · ' + (x.units || 1) + ' room' + ((x.units || 1) > 1 ? 's' : '') + ' · sleeps ' + (x.max_adults || 2) + (x.active ? '' : ' · hidden') + '</div></div></div><div><button class="g" onclick="HT.edit(\'' + x.id + '\')">Edit</button> <button class="g" onclick="HT.del(\'' + x.id + '\')">Delete</button></div></div></div>'; }).join('') : '<div class="c m">No rooms yet. Press “Add a room”.</div>');
     },
