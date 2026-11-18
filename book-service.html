@@ -90,7 +90,7 @@ $('go').onclick=function(){
 function done(no,d){
   $('f').hidden=true;$('ok').hidden=false;
   $('okh').textContent='Request S'+no+' received ✓';
-  $('okp').textContent='Thank you. Our dispatch desk will review it and contact you'+(d?' on '+d.p_phone:'')+' shortly. Keep your request number to track progress.';
+  $('okp').textContent='Thank you. Our dispatch desk will review it and contact you'+(d?' on '+d.p_phone:'')+' shortly. Keep your request number to track progress. Pay Velos only, and never pay a technician directly. If anyone asks you to, tell us on WhatsApp.';
   $('okt').href='track.html?o=S'+no;
   var m='Hello Velos Global Services, I submitted service request S'+no+' on the website'+(d?' ('+d.p_service+', '+d.p_town+').':'.');
   $('okw').href='https://wa.me/256755215751?text='+encodeURIComponent(m);
