@@ -628,7 +628,7 @@ function getCustomConciergeEstimate(){
    backend endpoint that calls an AI API server-side.
    ========================================================= */
 const CHAT_FAQ = [
-  { k:['payment','pay','deposit','upfront'], a:"Retail orders are Cash-on-Delivery — you inspect the sealed unit before paying. Wholesale/bulk orders need a 70% deposit to lock in pricing, with the remaining 30% due on verified delivery." },
+  { k:['payment','pay','deposit','upfront'], a:"Orders from Velos shops are paid in full before we process them (MTN or Airtel Mobile Money), so your goods and delivery are secured. Partner sellers state their payment terms at checkout." },
   { k:['emergency','dispatch','repair','urgent'], a:'Emergency Dispatch runs 24/7. Tap "Instant Dispatch Request" in the Services section, or message our WhatsApp line directly and a verified technician will be assigned.' },
   { k:['technician','register','join','apply'], a:'Head to the "Register as a Verified Technician" section — the application covers your ID, trade, and the Velos Standard agreement. All fields are required.' },
   { k:['gift','present'], a:'Try the AI Gift & Asset Concierge above the Electronics catalog — pick an occasion and budget for a catalog match, or describe absolutely anything (a car, a house, custom jewelry) in the "ask for anything" box for an instant estimate and WhatsApp quote.' },
