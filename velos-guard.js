@@ -46,7 +46,7 @@
   function patch(){ if(!W.supabase || !W.supabase.createClient || W.supabase.__vg) return; W.supabase.__vg = 1; var cc = W.supabase.createClient;
     W.supabase.createClient = function(u, k, o){
       /* each back-office app keeps its own login, so signing in to one never swaps or ends another */
-      var pg = (location.pathname.split('/').pop() || 'index').replace(/\.html$/, ''), apps = { admin:1, team:1, rider:1, agent:1, restaurant:1, vendor:1, partner:1, 'security-partners':1 };
+      var pg = (location.pathname.split('/').pop() || 'index').replace(/\.html$/, ''), apps = { admin:1, team:1, rider:1, agent:1, restaurant:1, vendor:1, 'events-pro':1, partner:1, 'security-partners':1 };
       if(apps[pg]){ o = Object.assign({}, o); o.auth = Object.assign({ storageKey: 'velos-' + pg + '-auth', persistSession: true, autoRefreshToken: true }, o.auth); }
       var c = guard(cc.call(this, u, k, o));
       try { var so = c.auth.signOut; c.auth.signOut = function(opt){ return so.call(c.auth, Object.assign({ scope: 'local' }, opt)); }; } catch(e){}
