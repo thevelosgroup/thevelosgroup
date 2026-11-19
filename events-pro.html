@@ -14,7 +14,7 @@
 @media(max-width:430px){.row2{grid-template-columns:1fr}}
 </style></head>
 <body><div class="w" style="max-width:900px"><div id="v"><p class="m">Loading…</p></div></div><div id="toast" hidden></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-guard-config.js"></script><script src="velos-guard.js?v=67"></script><script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-guard-config.js"></script><script src="velos-guard.js?v=67"></script><script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script><script src="velos-letterhead.js?v=70"></script>
 <script>
 var S = window.VELOS_SUPABASE, db = supabase.createClient(S.url, S.key), $ = function(i){ return document.getElementById(i); }, V = function(h){ $('v').innerHTML = h; };
 var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }, ugx = function(n){ return 'UGX ' + Math.round(+n || 0).toLocaleString('en-US'); };
@@ -101,16 +101,19 @@ async function signAgr(){
   var name = $('sn').value.trim(); if(name.length < 3){ $('se').textContent = 'Type your full name.'; return; } if(!SIGN.ink){ $('se').textContent = 'Please sign inside the box.'; return; } if(!$('sa').checked){ $('se').textContent = 'Tick the box to confirm.'; return; }
   $('se').className = 'm'; $('se').textContent = 'Preparing your signed agreement…';
   try{
-    var J = window.jspdf.jsPDF, doc = new J({unit:'mm', format:'a4'}), W = 210, M = 18, y = 20, GOLD = [201,162,39], TX = [30,36,56];
-    var logo = null, vsig = null; try{ logo = await toData('logo-mark.png'); }catch(e){} try{ vsig = await toData('signature.png'); }catch(e){}
-    if(logo) doc.addImage(logo, 'PNG', M, 12, 34, 20); doc.setFont('times', 'bold'); doc.setFontSize(18); doc.setTextColor(8, 13, 31); doc.text('VELOS EVENTS PARTNER AGREEMENT', W - M, 22, {align:'right'});
-    doc.setDrawColor(GOLD[0], GOLD[1], GOLD[2]); doc.setLineWidth(.8); doc.line(M, 36, W - M, 36); y = 46; doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(TX[0], TX[1], TX[2]);
-    var today = new Date().toLocaleDateString('en-GB', {day:'numeric', month:'long', year:'numeric'});
-    doc.text('Planner: ' + ME.business_name + '  |  Owner: ' + name, M, y); y += 5; doc.text('Date: ' + today + '  |  Country: ' + (ME.country || 'Uganda'), M, y); y += 9;
-    AGR.forEach(function(c, i){ var h = (i + 1) + '. ' + c[0]; var lines = doc.splitTextToSize(c[1], W - 2 * M); if(y + 6 + lines.length * 4.6 > 270){ doc.addPage(); y = 20; } doc.setFont('helvetica', 'bold'); doc.text(h, M, y); y += 5; doc.setFont('helvetica', 'normal'); doc.text(lines, M, y); y += lines.length * 4.6 + 3; });
-    if(y > 215){ doc.addPage(); y = 20; } y += 6; doc.setFont('helvetica', 'bold'); doc.text('Signed for the Planner', M, y); doc.text('Signed for The Velos Group', 115, y); y += 3;
-    doc.addImage($('sg').toDataURL('image/png'), 'PNG', M, y, 60, 22); if(vsig) doc.addImage(vsig, 'PNG', 115, y, 50, 22); y += 26; doc.setFont('helvetica', 'normal'); doc.text(name, M, y); doc.text('Authorised signatory', 115, y); y += 5; doc.text(today, M, y); doc.text(today, 115, y);
-    doc.setFontSize(8); doc.setTextColor(120, 128, 150); doc.text('Signed electronically on the Velos Events app. thevelosgroup.com', M, 288);
+    var J = window.jspdf.jsPDF, doc = new J({unit:'mm', format:'a4'}), W = 210, M = 15, TX = [30,36,56], NV = [3,17,62];
+    var vsig = null; try{ vsig = await toData('signature.png'); }catch(e){} await VelosLH.load();
+    var y = VelosLH.first(doc), today = new Date().toLocaleDateString('en-GB', {day:'numeric', month:'long', year:'numeric'});
+    doc.setFont('times', 'bold'); doc.setFontSize(19); doc.setTextColor(NV[0], NV[1], NV[2]); doc.text('Velos Events Partner Agreement', M, y); y += 7;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(110, 118, 140); doc.text('Issued ' + today, M, y); y += 8;
+    doc.setFillColor(244, 246, 251); doc.rect(M, y - 4, W - 2 * M, 16, 'F'); doc.setFontSize(10); doc.setTextColor(TX[0], TX[1], TX[2]);
+    doc.setFont('helvetica', 'bold'); doc.text('Planner:', M + 3, y + 1); doc.text('Owner:', M + 3, y + 7); doc.setFont('helvetica', 'normal'); doc.text(String(ME.business_name), M + 24, y + 1); doc.text(name + '  |  ' + (ME.country || 'Uganda'), M + 24, y + 7); y += 19;
+    AGR.forEach(function(c, i){ var lines = doc.splitTextToSize(c[1], W - 2 * M); if(y + 6 + lines.length * 4.6 > 272){ doc.addPage(); y = VelosLH.next(doc); } doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(NV[0], NV[1], NV[2]); doc.text((i + 1) + '. ' + c[0], M, y); y += 5; doc.setFont('helvetica', 'normal'); doc.setTextColor(TX[0], TX[1], TX[2]); doc.text(lines, M, y); y += lines.length * 4.6 + 3; });
+    if(y > 225){ doc.addPage(); y = VelosLH.next(doc); } y += 6; doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(110, 118, 140); doc.text('By signing, the Planner confirms the details are true and agrees to these terms.', M, y); y += 8;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(NV[0], NV[1], NV[2]); doc.text('Signed for the Planner', M, y); doc.text('Signed for The Velos Group', 115, y); y += 3;
+    doc.addImage($('sg').toDataURL('image/png'), 'PNG', M, y, 60, 22); if(vsig) doc.addImage(vsig, 'PNG', 115, y, 50, 22); y += 25; doc.setDrawColor(110, 118, 140); doc.setLineWidth(.3); doc.line(M, y, M + 70, y); doc.line(115, y, 185, y); y += 5;
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(TX[0], TX[1], TX[2]); doc.text(name, M, y); doc.text('Authorised signatory', 115, y); y += 5; doc.text(today, M, y); doc.text(today, 115, y);
+    VelosLH.finish(doc, 'Events Partner Agreement');
     var blob = doc.output('blob'), uid = (await db.auth.getUser()).data.user.id, path = uid + '/agreement-' + Date.now() + '.pdf';
     var u = await db.storage.from('event-docs').upload(path, blob, {contentType:'application/pdf'}); if(u.error) throw u.error;
     var r = await db.rpc('event_doc_set', {p_key:'agreement', p_path:path}); if(r.error) throw r.error;
