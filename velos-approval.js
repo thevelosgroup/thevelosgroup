@@ -3,11 +3,24 @@
    data: {name, owner, phone, email, address, lat, lng, commission_pct, approval_no, approved_at, kind} */
 (function(W){
   var NV=[3,17,62],GD=[212,175,55],TX=[30,35,50],GR=[110,118,140],LT=[244,246,251],PW=210;
-  var DEF_CO={name:'The Velos Group',tag:'Anything. Anywhere. Precisely.',lines:['Kampala, Uganda','Tel / WhatsApp: +256 755 215 751'],foot:'Thank you for partnering with The Velos Group'};
+  var DEF_CO={name:'The Velos Group',tag:'Anything. Anywhere. Precisely.',lines:['Uganda','Tel / WhatsApp: +256 755 215 751'],foot:'Thank you for partnering with The Velos Group'};
   function lib(){return new Promise(function(ok,bad){if(W.jspdf)return ok();var U=['https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js','https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js','https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js'],i=0;(function nx(){if(i>=U.length)return bad(Error('The document tool could not load. Check your internet connection and try again.'));var s=document.createElement('script'),d=false,tm=setTimeout(function(){if(!d){d=true;nx()}},12000);s.src=U[i++];s.onload=function(){if(d)return;d=true;clearTimeout(tm);W.jspdf?ok():nx()};s.onerror=function(){if(d)return;d=true;clearTimeout(tm);nx()};document.head.appendChild(s)})()})}
   function img(src,type,size){return new Promise(function(res){var i=new Image();i.onload=function(){try{var c=document.createElement('canvas');c.width=size?size:i.naturalWidth;c.height=size?size:i.naturalHeight;var x=c.getContext('2d');if(type==='jpeg'){x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height)}x.drawImage(i,0,0,c.width,c.height);res(c.toDataURL(type==='jpeg'?'image/jpeg':'image/png',.92))}catch(e){res(null)}};i.onerror=function(){res(null)};i.src=src})}
   function dmy(d){try{return new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'})}catch(e){return ''}}
   function clean(s){return String(s==null?'':s).replace(/[^\x20-\x7E -ÿ]/g,'').trim()}
+  var TERMS=[
+    ['Orders and preparation','The restaurant will respond to new orders promptly, set realistic preparation times and have orders ready on time. Repeated lateness may attract penalties.'],
+    ['Availability','The restaurant will keep item availability up to date. Cancelling a confirmed order because an item is out of stock may attract a penalty.'],
+    ['Prices and commission','Menu prices are managed by The Velos Group in agreement with the restaurant. Velos deducts the commission shown above from completed orders, or, where the restaurant chose the +10% price option, no commission is deducted and the listed prices include it.'],
+    ['Payouts','Earnings are paid to the restaurant on a regular schedule, currently weekly, to the payout account registered with Velos.'],
+    ['Registration fee','The one-time registration fee is non-refundable once the restaurant has been approved.'],
+    ['Food quality and safety','The restaurant will follow food hygiene standards, hold any licences required by law and prepare orders exactly as listed, correctly packed and sealed.'],
+    ['Handover to the rider','When the restaurant marks an order ready for pick-up or delivery, it hands the order to the Velos rider correct, complete and properly packed. From that moment the order is between Velos, the rider and the customer. The restaurant is not responsible for the journey, the delivery time, the customer or anything that happens on the way, and does not need to follow the order after handover.'],
+    ['Riders and care of orders','Velos riders are responsible for every order they carry from pick-up until the customer receives it, and must handle it with care. Any loss, damage or complaint after handover is handled by Velos with the rider and the customer. The restaurant remains responsible for the quality, completeness and safety of the food at the moment of handover.'],
+    ['Customer information','Customer details are used only to fulfil and support the order and must not be shared or used for any other purpose.'],
+    ['Customers introduced by Velos','Customers who order through Velos remain Velos customers. The restaurant will not ask them to order outside Velos or pay a personal number, and will not use Velos riders or customers to avoid the commission or prices agreed with Velos.'],
+    ['Suspension','Velos may switch off or suspend a restaurant that breaches these terms or that receives repeated serious customer complaints.'],
+    ['General','This agreement is governed by the laws of Uganda and is read together with the Velos Terms of Service published on the Velos website.']];
   async function build(d,o){
     o=o||{};var CO=o.co||DEF_CO;await lib();
     var logo=await img('logo-doc.png','jpeg',256),sig=await img('signature.png','png');
@@ -23,28 +36,20 @@
     var rows=[['Restaurant name',name],['Owner / authorised person',owner],['Phone / WhatsApp',clean(d.phone)],['Email',clean(d.email)],['Location',clean(d.address)],['Map position',(d.lat!=null&&d.lng!=null)?(Number(d.lat).toFixed(5)+', '+Number(d.lng).toFixed(5)):''],['Approval number',no],['Approval date',d.approved_at?dmy(d.approved_at):dmy(new Date())],['Velos commission',d.commission_pct!=null?d.commission_pct+'% of completed order value':'']].filter(function(r){return r[1]});
     rows.forEach(function(r,i){var ls=doc.splitTextToSize(r[1],118),h=Math.max(7.5,ls.length*4.6+3.4);if(i%2===0){doc.setFillColor(LT[0],LT[1],LT[2]);doc.rect(15,y,180,h,'F')}doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(GR[0],GR[1],GR[2]);doc.text(r[0],18,y+5);doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(TX[0],TX[1],TX[2]);ls.forEach(function(l,k){doc.text(l,72,y+5+k*4.6)});y+=h});
     y+=7;doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(GR[0],GR[1],GR[2]);doc.text('TERMS OF PARTNERSHIP',15,y);y+=5;
-    var T=['Orders and preparation. The restaurant will respond to new orders promptly, set realistic preparation times and have orders ready on time. Repeated lateness may attract penalties.',
-      'Availability. The restaurant will keep item availability up to date. Cancelling a confirmed order because an item is out of stock may attract a penalty.',
-      'Prices and commission. Menu prices are managed by The Velos Group in agreement with the restaurant. Velos deducts the commission shown above from completed orders.',
-      'Payouts. Earnings are paid to the restaurant on a regular schedule, currently weekly, to the payout account registered with Velos.',
-      'Registration fee. The one-time registration fee is non-refundable once the restaurant has been approved.',
-      'Food quality and safety. The restaurant will follow food hygiene standards, hold any licences required by law and prepare orders exactly as listed.',
-      'Customer information. Customer details are used only to fulfil and support the order and must not be shared or used for any other purpose.',
-      'Suspension. Velos may switch off or suspend a restaurant that breaches these terms or that receives repeated serious customer complaints.',
-      'General. This agreement is governed by the laws of Uganda and is read together with the Velos Terms of Service published on the Velos website.'];
+    var T=TERMS.map(function(t){return t[0]+'. '+t[1]});
     doc.setFontSize(9);T.forEach(function(t,i){var ls=doc.splitTextToSize((i+1)+'. '+t,180);if(y+ls.length*4.4>268){foot(page);doc.addPage();page++;y=22}doc.setFont('helvetica','normal');doc.setTextColor(TX[0],TX[1],TX[2]);ls.forEach(function(l){doc.text(l,15,y);y+=4.4});y+=1.6});
     y+=4;if(y>225){foot(page);doc.addPage();page++;y=30}
-    doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(GR[0],GR[1],GR[2]);doc.splitTextToSize('By signing below, the restaurant representative confirms that the details above are correct and agrees to these terms. Please sign, and send a signed copy to The Velos Group on WhatsApp or email.',180).forEach(function(l){doc.text(l,15,y);y+=4.2});
+    doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(GR[0],GR[1],GR[2]);doc.splitTextToSize(o.partnerSig?'By signing below, the restaurant representative confirmed online that the details above are correct and agreed to these terms. This signed copy is saved with The Velos Group.':'By signing below, the restaurant representative confirms that the details above are correct and agrees to these terms. Please sign, and send a signed copy to The Velos Group on WhatsApp or email.',180).forEach(function(l){doc.text(l,15,y);y+=4.2});
     var sy=y+30;if(sy>262){foot(page);doc.addPage();page++;sy=60}
     if(sig){try{doc.addImage(sig,'PNG',20,sy-25,36,24.2)}catch(e){}}
     try{if(W.VelosStamp)await W.VelosStamp.place(doc,60,sy-33,32,{label:'OFFICIAL'})}catch(e){}
     doc.setDrawColor(GR[0],GR[1],GR[2]);doc.setLineWidth(.3);doc.line(15,sy,75,sy);doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(TX[0],TX[1],TX[2]);doc.text(CO.name,15,sy+4.5);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(GR[0],GR[1],GR[2]);doc.text('Authorised signature',15,sy+8.8);doc.text('Date: '+(d.approved_at?dmy(d.approved_at):dmy(new Date())),15,sy+13.5);
-    doc.line(135,sy,195,sy);doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(TX[0],TX[1],TX[2]);doc.text(owner+' ('+name+')',135,sy+4.5);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(GR[0],GR[1],GR[2]);doc.text('Restaurant representative signature',135,sy+8.8);doc.text('Date: ........ / ........ / ............',135,sy+13.5);
+    if(o.partnerSig){try{doc.addImage(o.partnerSig,'PNG',137,sy-24,52,22)}catch(e){}}doc.line(135,sy,195,sy);doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(TX[0],TX[1],TX[2]);doc.text((o.signedName||owner)+' ('+name+')',135,sy+4.5);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(GR[0],GR[1],GR[2]);doc.text('Restaurant representative signature',135,sy+8.8);doc.text(o.partnerSig?('Signed online: '+dmy(o.signedAt||new Date())):'Date: ........ / ........ / ............',135,sy+13.5);
     foot(page);
     var fname=('Velos-Partner-Approval-'+no+'-'+name).replace(/[^\w-]+/g,'-').replace(/-+/g,'-')+'.pdf',file=new File([doc.output('blob')],fname,{type:'application/pdf'});
     return {doc:doc,no:no,file:file,name:fname};
   }
   function save(r){var u=URL.createObjectURL(r.file),a=document.createElement('a');a.href=u;a.download=r.name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},4000)}
   async function share(r){try{if(navigator.canShare&&navigator.canShare({files:[r.file]})){await navigator.share({files:[r.file],title:r.name,text:'Velos Foods Partner Approval '+r.no});return true}save(r);return false}catch(e){if(e.name!=='AbortError')throw e;return true}}
-  W.VelosApproval={build:build,save:save,share:share};
+  W.VelosApproval={build:build,save:save,share:share,terms:TERMS};
 })(window);

@@ -5,7 +5,7 @@
 .steps{display:flex;flex-direction:column;gap:8px}.st{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:12px}.st i{font-style:normal;font-size:20px}.st.done{border-color:var(--ok)}
 .ed{border:1px solid var(--gold);border-radius:12px;padding:12px;margin:10px 0;background:rgba(232,199,102,.05)}.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}select,textarea{width:100%;padding:12px;margin:5px 0;background:var(--bg,#080d1f);color:var(--txt);border:1px solid var(--line);border-radius:8px;font:inherit}label.m{display:block;margin-top:6px}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-pricing-choice.js?v=64"></script><script src="velos-payterms-choice.js?v=65"></script><script src="velos-guard-config.js"></script><script src="velos-guard.js?v=58"></script><script src="velos-ui.js"></script><script src="velos-stamp.js"></script><script src="velos-receipts.js"></script><script src="velos-myreceipts.js"></script><script src="velos-safe.js"></script><script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script><script src="velos-txid.js"></script><script src="velos-letterhead.js?v=70"></script><script src="velos-stays.js"></script><script src="vendor-hotel.js"></script><script src="velos-vendor-cats.js"></script><script src="velos-shell.js"></script><script src="velos-location.js"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-pricing-choice.js?v=64"></script><script src="velos-payterms-choice.js?v=65"></script><script src="velos-guard-config.js"></script><script src="velos-guard.js?v=58"></script><script src="velos-ui.js"></script><script src="velos-stamp.js"></script><script src="velos-receipts.js"></script><script src="velos-myreceipts.js"></script><script src="velos-safe.js"></script><script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script><script src="velos-txid.js"></script><script src="velos-letterhead.js?v=70"></script><script src="velos-signflow.js?v=71"></script><script src="velos-stays.js"></script><script src="vendor-hotel.js"></script><script src="velos-vendor-cats.js"></script><script src="velos-shell.js"></script><script src="velos-location.js"></script></head>
 <body><div class="w" style="max-width:900px"><div id="v"><p class="m">Loading…</p></div></div><div id="toast" hidden></div>
 <script>
 var S = window.VELOS_SUPABASE, db = supabase.createClient(S.url, S.key), $ = function(i){ return document.getElementById(i); }, V = function(h){ $('v').innerHTML = h; };
@@ -82,7 +82,7 @@ function onboarding(){
     + '<div class="st"><i>3️⃣</i><div><b>Velos uploads your first products</b><div class="m">Send your product list, prices and photos to Velos. After that you manage everything yourself.</div></div></div></div>';
   h += '<div class="c"><h2>Upload your business documents</h2><p class="m">Velos verifies every store. Registered businesses upload their trading licence and TIN. Small businesses without a licence use a letter from the owner\'s LC1 chairperson. Your documents are private.</p><a class="b" href="apply.html?kind=vendor" style="display:inline-block;text-decoration:none">Open my documents checklist</a></div>';
   if(!feeDone && !feeSent) h += '<div class="c"><h2>Pay the registration fee</h2><div>MTN: <b>' + esc(ST.site_pay_mtn_number || '') + '</b> · ' + esc(ST.site_pay_mtn_name || '') + '</div><div>Airtel: <b>' + esc(ST.site_pay_airtel_number || '') + '</b> · ' + esc(ST.site_pay_airtel_name || '') + '</div><select id="fm"><option value="mtn">Paid with MTN</option><option value="airtel">Paid with Airtel</option></select><input id="fr" placeholder="Transaction ID *"><input id="fq" type="tel" placeholder="Phone you paid from *" value="' + esc(ME.phone) + '"><button class="full" onclick="feeSend()">I have paid. Submit</button><p id="fe" class="m"></p></div>';
-  if(!signed) h += '<div class="c"><h2>Partner agreement</h2><p class="m">Already signed by Velos. Print, sign and stamp it, then take a clear photo or scan and upload it here.</p><button onclick="agreementPdf()">📄 Download agreement (PDF)</button><input type="file" id="af" accept="image/*,application/pdf" style="margin-top:10px"><button class="full" onclick="agreementUp()">Upload signed copy</button><p id="ae" class="m"></p></div>';
+  if(!signed) h += '<div class="c"><h2>Partner agreement</h2><p class="m">Read and sign your partner agreement on your phone. It is created only after you sign, it downloads straight away, and Velos receives a signed copy automatically.</p><button class="full" onclick="agreementPdf()">✍️ Sign and download agreement</button><p id="ae" class="m"></p></div>';
   V(h + '<button class="g" onclick="out()">Sign out</button>');
 }
 async function feeSend(){ var te = VelosTx.check($('fr').value); if(te){ $('fe').className = 'm bad'; $('fe').textContent = te; return; } var r = await db.rpc('partner_fee_submit', {p_phone:$('fq').value.trim(), p_method:$('fm').value, p_ref:$('fr').value.trim()}); if(r.error){ $('fe').className = 'm bad'; $('fe').textContent = r.error.message; } else { toast('Received ✓'); boot(); } }
@@ -93,17 +93,17 @@ async function agreementUp(){
   var r = await db.rpc('partner_agreement_uploaded', {p_path:path}); if(r.error){ $('ae').textContent = r.error.message; return; } toast('Signed agreement received ✓'); boot();
 }
 function toData(url){ return fetch(url).then(function(r){ return r.blob(); }).then(function(b){ return new Promise(function(ok){ var fr = new FileReader(); fr.onload = function(){ ok(fr.result); }; fr.readAsDataURL(b); }); }); }
-async function agreementPdf(){
-  try{
-    toast('Preparing your agreement…'); var J = window.jspdf.jsPDF, doc = new J({unit:'mm', format:'a4'}), W = 210, M = 18, y = 0, pg = 1, NAVY = [8,13,31], GOLD = [201,162,39], TX = [30,36,56], GR = [110,118,140];
+async function agreementBuild(sp){
+  {
+    var COL = []; var J = window.jspdf.jsPDF, doc = new J({unit:'mm', format:'a4'}), W = 210, M = 18, y = 0, pg = 1, NAVY = [8,13,31], GOLD = [201,162,39], TX = [30,36,56], GR = [110,118,140];
     var sig = null, logo = null; try{ sig = await toData('signature.png'); } catch(e){} try{ logo = await toData('logo-mark.png'); } catch(e){}
     var rr = +ST.partner_comm_retail || 8, rw = +ST.partner_comm_wholesale || 4, rh = +ST.partner_comm_hotel || 10, mf = +ST.partner_monthly_fee || 5000, rf = +ST.partner_reg_fee || 75000, rate = ME.commission_pct != null ? ME.commission_pct : null;
     await VelosLH.load();
     function foot(){}
     function head(){ y = VelosLH.first(doc); }
     function np(){ doc.addPage(); pg++; y = VelosLH.next(doc); }
-    function h2(t){ if(y > 255) np(); doc.setFont('times', 'bold'); doc.setFontSize(12.5); doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]); doc.text(t, M, y); doc.setDrawColor(GOLD[0], GOLD[1], GOLD[2]); doc.setLineWidth(.5); doc.line(M, y + 1.6, M + 24, y + 1.6); y += 7; }
-    function p(t){ doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(TX[0], TX[1], TX[2]); var L = doc.splitTextToSize(t, W - 2 * M); L.forEach(function(l){ if(y > 273) np(); doc.text(l, M, y); y += 5; }); y += 2; }
+    function h2(t){ COL.push([t, '']); if(y > 255) np(); doc.setFont('times', 'bold'); doc.setFontSize(12.5); doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]); doc.text(t, M, y); doc.setDrawColor(GOLD[0], GOLD[1], GOLD[2]); doc.setLineWidth(.5); doc.line(M, y + 1.6, M + 24, y + 1.6); y += 7; }
+    function p(t){ if(COL.length) COL[COL.length - 1][1] += (COL[COL.length - 1][1] ? ' ' : '') + t; doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(TX[0], TX[1], TX[2]); var L = doc.splitTextToSize(t, W - 2 * M); L.forEach(function(l){ if(y > 273) np(); doc.text(l, M, y); y += 5; }); y += 2; }
     head(); doc.setFont('times', 'bold'); doc.setFontSize(22); doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]); doc.text('Partner Agreement', M, y); y += 8; doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(GR[0], GR[1], GR[2]); doc.text('Agreement no. ' + ME.agreement_no + ' · Issued ' + new Date().toLocaleDateString('en-GB', {day:'numeric', month:'long', year:'numeric'}), M, y); y += 10;
     h2('Parties'); p('This agreement is between The Velos Group ("Velos"), Uganda, and ' + ME.business_name + ' ("the Partner"), owned by ' + ME.owner_name + ', TIN ' + ME.tin + ', operating in ' + (ME.city || '') + ', ' + ME.country + '. It covers the Partner\'s store on the Velos website and apps, category: ' + vcat(ME.category).l + '.');
     h2('1. What Velos provides'); p('A store page on thevelosgroup.com with search visibility, marketing and promotion, order handling, customer payment collection, rider pick-up and delivery, and a dashboard where the Partner manages products, prices and availability and sees sales.');
@@ -111,17 +111,35 @@ async function agreementPdf(){
     h2('3. Commission'); p(rate != null ? ('Velos earns a commission of ' + rate + '% on the value of each completed order, as agreed for this Partner.') : ('Velos earns a commission on the value of each completed order: ' + rr + '% on retail sales, ' + rw + '% on wholesale (bulk) sales, and ' + rh + '% on hotel room and venue bookings. Rates apply to the goods or booking value and may be adjusted by Velos with written notice.'));
     h2('4. Orders and payment'); p('Customers pay Velos. Velos confirms the payment, tells the Partner to prepare the order, collects and delivers it by a Velos rider, and pays the Partner the order value minus commission, in Uganda shillings, to the payout account the Partner has registered. Advance payment rules apply to customers: full payment for orders under UGX 100,000, a deposit for larger orders, and a 70% deposit on wholesale orders.');
     h2('5. Products, prices and stock'); p('Velos uploads the Partner\'s first catalogue from the list and photos the Partner supplies. After that the Partner manages the catalogue and is responsible for accurate names, prices, photos and stock. The Partner will mark items unavailable when out of stock and will honour every confirmed order at the listed price.');
-    h2('6. Hand-over and proof'); p('A Velos rider collects each order from the Partner\'s premises and photographs it at pick-up. The Partner will have orders packed and ready, genuine, undamaged and as described.');
+    h2('6. Hand-over and proof'); p('A Velos rider collects each order from the Partner\'s premises and photographs it at pick-up. The Partner will have orders packed and ready, genuine, undamaged and as described. Once the order is handed to the Velos rider, the journey and delivery are between Velos, the rider and the customer: the Partner does not need to follow the order after hand-over, and the rider is responsible for the goods in transit.');
     h2('7. Quality, returns and disputes'); p('The Partner will sell only genuine, legal goods and services. Faulty, wrong or undelivered items are resolved by Velos with the Partner; the Partner bears the cost of items that are not as described.');
     h2('8. Conduct and suspension'); p('Velos may suspend or end a store that sells counterfeit or prohibited goods, misleads customers, or breaches this agreement. The Partner will not take customers or payments outside Velos for orders that originate on Velos.');
     h2('9. Data and privacy'); p('Each party will protect customer information and use it only to fulfil orders. Velos keeps the signed copy of this agreement and the Partner\'s business records on file.');
     h2('10. Term and law'); p('This agreement runs until either party ends it with 30 days\' written notice, or earlier under clause 8. It is governed by the laws of Uganda.');
+    if(sp.collect) return COL;
     if(y > 190) np(); y += 8; doc.setDrawColor(GR[0], GR[1], GR[2]); doc.setLineWidth(.3);
+    if(sp.sig){ try{ doc.addImage(sp.sig, 'PNG', W - M - 66, y + 1, 60, 24); }catch(e){} }
     if(sig){ try{ doc.addImage(sig, 'PNG', M, y, 38, 25); }catch(e){} } try{ if(window.VelosStamp) await VelosStamp.place(doc, M + 40, y - 4, 32, {label:'OFFICIAL'}); }catch(e){} doc.line(M, y + 27, M + 70, y + 27); doc.line(W - M - 70, y + 27, W - M, y + 27);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(TX[0], TX[1], TX[2]); doc.text('For The Velos Group', M, y + 32); doc.text('For ' + ME.business_name, W - M - 70, y + 32);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(GR[0], GR[1], GR[2]); doc.text('Authorised signatory (pre-signed)', M, y + 36.5); doc.text('Name, signature, stamp and date', W - M - 70, y + 36.5);
-    VelosLH.finish(doc, 'Agreement ' + ME.agreement_no); doc.save('Velos-Partner-Agreement-' + ME.agreement_no + '.pdf'); toast('Agreement downloaded ✓');
-  } catch(e){ toast(e.message || 'Could not prepare the agreement', true); }
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(GR[0], GR[1], GR[2]); doc.text('Authorised signatory (pre-signed)', M, y + 36.5); doc.text(sp.sig ? ((sp.name || '') + ' · signed online ' + new Date().toLocaleDateString('en-GB', {day:'numeric', month:'long', year:'numeric'})) : 'Name, signature, stamp and date', W - M - 70, y + 36.5);
+    VelosLH.finish(doc, 'Agreement ' + ME.agreement_no); return doc;
+  }
+}
+async function agreementPdf(){
+  try{
+    if(ME.agreement_signed_path){
+      var u = await db.storage.from('partner-docs').createSignedUrl(ME.agreement_signed_path, 120); if(u.error) throw new Error('Your signed copy is saved with Velos. Contact Velos support if you need another copy.');
+      var a = document.createElement('a'); a.href = u.data.signedUrl; a.download = 'Velos-Signed-Agreement-' + ME.agreement_no + '.pdf'; document.body.appendChild(a); a.click(); a.remove(); return;
+    }
+    var terms = await agreementBuild({collect:true});
+    var s = await VelosSign.ask({title:'Sign your Velos partner agreement', subtitle:'Read the terms, then sign with your finger. Your signed agreement downloads after you sign and is saved with Velos.', business:ME.business_name, name:ME.owner_name, terms:terms.map(function(t){ return [t[0].replace(/^\d+\.\s*/, ''), t[1]]; }), note:'Your agreement is created only after you sign.'});
+    toast('Creating your signed agreement…');
+    var doc = await agreementBuild({sig:s.sig, name:s.name}), blob = doc.output('blob'), uid = (await db.auth.getUser()).data.user.id, path = uid + '/agreement-signed-' + Date.now() + '.pdf';
+    var up = await db.storage.from('partner-docs').upload(path, blob, {contentType:'application/pdf'}); if(up.error) throw up.error;
+    var r = await db.rpc('partner_agreement_uploaded', {p_path:path}); if(r.error) throw r.error;
+    try{ await db.rpc('sign_agreement_save', {p_kind:'partner', p_path:path, p_name:s.name, p_ref:String(ME.agreement_no || ''), p_business:ME.business_name}); }catch(e){}
+    doc.save('Velos-Partner-Agreement-' + ME.agreement_no + '-signed.pdf'); toast('Signed and saved with Velos ✓'); boot();
+  } catch(e){ if(e && e.message !== 'cancelled') toast((e && e.message) || 'Could not prepare the agreement', true); }
 }
 
 /* ---------- dashboard ---------- */
@@ -259,7 +277,7 @@ function storeTab(){
     + '<div class="c"><b>Payout details</b><select id="spm"><option value="mtn"' + (ME.payout_method === 'mtn' ? ' selected' : '') + '>MTN Mobile Money</option><option value="airtel"' + (ME.payout_method === 'airtel' ? ' selected' : '') + '>Airtel Money</option><option value="bank"' + (ME.payout_method === 'bank' ? ' selected' : '') + '>Bank account</option></select><input id="spb" placeholder="Bank name" value="' + esc(ME.payout_bank) + '"><input id="spa" placeholder="Account / wallet number" value="' + esc(ME.payout_account) + '"><input id="spn" placeholder="Name on the account" value="' + esc(ME.payout_name) + '"><p class="m">TIN: ' + esc(ME.tin) + '. To change your TIN, contact Velos.</p></div>'
     + (ME.kind === 'goods' ? '<div class="c"><b>Delivery</b><p class="m">Change who delivers your orders at any time.</p>' + delHtml(ME) + '<button class="full" onclick="saveDelivery()">Save delivery choices</button><p id="d_er" class="m bad"></p></div>' : '')
     + '<div id="locCard"></div>'
-    + '<div class="c"><b>Fees and receipts</b><div id="myrc"></div></div><button class="full" onclick="saveStore()">Save changes</button><p id="se" class="m"></p><div class="c"><b>Partner agreement</b><p class="m">Agreement ' + esc(ME.agreement_no) + (ME.agreement_signed_path ? ' · signed copy on file' : '') + '</p><button class="g" onclick="agreementPdf()">📄 Download my agreement</button></div>';
+    + '<div class="c"><b>Fees and receipts</b><div id="myrc"></div></div><button class="full" onclick="saveStore()">Save changes</button><p id="se" class="m"></p><div class="c"><b>Partner agreement</b><p class="m">Agreement ' + esc(ME.agreement_no) + (ME.agreement_signed_path ? ' · signed copy on file' : '') + '</p><button class="g" onclick="agreementPdf()">' + (ME.agreement_signed_path ? '📄 Download my signed agreement' : '✍️ Sign and download my agreement') + '</button></div>';
   if($('d_m')) delChange();
   try{ VelosMyReceipts.mount(db, 'myrc'); }catch(e){}
   try{ VelosLoc.card('locCard', {title:'Exact store location', get:async function(){ var r = await db.rpc('partner_get_location'); return r.data; }, save:async function(a, b, t){ var r = await db.rpc('partner_set_location', {p_lat:a, p_lng:b, p_text:t}); if(r.error) throw r.error; }}); }catch(e){}
