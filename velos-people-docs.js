@@ -240,6 +240,30 @@
       } catch (e) { W.toast && W.toast(e.message || String(e), true); }
     });
   }
+  function needSign() { return new Promise(function (ok, bad) { if (W.VelosSign) return ok(); var s = document.createElement('script'); s.src = 'velos-signflow.js?v=71'; s.onload = function () { W.VelosSign ? ok() : bad(Error('Signing window could not load')); }; s.onerror = function () { bad(Error('Signing window could not load. Check your internet and try again.')); }; document.head.appendChild(s); }); }
+  function getFile(blob, name) { try { return new File([blob], name, { type: 'application/pdf' }); } catch (e) { blob.name = name; return blob; } }
+  /* read, sign, then the document is created, saved with Velos and downloaded. No unsigned copy is ever created. */
+  async function signFlow() {
+    var kind = ME && ME.kind; if (!kind) return;
+    try {
+      await needSign(); await lib();
+      var s = await W.VelosSign.ask({ title: 'Sign your Velos ' + (ROLE[kind] || '') + ' agreement', subtitle: 'Read every clause, then sign with your finger. Your signed agreement downloads after you sign and Velos keeps a copy.', name: (ME.p && ME.p.name) || '', business: (ME.p && ME.p.name) || '', terms: CLAUSES[kind], note: 'Your agreement is created only after you sign.' });
+      W.toast && W.toast('Creating your signed agreement…');
+      var r = await agreement(kind, Object.assign({}, ME.p, { holderSig: s.sig, name: s.name }));
+      await sendFile(kind, 'signed', r.file);
+      try { var uid = (await DB().auth.getUser()).data.user.id, path = uid + '/' + kind + '-' + Date.now() + '.pdf', up = await DB().storage.from('signed-agreements').upload(path, r.file, { contentType: 'application/pdf' }); if (!up.error) await DB().rpc('sign_agreement_save', { p_kind: kind, p_path: path, p_name: s.name, p_ref: r.no || '', p_business: s.name }); } catch (e) {}
+      try { await share(r); } catch (e) { save(r); }
+      W.toast && W.toast('Signed and saved with Velos ✓'); fill();
+    } catch (e) { if (e && e.message !== 'cancelled') W.toast && W.toast(e.message || String(e), true); }
+  }
+  async function downloadSigned() {
+    try {
+      var k = ME && ME.kind, q = await DB().rpc('my_signed_agreement', { p_kind: k }), row = q.data && q.data[0];
+      if (!row) return signFlow();
+      var u = await DB().storage.from('signed-agreements').createSignedUrl(row.path, 120); if (u.error) throw u.error;
+      var a = document.createElement('a'); a.href = u.data.signedUrl; a.download = 'Velos-Signed-Agreement.pdf'; document.body.appendChild(a); a.click(); a.remove();
+    } catch (e) { W.toast && W.toast(e.message || String(e), true); }
+  }
   function ok(t) { return '<span style="color:#7ee2a8">✓ ' + t + '</span>'; }
   function dt(x) { try { return new Date(x).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch (e) { return ''; } }
   async function fill() {
@@ -251,15 +275,13 @@
     var h = '';
     if (!ME.active) {
       h = '<h2>Complete your application</h2>' +
-        '<div class="c"><p><b>Step 1 · Download your agreement.</b> Velos has already signed it. Read it carefully and sign it by hand.</p><button class="full" onclick="VelosPeople.mine(\'agreement\')">📄 Download my agreement</button></div>' +
-        '<div class="c"><p><b>Step 2 · Send the signed copy back.</b> Take a clear photo or scan of every signed page and upload it here (photo or PDF).</p>' +
-        (d.signed_at ? '<p>' + ok('Signed agreement received on ' + dt(d.signed_at)) + '. Velos is reviewing your application. You can upload again to replace it.</p>' : '<p class="m">Your account stays <b>pending</b> until this is received.</p>') +
-        '<button class="full" onclick="VelosPeople.draw(\'signed\')">✍️ Sign on screen (fastest)</button><p class="m" style="text-align:center">or upload your signed paper copy</p><input id="vpd-s" type="file" accept="image/*,application/pdf" style="' + inp + '"><button class="full" onclick="VelosPeople.up(\'signed\',\'vpd-s\')">⬆️ Upload signed agreement</button></div>' +
-        '<div class="c"><p><b>Step 3 · After approval.</b> You will upload your passport-size photo and your signature here, and Velos will prepare your ID card.</p></div>';
+        '<div class="c"><p><b>Step 1 · Read and sign your agreement.</b> It opens in a protected window. When you sign with your finger, your signed agreement is created, downloaded to your phone, and saved with Velos automatically.</p>' +
+        (d.signed_at ? '<p>' + ok('Signed on ' + dt(d.signed_at)) + '. Velos is reviewing your application.</p><button class="full" onclick="VelosPeople.dl()">📄 Download my signed agreement</button>' : '<p class="m">Your account stays <b>pending</b> until you sign.</p><button class="full" onclick="VelosPeople.sign()">✍️ Read and sign my agreement</button>') + '</div>' +
+        '<div class="c"><p><b>Step 2 · After approval.</b> You will upload your passport-size photo and your signature here, and Velos will prepare your ID card.</p></div>';
     } else {
       var done = d.photo_at && d.sig_at;
       h = '<h2>Documents</h2>' +
-        '<div class="c"><p><b>Your agreement.</b> Velos has already signed it. You can open your copy at any time.</p><button class="full" onclick="VelosPeople.mine(\'agreement\')">📄 Open my agreement</button></div>' +
+        '<div class="c"><p><b>Your agreement.</b> ' + (d.signed_at ? ok('Signed on ' + dt(d.signed_at)) + ' Download your signed copy at any time.' : 'You have not signed yet. Please read and sign it.') + '</p><button class="full" onclick="VelosPeople.' + (d.signed_at ? 'dl' : 'sign') + '()">' + (d.signed_at ? '📄 Download my signed agreement' : '✍️ Read and sign my agreement') + '</button></div>' +
         '<div class="c"><p><b>Your ID card.</b> ' + (d.issued_at ? ok('Issued on ' + dt(d.issued_at)) + ' Show it on every job. This is your digital copy; Velos prints the physical card.' : done ? 'Photo and signature received ✓. Velos is preparing your card. It will appear here once issued.' : 'To get your card, upload the two items below.') + '</p>' +
         (d.issued_at ? '<button class="full" onclick="VelosPeople.mine(\'card\')">🪪 Open my ID card</button>' : '') + '</div>' +
         '<div class="c"><p><b>Passport-size photo.</b> Plain light background, face clearly visible, no hat or sunglasses. ' + (d.photo_at ? ok('Received') : '') + '</p><input id="vpd-p" type="file" accept="image/*" style="' + inp + '"><button class="full" onclick="VelosPeople.up(\'photo\',\'vpd-p\')">⬆️ Upload photo</button></div>' +
@@ -280,7 +302,7 @@
     try {
       if (!ME) return; var p = ME.p;
       if (what === 'card') { var me = await DB().rpc('people_docs_me', { p_kind: ME.kind }); if (!me.data || !me.data.issued_at) throw Error('Your card has not been issued yet.'); var tok = await pull(ME.kind, me.data.person_id); p = Object.assign({}, p, tok); }
-      var r = what === 'card' ? await idCard(ME.kind, p) : await agreement(ME.kind, p); if (W.toast) W.toast('Ready'); try { await share(r); } catch (e) { save(r); }
+      if (what !== 'card') return downloadSigned(); var r = await idCard(ME.kind, p); if (W.toast) W.toast('Ready'); try { await share(r); } catch (e) { save(r); }
     } catch (e) { if (W.toast) W.toast(e.message || String(e), true); }
   }
   /* staff: fetch the stored photo and signature as images for the card */
@@ -293,5 +315,5 @@
   }
   async function signedUrl(kind, id) { var r = await DB().rpc('admin_people_docs', { p_kind: kind }); var row = ((r.data || []).filter(function (x) { return String(x.person_id) === String(id); }))[0]; if (!row || !row.signed_path) throw Error('No signed agreement uploaded yet'); var u = await DB().storage.from(BUCKET).createSignedUrl(row.signed_path, 600); if (u.error) throw u.error; return u.data.signedUrl; }
 
-  W.VelosPeople = { retry: function () { fill(); }, panel: panel, mine: mine, draw: draw, ink: ink, pad: pad, signedUrl2: null, up: function (f, id) { return upload(ME && ME.kind, f, id); }, pull: pull, signedUrl: signedUrl, agreement: agreement, idCard: idCard, save: save, share: share, photo: photo };
+  W.VelosPeople = { sign: signFlow, dl: downloadSigned, retry: function () { fill(); }, panel: panel, mine: mine, draw: draw, ink: ink, pad: pad, signedUrl2: null, up: function (f, id) { return upload(ME && ME.kind, f, id); }, pull: pull, signedUrl: signedUrl, agreement: agreement, idCard: idCard, save: save, share: share, photo: photo };
 })(window);
