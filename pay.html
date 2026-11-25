@@ -32,7 +32,8 @@ function draw(){
      +'<div class="c"><b>MTN Mobile Money</b><br><span class="gold" style="font-size:20px">'+esc(ST.pay_mtn_number||'—')+'</span><br><span class="m">Name: '+esc(ST.pay_mtn_name||'')+'</span></div>'
      +'<div class="c"><b>Airtel Money</b><br><span class="gold" style="font-size:20px">'+esc(ST.pay_airtel_number||'—')+'</span><br><span class="m">Name: '+esc(ST.pay_airtel_name||'')+'</span></div>'
      +'<div class="m">Check that the name matches before you send. We never ask for your PIN.</div></div>'
-     +'<div class="c"><b>3. Tell us you have paid</b><select id="pm"><option value="mtn">I paid by MTN Mobile Money</option><option value="airtel">I paid by Airtel Money</option></select>'
+     +(ST.card_link&&/^https:\/\//.test(ST.card_link)?'<div class="c"><b>Or pay by card (Visa / Mastercard)</b><p class="m">Open our secure card page, pay <b class="gold">UGX '+Math.round(cur[1]).toLocaleString('en-US')+'</b>, and use <b>Order #'+o.order_no+'</b> as the reference. Then come back here, choose “I paid by card” below and enter the card payment reference.</p><a class="b full" href="'+esc(ST.card_link)+'" target="_blank" rel="noopener">💳 Pay by card</a></div>':'')
+     +'<div class="c"><b>3. Tell us you have paid</b><select id="pm"><option value="mtn">I paid by MTN Mobile Money</option><option value="airtel">I paid by Airtel Money</option>'+(ST.card_link?'<option value="card">I paid by card</option>':'')+'</select>'
      +'<input id="tx" placeholder="Transaction ID from the payment message *"><input id="pp" type="tel" placeholder="Phone number you paid from"><input id="am" type="number" value="'+Math.round(cur[1])+'" min="1000" max="'+Math.round(bal)+'"><div class="m">Amount in UGX</div>'
      +'<button class="full" id="sb" onclick="submitPay()">I have paid: submit for verification</button><div id="er" class="m bad"></div></div>';
   }
@@ -46,9 +47,9 @@ function draw(){
 }
 function submitPay(){
   var tx=$('tx').value.trim(),am=parseInt($('am').value,10);$('er').textContent='';
-  var te=VelosTx.check(tx);if(te){$('er').textContent=te;return}
+  var isCard=$('pm').value==='card';var te=isCard?(tx.length<5?'Enter the card payment reference from your receipt.':''):VelosTx.check(tx);if(te){$('er').textContent=te;return}
   var b=$('sb');b.disabled=true;b.textContent='Submitting…';
-  rpc('submit_payment',{p_kind:K,p_ref_no:NO,p_phone:PH,p_amount:am,p_method:$('pm').value,p_txn:tx,p_payer:$('pp').value.trim(),p_purpose:CHOICE}).then(function(){toast('Submitted. We are verifying your payment.');load()}).catch(function(e){b.disabled=false;b.textContent='I have paid: submit for verification';$('er').textContent=String(e.message).slice(0,200)});
+  var pa={p_kind:K,p_ref_no:NO,p_phone:PH,p_amount:am,p_method:$('pm').value,p_txn:tx,p_payer:$('pp').value.trim(),p_purpose:CHOICE};rpc('submit_payment',pa).catch(function(e){if(isCard){pa.p_method='mtn';pa.p_payer='CARD PAYMENT '+pa.p_payer;return rpc('submit_payment',pa)}throw e}).then(function(){toast('Submitted. We are verifying your payment.');load()}).catch(function(e){b.disabled=false;b.textContent='I have paid: submit for verification';$('er').textContent=String(e.message).slice(0,200)});
 }
 window.addEventListener('velos-currency',function(){if(O)draw()});
 </script></body></html>

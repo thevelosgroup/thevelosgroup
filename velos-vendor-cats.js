@@ -11,6 +11,7 @@ window.VCATS = [
   {k:'agriculture', l:'Farm produce & inputs', i:'🌾', kind:'goods', units:['kg','bag','litre','piece']},
   {k:'hotels', l:'Hotels & rooms', i:'🏨', kind:'hotel', units:['night','room','day']},
   {k:'venues', l:'Venues & event halls', i:'🏛️', kind:'venue', units:['day','event','hour']},
+  {k:'individual', l:'Individual seller (a few items)', i:'🙋', kind:'goods', units:['piece','set','pair','kg','bag','carton']},
   {k:'general', l:'Other', i:'🏪', kind:'goods', units:['piece','set','kg','carton']}
 ];
 window.vcat = function(k){ for(var i = 0; i < VCATS.length; i++) if(VCATS[i].k === k) return VCATS[i]; return VCATS[VCATS.length - 1]; };
