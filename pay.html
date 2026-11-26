@@ -28,9 +28,9 @@ function draw(){
     var cur=opts.filter(function(x){return x[0]===CHOICE})[0];
     h+='<div class="c"><b>1. Choose what to pay</b>'+opts.map(function(x){return '<label class="row c" style="cursor:pointer"><span><input type="radio" name="ch" value="'+x[0]+'" '+(x[0]===CHOICE?'checked':'')+' style="width:auto" onchange="CHOICE=this.value;draw()"> '+x[2]+'</span><b>'+U(x[1])+'</b></label>'}).join('')
      +(!waiting?'<div class="m">You can also pay on '+(o.fulfilment==='pickup'?'collection':'delivery')+'. This is optional.</div>':'')+'</div>'
-     +'<div class="c"><b>2. Send the money</b><p class="m">Send exactly <b class="gold">UGX '+Math.round(cur[1]).toLocaleString('en-US')+'</b> by mobile money to one of our official lines and use <b>Order #'+o.order_no+'</b> as the reference. Payments are made in Uganda Shillings.</p>'
-     +'<div class="c"><b>MTN Mobile Money</b><br><span class="gold" style="font-size:20px">'+esc(ST.pay_mtn_number||'—')+'</span><br><span class="m">Name: '+esc(ST.pay_mtn_name||'')+'</span></div>'
-     +'<div class="c"><b>Airtel Money</b><br><span class="gold" style="font-size:20px">'+esc(ST.pay_airtel_number||'—')+'</span><br><span class="m">Name: '+esc(ST.pay_airtel_name||'')+'</span></div>'
+     +'<div class="c"><b>2. Send the money</b><p class="m">Send exactly <b class="gold">UGX '+Math.round(cur[1]).toLocaleString('en-US')+'</b> by mobile money to one of our official accounts and use <b>Order #'+o.order_no+'</b> as the reference. Payments are made in Uganda Shillings.</p>'
+     +momoCard('MTN Mobile Money','mtn-icon.png',ST.pay_mtn_number,ST.pay_mtn_name,'*165#')
+     +momoCard('Airtel Money','airtel-icon.png',ST.pay_airtel_number,ST.pay_airtel_name,'*185#')
      +'<div class="m">Check that the name matches before you send. We never ask for your PIN.</div></div>'
      +(ST.card_link&&/^https:\/\//.test(ST.card_link)?'<div class="c"><b>Or pay by card (Visa / Mastercard)</b><p class="m">Open our secure card page, pay <b class="gold">UGX '+Math.round(cur[1]).toLocaleString('en-US')+'</b>, and use <b>Order #'+o.order_no+'</b> as the reference. Then come back here, choose “I paid by card” below and enter the card payment reference.</p><a class="b full" href="'+esc(ST.card_link)+'" target="_blank" rel="noopener">💳 Pay by card</a></div>':'')
      +'<div class="c"><b>3. Tell us you have paid</b><select id="pm"><option value="mtn">I paid by MTN Mobile Money</option><option value="airtel">I paid by Airtel Money</option>'+(ST.card_link?'<option value="card">I paid by card</option>':'')+'</select>'
@@ -44,6 +44,14 @@ function draw(){
   if(rj.length)h+='<div class="c bad">A payment could not be verified. Please check the transaction ID and submit again.'+(rj[rj.length-1].note?'<br><span class="m">'+esc(rj[rj.length-1].note)+'</span>':'')+'</div>';
   h+='<p class="m"><a href="'+(K==='food'?'food-track.html':'track.html')+'?o='+o.order_no+'" style="color:#e8c766">Track this order</a> · Need help? Call or WhatsApp '+esc(ST.phone||ST.pay_airtel_number||'')+'</p>';
   var keep={tx:$('tx')&&$('tx').value,pp:$('pp')&&$('pp').value};$('v').innerHTML=h;if(keep.tx&&$('tx'))$('tx').value=keep.tx;if(keep.pp&&$('pp'))$('pp').value=keep.pp;
+}
+
+function momoCard(brand,icon,num,name,dial){
+  var m=/merchant/i.test(num||''),id=(String(num||'').match(/\d{4,}/)||[''])[0];
+  var head='<div style="display:flex;align-items:center;gap:12px"><img src="'+icon+'" alt="'+brand+'" width="44" height="44" style="border-radius:8px;flex:none;background:#fff"><b>'+brand+'</b></div>';
+  if(m&&id)return '<div class="c">'+head+'<div class="m" style="margin-top:8px">Merchant ID</div><span class="gold" style="font-size:26px;letter-spacing:2px">'+esc(id)+'</span><br><span class="m">Name: '+esc(name||'')+'</span>'
+    +'<ol class="m" style="margin:8px 0 0 18px;padding:0"><li>Dial <b>'+dial+'</b></li><li>Choose <b>Pay Merchant</b> / Merchant Payment</li><li>Enter Merchant ID <b>'+esc(id)+'</b> and the amount</li><li>Enter your PIN, then keep the confirmation message</li></ol></div>';
+  return '<div class="c">'+head+'<span class="gold" style="font-size:20px">'+esc(num||'—')+'</span><br><span class="m">Name: '+esc(name||'')+'</span></div>';
 }
 function submitPay(){
   var tx=$('tx').value.trim(),am=parseInt($('am').value,10);$('er').textContent='';
