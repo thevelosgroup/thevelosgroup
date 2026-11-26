@@ -12,7 +12,7 @@ button.g,a.g{background:none;border:1px solid var(--line);color:var(--txt)}.full
 .pill{font-size:12px;padding:2px 9px;border-radius:99px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse}td,th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}th{color:var(--mut)}
 .box{max-width:480px;margin:6vh auto}#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ok);color:#06210f;padding:10px 16px;border-radius:99px;font-weight:700}
 </style></head><body><div class="w"><div id="v"><p class="m">Loading…</p></div></div><div id="toast" hidden></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-guard-config.js"></script><script src="velos-guard.js?v=58"></script><script src="velos-stamp.js"></script><script src="velos-people-docs.js?v=72"></script><script src="velos-proof.js?v=58"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-login.js?v=74"></script><script src="velos-guard-config.js"></script><script src="velos-guard.js?v=58"></script><script src="velos-stamp.js"></script><script src="velos-people-docs.js?v=72"></script><script src="velos-proof.js?v=58"></script>
 <script>
 var S=window.VELOS_SUPABASE,db=supabase.createClient(S.url,S.key),$=function(i){return document.getElementById(i)},V=function(h){$('v').innerHTML=h};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})},ugx=function(n){return 'UGX '+Number(n||0).toLocaleString('en-US')};
@@ -26,12 +26,12 @@ async function boot(){
   V('<div class="box"><div class="c"><h1>Partner portal</h1><p>You are signed in as <b>'+esc(s.user.email)+'</b>, but this login is not linked to a verified partner yet.</p><p class="m">Apply first: <a href="technicians.html" style="color:#e8c766">technicians</a> or <a href="security-partners.html" style="color:#e8c766">security companies</a>. When Velos verifies you, we link this login. Tell us this email address.</p><button class="g" onclick="out()">Sign out</button></div></div>');
 }
 function authView(){
-  V('<div class="box"><h1>Velos Partner Portal</h1><p class="m">For verified technicians and security companies.</p><div class="c"><input id="em" type="email" placeholder="Email" autocomplete="username"><input id="pw" type="password" placeholder="Password (8+ characters)" autocomplete="current-password">'
+  V('<div class="box"><h1>Velos Partner Portal</h1><p class="m">For verified technicians and security companies.</p><div class="c"><input id="em" type="text" inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Email or registered phone number" autocomplete="username"><input id="pw" type="password" placeholder="Password (8+ characters)" autocomplete="current-password">'
    +'<button class="full" onclick="signIn()">Sign in</button><button class="g full" onclick="signUp()">Create a login</button><p id="er" class="m bad"></p></div><p class="m">Create your login with the same email you used on your application. After verification, Velos links it so your dashboard appears here.</p></div>');
 }
-async function signIn(){var r=await db.auth.signInWithPassword({email:$('em').value.trim(),password:$('pw').value});if(r.error)$('er').textContent=r.error.message;else boot()}
+async function signIn(){var r=await VelosLogin.signIn(db,$('em').value.trim(),$('pw').value);if(r.error)$('er').textContent=r.error.message;else boot()}
 async function signUp(){var pw=$('pw').value;if(pw.length<8){$('er').textContent='Use a password of at least 8 characters.';return}
-  var r=await db.auth.signUp({email:$('em').value.trim(),password:pw});if(r.error){$('er').textContent=r.error.message;return}
+  var r=await VelosLogin.signUp(db,$('em').value.trim(),pw);if(r.error){$('er').textContent=r.error.message;return}
   if(r.data.session)boot();else{$('er').style.color='#7fd99a';$('er').textContent='Check your email to confirm, then sign in.'}}
 async function company(c){
   var x=await Promise.all([db.rpc('my_contracts'),db.rpc('my_payments')]),K=x[0].data||[],P=x[1].data||[],due=0,paid=0;

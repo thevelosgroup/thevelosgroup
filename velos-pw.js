@@ -20,7 +20,7 @@
   async function forgot(inp){
     var scope=inp.closest('form,.c,.box,.card,div')||document, em=null, all=document.querySelectorAll('input[type=email],input[autocomplete=username]');
     for(var i=0;i<all.length;i++){ if(scope.contains(all[i])){ em=all[i]; break; } } if(!em&&all.length) em=all[0];
-    var email=(em&&em.value||'').trim();
+    var email=(em&&em.value||'').trim(); if(email.indexOf('@')<0) email='';
     if(!email){ email=(prompt('Enter the email address of your account. We will send you a link to choose a new password.')||'').trim(); }
     if(!email) return; var c=client(); if(!c) return toast('Cannot reach the server. Try again.',true);
     var r=await c.auth.resetPasswordForEmail(email,{redirectTo:location.origin+'/reset.html'});

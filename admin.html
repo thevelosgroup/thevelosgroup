@@ -819,7 +819,7 @@ async function ptSet(id, st, extra){
   if(error) return toast(error.message, true);
   toast('Saved ✓'); VIEWS.partners();
 }
-async function sgOpen(path){ const u = await db.storage.from('signed-agreements').createSignedUrl(path, 600); if(u.error) return toast(u.error.message, true); window.open(u.data.signedUrl, '_blank'); }
+async function sgOpen(path, kind){ const u = await db.storage.from(kind === 'partner' ? 'partner-docs' : 'signed-agreements').createSignedUrl(path, 600); if(u.error) return toast(u.error.message, true); window.open(u.data.signedUrl, '_blank'); }
 async function ptAgreement(path){
   const u = await db.storage.from('partner-docs').createSignedUrl(path, 600);
   if(u.error) return toast(u.error.message, true); window.open(u.data.signedUrl, '_blank');
@@ -959,7 +959,7 @@ const VIEWS = {
   async signedag(){
     const r = await db.rpc('admin_signed_agreements'); if(r.error){ $('#view').innerHTML = '<h2>Signed agreements</h2><p class="bad">' + esc(/function|schema cache/i.test(r.error.message) ? 'Run velos-signed-agreements.sql in Supabase first.' : r.error.message) + '</p>'; return; }
     const rows = r.data || [];
-    $('#view').innerHTML = '<h2>Signed agreements</h2><p class="mut">Agreements signed online by restaurants and partners. Open the PDF to see the signature.</p>' + (rows.length ? rows.map(x => '<div class="card"><b>' + esc(x.business || '—') + '</b> · ' + esc(x.kind) + ' · ref ' + esc(x.ref || '—') + '<div class="mut">Signed by ' + esc(x.signed_name || '—') + ' · ' + new Date(x.signed_at).toLocaleString('en-GB') + '</div><button class="btn" onclick="sgOpen(\'' + esc(x.path) + '\')">Open signed PDF</button></div>').join('') : '<p class="mut">None yet.</p>');
+    $('#view').innerHTML = '<h2>Signed agreements</h2><p class="mut">Agreements signed online by restaurants and partners. Open the PDF to see the signature.</p>' + (rows.length ? rows.map(x => '<div class="card"><b>' + esc(x.business || '—') + '</b> · ' + esc(x.kind) + ' · ref ' + esc(x.ref || '—') + '<div class="mut">Signed by ' + esc(x.signed_name || '—') + ' · ' + new Date(x.signed_at).toLocaleString('en-GB') + '</div><button class="btn" onclick="sgOpen(\'' + esc(x.path) + '\',\'' + esc(x.kind) + '\')">Open signed PDF</button></div>').join('') : '<p class="mut">None yet.</p>');
   },
   async offplat(){
     const r = await db.rpc('admin_offplatform'); if(r.error){ $('#view').innerHTML = `<h2>Off-platform reports</h2><p class="bad">${esc(/function|schema cache/i.test(r.error.message) ? 'Run velos-upgrade-68.sql in Supabase first.' : r.error.message)}</p>`; return; }
