@@ -170,7 +170,7 @@
     doc.setFont('helvetica', 'normal'); doc.setFontSize(4.6); doc.setTextColor(170, 185, 225); doc.text('ID NUMBER', 34.5, 32.6); doc.text('ISSUED', 34.5, 40.4); doc.text('VALID UNTIL', 52, 40.4);
     doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.text(no, 34.5, 36.6); doc.setFontSize(7); doc.text(mm(issued), 34.5, 44); doc.text(mm(until), 52, 44);
     /* security seal */
-    doc.setDrawColor(232, 199, 102); doc.setLineWidth(.25); alpha(doc, .9); doc.circle(76, 36, 5.2, 'S'); doc.circle(76, 36, 4.2, 'S'); if (mark) fit(doc, mark, 71.6, 33.2, 8.8, 5.6); alpha(doc, 1);
+    doc.setDrawColor(232, 199, 102); doc.setLineWidth(.25); alpha(doc, .9); doc.circle(76, 36, 5.2, 'S'); doc.circle(76, 36, 4.2, 'S'); if (mark) fit(doc, mark, 72.9, 34.1, 6.2, 3.8); alpha(doc, 1);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(3.6); doc.setTextColor(232, 199, 102); doc.text('SCAN THE BACK TO VERIFY', 34.5, 49.6);
     /* ===== BACK ===== */
     doc.addPage([85.6, 54], 'landscape');
@@ -192,7 +192,7 @@
     doc.setFillColor(255, 255, 255); doc.setDrawColor(200, 206, 222); doc.setLineWidth(.2); doc.roundedRect(5, 43.2, 36, 6.6, 1, 1, 'FD'); doc.roundedRect(46, 43.2, 36, 6.6, 1, 1, 'FD');
     if (hs) fit(doc, hs, 6.5, 43.4, 33, 6.2); if (as) fit(doc, as, 47.5, 43.4, 33, 6.2);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(3.8); doc.setTextColor(GR[0], GR[1], GR[2]); doc.text('Holder signature', 5, 51.2); doc.text('Authorised signature - The Velos Group', 46, 51.2);
-    doc.setFillColor(NV[0], NV[1], NV[2]); doc.rect(0, 52, 85.6, 2, 'F'); doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 52, 85.6, .35, 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(3.3); doc.setTextColor(232, 199, 102); doc.text('GROWING SMALL BUSINESSES  \u00b7  CREATING JOBS  \u00b7  TRUST  \u00b7  TRANSPARENCY', 42.8, 53.4, { align: 'center' });
+    doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 52.9, 85.6, 1.1, 'F');
     var fname = ('Velos-ID-Card-' + no + '-' + name).replace(/[^\w-]+/g, '-').replace(/-+/g, '-') + '.pdf';
     return { doc: doc, no: no, file: new File([doc.output('blob')], fname, { type: 'application/pdf' }), name: fname };
   }
