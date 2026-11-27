@@ -140,9 +140,12 @@
     try { var m = await DB().rpc('my_card', { p_kind: kind }); if (!m.error && m.data && m.data.sig) return m.data.sig; } catch (e) {}
     return null;
   }
-  async function idCard(kind, p) {
+  async function idCard(kind, p, opts) {
+    opts = opts || {}; var B = opts.print ? 6 : 0, PW = 85.6 + 2 * B, PH = 54 + 2 * B;
     await lib(); var hasQr = await qrlib();
-    var J = W.jspdf.jsPDF, doc = new J({ unit: 'mm', format: [85.6, 54], orientation: 'landscape' });
+    var J = W.jspdf.jsPDF, doc = new J({ unit: 'mm', format: [PW, PH], orientation: 'landscape' });
+    function shift() { if (!B) return; var k = doc.internal.scaleFactor; doc.setCurrentTransformationMatrix(new doc.Matrix(1, 0, 0, 1, B * k, -B * k)); }
+    function marks(side) { if (!B) return; doc.setDrawColor(0, 0, 0); doc.setLineWidth(.1); var a = -3.6, b = -5.6, W2 = 85.6, H2 = 54; [0, H2].forEach(function (y) { doc.line(a, y, b, y); doc.line(W2 - a, y, W2 - b, y); }); [0, W2].forEach(function (x) { doc.line(x, a, x, b); doc.line(x, H2 - a, x, H2 - b); }); doc.setFont('helvetica', 'normal'); doc.setFontSize(3.2); doc.setTextColor(0, 0, 0); doc.text('THE VELOS GROUP  |  ID CARD ' + no + '  |  ' + side + '  |  CR80 85.6 x 54 mm, 3 mm bleed, trim at crop marks', 0, -4.2); }
     var logo = await img('logo-doc.png', 'jpeg', 256), mark = await img('logo-mark.png', 'png');
     var no = ref(kind, p), name = clean(p.name) || ROLE[kind], issued = new Date(p.issued_at || Date.now()), until = new Date(issued); until.setFullYear(until.getFullYear() + 1);
     var mm = function (d) { return ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear(); };
@@ -150,11 +153,11 @@
     var sig = await register(kind, p, no, name, roleLine, until, p.photo);
     var verify = SITE + '/verify.html?c=' + encodeURIComponent(no) + (sig ? '&s=' + sig : '');
     /* ===== FRONT ===== */
-    gradient(doc, 0, 0, 85.6, 54, [2, 12, 48], [10, 38, 112]);
+    shift(); gradient(doc, -3, -3, 91.6, 60, [2, 12, 48], [10, 38, 112]);
     guilloche(doc, 0, 8, 85.6, 40, [232, 199, 102], .16);
     /* gold sweep */
-    alpha(doc, .95); doc.setFillColor(GD[0], GD[1], GD[2]); doc.lines([[18, -2, 32, -5, 45.6, -7.4], [0, 7.4], [-45.6, 0]], 40, 53.2, [1, 1], 'F'); doc.rect(0, 52.4, 85.6, 1.6, 'F'); alpha(doc, 1);
-    doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 0, 85.6, .9, 'F');
+    doc.setFillColor(GD[0], GD[1], GD[2]); doc.lines([[18, -2, 32, -5, 45.6, -7.4], [0, 7.4], [-45.6, 0]], 40, 53.2, [1, 1], 'F'); doc.rect(-3, 52.4, 91.6, 4.8, 'F'); doc.rect(85.4, 45.8, 3.4, 8, 'F');
+    doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(-3, -3, 91.6, 3.9, 'F');
     /* header */
     if (mark) fit(doc, mark, 3, 1.8, 15.5, 9.8);
     doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.text('THE VELOS GROUP', 19.6, 7.1);
@@ -173,9 +176,10 @@
     doc.setDrawColor(232, 199, 102); doc.setLineWidth(.25); alpha(doc, .9); doc.circle(76, 36, 5.2, 'S'); doc.circle(76, 36, 4.2, 'S'); if (mark) fit(doc, mark, 72.9, 34.1, 6.2, 3.8); alpha(doc, 1);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(3.6); doc.setTextColor(232, 199, 102); doc.text('SCAN THE BACK TO VERIFY', 34.5, 49.6);
     /* ===== BACK ===== */
-    doc.addPage([85.6, 54], 'landscape');
-    doc.setFillColor(255, 255, 255); doc.rect(0, 0, 85.6, 54, 'F'); guilloche(doc, 0, 12, 85.6, 36, [3, 17, 62], .06);
-    doc.setFillColor(NV[0], NV[1], NV[2]); doc.rect(0, 0, 85.6, 9, 'F'); doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 9, 85.6, .8, 'F');
+    marks('FRONT');
+    doc.addPage([PW, PH], 'landscape'); shift();
+    doc.setFillColor(255, 255, 255); doc.rect(-3, -3, 91.6, 60, 'F'); guilloche(doc, 0, 12, 85.6, 36, [3, 17, 62], .06);
+    doc.setFillColor(NV[0], NV[1], NV[2]); doc.rect(-3, -3, 91.6, 12, 'F'); doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(-3, 9, 91.6, .8, 'F');
     doc.setTextColor(232, 199, 102); doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.text('VERIFIED VELOS TEAM MEMBER', 5, 5.9);
     doc.setTextColor(255, 255, 255); doc.setFontSize(4.6); doc.setFont('helvetica', 'normal'); doc.text('thevelosgroup.com/verify', 80.6, 5.7, { align: 'right' });
     doc.setTextColor(TX[0], TX[1], TX[2]); doc.setFont('helvetica', 'normal'); doc.setFontSize(5.3);
@@ -192,8 +196,8 @@
     doc.setFillColor(255, 255, 255); doc.setDrawColor(200, 206, 222); doc.setLineWidth(.2); doc.roundedRect(5, 43.2, 36, 6.6, 1, 1, 'FD'); doc.roundedRect(46, 43.2, 36, 6.6, 1, 1, 'FD');
     if (hs) fit(doc, hs, 6.5, 43.4, 33, 6.2); if (as) fit(doc, as, 47.5, 43.4, 33, 6.2);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(3.8); doc.setTextColor(GR[0], GR[1], GR[2]); doc.text('Holder signature', 5, 51.2); doc.text('Authorised signature - The Velos Group', 46, 51.2);
-    doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 52.9, 85.6, 1.1, 'F');
-    var fname = ('Velos-ID-Card-' + no + '-' + name).replace(/[^\w-]+/g, '-').replace(/-+/g, '-') + '.pdf';
+    doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(-3, 52.9, 91.6, 4.3, 'F'); marks('BACK');
+    var fname = ('Velos-ID-Card' + (B ? '-PRINT-READY' : '') + '-' + no + '-' + name).replace(/[^\w-]+/g, '-').replace(/-+/g, '-') + '.pdf';
     return { doc: doc, no: no, file: new File([doc.output('blob')], fname, { type: 'application/pdf' }), name: fname };
   }
 
