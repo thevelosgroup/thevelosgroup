@@ -10,7 +10,7 @@ var STEPS=[['placed','Order placed','We have your order.'],['confirmed','Confirm
 PSTEPS=[['placed','Order placed','We have your order.'],['confirmed','Confirmed','The restaurant accepted your order and started the clock.'],['preparing','In preparation','Your food is being prepared.'],['ready','Ready for collection','Your order is ready. Please show your order number and phone number when collecting.'],['collected','Collected','Thank you! Enjoy your meal.']];
 try{var c=JSON.parse(localStorage.getItem('velosContact')||'{}');if(c.p)$('p').value=c.p}catch(e){}
 var q=new URLSearchParams(location.search);if(q.get('p'))$('p').value=q.get('p');if(q.get('o'))$('o').value=q.get('o');else{var l=localStorage.getItem('velosLastFood');if(l)$('o').value=l}
-function go(){no=parseInt($('o').value,10);ph=$('p').value.trim();$('e').textContent='';if(!no||ph.length<7){$('e').textContent='Enter your order number and phone number.';return}load();clearInterval(T);T=setInterval(load,20000)}
+function go(){no=parseInt(String($('o').value).replace(/\D/g,''),10);ph=$('p').value.trim();$('e').textContent='';if(!no||ph.length<7){$('e').textContent='Enter your order number and phone number.';return}load();clearInterval(T);T=setInterval(load,20000)}
 function tm(d){return d?new Date(d).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):''}
 function load(){rpc('food_track',{p_order_no:no,p_phone:ph}).then(function(o){if(!o){$('e').textContent='No order found. Check the number and the phone you used.';return}draw(o)}).catch(function(){$('e').textContent='Could not load right now. Retrying…'})}
 function draw(o){
