@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Verify a Velos ID card | The Velos Group</title><meta name="robots" content="noindex"><meta name="theme-color" content="#03113e"><link rel="icon" type="image/png" href="favicon.png">
+<style>
+:root{--navy:#03113e;--gold:#e8c766;--ink:#f4f1ea}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%,#10296f 0,#03113e 60%);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px 16px}
+.brand{display:flex;align-items:center;gap:10px;margin:6px 0 18px}.brand img{width:44px;height:44px;border-radius:10px;background:#fff}.brand b{letter-spacing:.5px}.brand small{display:block;color:var(--gold);font-style:italic;font-size:12px}
+.card{width:100%;max-width:420px;background:#0b1740;border:1px solid #2a3560;border-radius:18px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.bar{padding:14px 18px;font-weight:700;display:flex;align-items:center;gap:10px;font-size:17px}
+.ok .bar{background:#0f5132;color:#d1f7e1}.bad .bar{background:#6b1420;color:#ffd9de}.warn .bar{background:#6b4a08;color:#ffeab8}
+.bd{padding:18px;display:flex;gap:16px;align-items:flex-start}.ph{width:104px;height:130px;border-radius:10px;border:2px solid var(--gold);object-fit:cover;background:#1a2550;flex:none}
+.nm{font-size:20px;font-weight:700;line-height:1.2}.rl{color:var(--gold);margin:2px 0 10px}.kv{font-size:13px;color:#aab7e0}.kv b{display:block;color:#fff;font-size:15px;margin-bottom:6px}
+.ft{padding:12px 18px;border-top:1px solid #2a3560;font-size:12.5px;color:#aab7e0}
+.msg{padding:18px;font-size:15px}
+a{color:var(--gold)}
+</style></head><body>
+<div class="brand"><img src="logo-doc.png" alt="The Velos Group"><div><b>THE VELOS GROUP</b><small>Anything. Anywhere. Precisely.</small></div></div>
+<div class="card" id="c"><div class="msg">Checking this card…</div></div>
+<p style="max-width:420px;font-size:12.5px;color:#9fb0e0;text-align:center;margin-top:16px">Always compare the photo and name with the person in front of you. If anything does not match, do not treat the card as valid and call +256 755 215 751 or write to support@thevelosgroup.com.</p>
+<script src="supabase-config.js"></script>
+<script>
+var S=window.VELOS_SUPABASE,q=new URLSearchParams(location.search),no=q.get('c')||'',sg=q.get('s')||'';
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function dt(d){try{return new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}catch(e){return ''}}
+function show(cls,title,body){document.getElementById('c').className='card '+cls;document.getElementById('c').innerHTML='<div class="bar">'+title+'</div>'+body}
+if(!no||!sg){show('bad','✕ Cannot be checked','<div class="msg">This link is incomplete. Please scan the QR code on the card again.</div>')}
+else fetch(S.url+'/rest/v1/rpc/verify_card',{method:'POST',headers:{apikey:S.key,'Content-Type':'application/json'},body:JSON.stringify({p_no:no,p_sig:sg})}).then(function(r){return r.json()}).then(function(v){
+  if(!v||!v.found){show('bad','✕ NOT RECOGNISED','<div class="msg">This card is not in the Velos register, or it has been altered. <b>Do not accept it.</b></div>');return}
+  var body='<div class="bd">'+(v.photo?'<img class="ph" alt="Holder photo" src="'+esc(v.photo)+'">':'<div class="ph"></div>')+'<div><div class="nm">'+esc(v.name)+'</div><div class="rl">'+esc(v.role)+'</div><div class="kv">ID number<b>'+esc(v.card_no)+'</b></div><div class="kv">Valid until<b>'+dt(v.valid_until)+'</b></div></div></div><div class="ft">Issued by The Velos Group, Uganda. Checked live against the Velos register.</div>';
+  if(v.state==='valid')show('ok','✓ VALID VELOS ID CARD',body);
+  else if(v.state==='expired')show('warn','⚠ CARD EXPIRED',body);
+  else show('bad','✕ CARD WITHDRAWN',body);
+}).catch(function(){show('warn','Could not check','<div class="msg">No connection right now. Please try again.</div>')});
+</script></body></html>

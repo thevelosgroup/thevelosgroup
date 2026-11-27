@@ -110,43 +110,89 @@
     return { doc: doc, no: no, file: new File([doc.output('blob')], fname, { type: 'application/pdf' }), name: fname };
   }
 
-  /* ---------------- ID card (85.6 x 54 mm, front and back) ---------------- */
+  /* ---------------- ID card v2 (ISO/IEC 7810 ID-1, 85.6 x 54 mm, front and back) ---------------- */
+  var C128 = ["212222", "222122", "222221", "121223", "121322", "131222", "122213", "122312", "132212", "221213", "221312", "231212", "112232", "122132", "122231", "113222", "123122", "123221", "223211", "221132", "221231", "213212", "223112", "312131", "311222", "321122", "321221", "312212", "322112", "322211", "212123", "212321", "232121", "111323", "131123", "131321", "112313", "132113", "132311", "211313", "231113", "231311", "112133", "112331", "132131", "113123", "113321", "133121", "313121", "211331", "231131", "213113", "213311", "213131", "311123", "311321", "331121", "312113", "312311", "332111", "314111", "221411", "431111", "111224", "111422", "121124", "121421", "141122", "141221", "112214", "112412", "122114", "122411", "142112", "142211", "241211", "221114", "413111", "241112", "134111", "111242", "121142", "121241", "114212", "124112", "124211", "411212", "421112", "421211", "212141", "214121", "412121", "111143", "111341", "131141", "114113", "114311", "411113", "411311", "113141", "114131", "311141", "411131", "211412", "211214", "211232", "2331112"];
+  /* Code 128 (set B) encoder: returns the module widths, drawn as vector bars */
+  function code128(text) {
+    var codes = [104], sum = 104, i, c;
+    for (i = 0; i < text.length; i++) { c = text.charCodeAt(i) - 32; if (c < 0 || c > 95) c = 0; codes.push(c); sum += c * (i + 1); }
+    codes.push(sum % 103); codes.push(106);
+    return codes.map(function (k) { return C128[k]; }).join('');
+  }
+  function bars(doc, text, x, y, w, h) {
+    var pat = code128(text), tot = 0, i; for (i = 0; i < pat.length; i++) tot += +pat.charAt(i);
+    var u = w / tot, cx = x; for (i = 0; i < pat.length; i++) { var wd = +pat.charAt(i) * u; if (i % 2 === 0) doc.rect(cx, y, wd, h, 'F'); cx += wd; }
+  }
+  function gradient(doc, x, y, w, h, a, b) { var n = 60, i; for (i = 0; i < n; i++) { var t = i / (n - 1); doc.setFillColor(Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t), Math.round(a[2] + (b[2] - a[2]) * t)); doc.rect(x, y + h * i / n, w, h / n + .15, 'F'); } }
+  function alpha(doc, o) { try { doc.setGState(new doc.GState({ opacity: o, 'stroke-opacity': o })); } catch (e) {} }
+  function guilloche(doc, x0, y0, w, h, col, op) {
+    alpha(doc, op); doc.setDrawColor(col[0], col[1], col[2]); doc.setLineWidth(.12);
+    for (var k = 0; k < 16; k++) { var seg = [], px = x0, py = y0 + h * k / 15; for (var s = 1; s <= 48; s++) { var xx = x0 + w * s / 48, yy = y0 + h * k / 15 + Math.sin(s / 48 * Math.PI * 4 + k * .5) * 3.2; seg.push([xx - px, yy - py]); px = xx; py = yy; } doc.lines(seg, x0, y0 + h * k / 15 + Math.sin(k * .5) * 3.2, [1, 1], 'S'); }
+    alpha(doc, 1);
+  }
+  function thumb(src) { return new Promise(function (res) { if (!src) return res(null); var i = new Image(); i.onload = function () { try { var c = document.createElement('canvas'), k = 150 / Math.max(i.naturalWidth, i.naturalHeight); c.width = Math.round(i.naturalWidth * k); c.height = Math.round(i.naturalHeight * k); c.getContext('2d').drawImage(i, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', .72)); } catch (e) { res(null); } }; i.onerror = function () { res(null); }; i.src = src; }); }
+  /* register the card on the server so it can be verified, and get its signature */
+  async function register(kind, p, no, name, role, until, photo) {
+    try {
+      var r = await DB().rpc('admin_card_issue', { p_kind: kind, p_person: String(p.id || ''), p_no: no, p_name: name, p_role: role, p_valid_until: until.toISOString().slice(0, 10), p_photo: await thumb(photo) });
+      if (!r.error && r.data) return r.data;
+    } catch (e) {}
+    try { var m = await DB().rpc('my_card', { p_kind: kind }); if (!m.error && m.data && m.data.sig) return m.data.sig; } catch (e) {}
+    return null;
+  }
   async function idCard(kind, p) {
     await lib(); var hasQr = await qrlib();
     var J = W.jspdf.jsPDF, doc = new J({ unit: 'mm', format: [85.6, 54], orientation: 'landscape' });
     var logo = await img('logo-doc.png', 'jpeg', 256);
     var no = ref(kind, p), name = clean(p.name) || ROLE[kind], issued = new Date(p.issued_at || Date.now()), until = new Date(issued); until.setFullYear(until.getFullYear() + 1);
     var mm = function (d) { return ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear(); };
-    /* front */
-    doc.setFillColor(255, 255, 255); doc.rect(0, 0, 85.6, 54, 'F');
-    doc.setFillColor(NV[0], NV[1], NV[2]); doc.rect(0, 0, 85.6, 14, 'F'); doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 14, 85.6, .9, 'F');
-    if (logo) pic(doc, logo, 3.5, 2, 10, 10);
-    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.text('THE VELOS GROUP', 16, 7.2);
-    doc.setFont('helvetica', 'italic'); doc.setFontSize(5.8); doc.setTextColor(232, 199, 102); doc.text('Anything. Anywhere. Precisely.', 16, 10.8);
-    doc.setFillColor(GD[0], GD[1], GD[2]); doc.roundedRect(61, 4.2, 21, 5.6, 1.2, 1.2, 'F'); doc.setTextColor(NV[0], NV[1], NV[2]); doc.setFont('helvetica', 'bold'); doc.setFontSize(5.8); doc.text(CARDROLE[kind], 71.5, 8.1, { align: 'center' });
-    var px = 5, py = 19, pw = 24, ph = 28;
-    doc.setFillColor(LT[0], LT[1], LT[2]); doc.setDrawColor(GD[0], GD[1], GD[2]); doc.setLineWidth(.4); doc.rect(px, py, pw, ph, 'FD');
-    if (!(p.photo && pic(doc, p.photo, px, py, pw, ph))) { var ini = name.split(/\s+/).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join(''); doc.setTextColor(GR[0], GR[1], GR[2]); doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text(ini, px + pw / 2, py + ph / 2 + 2, { align: 'center' }); doc.setFontSize(4.5); doc.setFont('helvetica', 'normal'); doc.text('PHOTO', px + pw / 2, py + ph - 2, { align: 'center' }); }
-    doc.setTextColor(TX[0], TX[1], TX[2]); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.splitTextToSize(name, 50).slice(0, 2).forEach(function (l, i) { doc.text(l, 33, 23.5 + i * 4.6); });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.2); doc.setTextColor(GR[0], GR[1], GR[2]);
-    var info = [['ID No', no], ['Role', ROLE[kind] + (kind === 'technician' && p.trade ? ' - ' + clean(p.trade) : '')], ['Issued', mm(issued)], ['Valid until', mm(until)]];
-    info.forEach(function (r, i) { var yy = 33 + i * 4.4; doc.setFont('helvetica', 'normal'); doc.setTextColor(GR[0], GR[1], GR[2]); doc.text(r[0], 33, yy); doc.setFont('helvetica', 'bold'); doc.setTextColor(TX[0], TX[1], TX[2]); doc.text(doc.splitTextToSize(r[1], 40)[0], 47, yy); });
-    doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 52.6, 85.6, 1.4, 'F');
-    /* back */
+    var roleLine = ROLE[kind] + (kind === 'technician' && p.trade ? ' - ' + clean(p.trade) : '');
+    var sig = await register(kind, p, no, name, roleLine, until, p.photo);
+    var verify = SITE + '/verify.html?c=' + encodeURIComponent(no) + (sig ? '&s=' + sig : '');
+    /* ===== FRONT ===== */
+    gradient(doc, 0, 0, 85.6, 54, [2, 12, 48], [10, 38, 112]);
+    guilloche(doc, 0, 8, 85.6, 40, [232, 199, 102], .16);
+    /* gold sweep */
+    alpha(doc, .95); doc.setFillColor(GD[0], GD[1], GD[2]); doc.lines([[18, -2, 32, -5, 45.6, -7.4], [0, 7.4], [-45.6, 0]], 40, 53.2, [1, 1], 'F'); doc.rect(0, 52.4, 85.6, 1.6, 'F'); alpha(doc, 1);
+    doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 0, 85.6, .9, 'F');
+    /* header */
+    doc.setFillColor(255, 255, 255); doc.roundedRect(3.4, 2.6, 9.6, 9.6, 1.6, 1.6, 'F'); if (logo) pic(doc, logo, 4, 3.2, 8.4, 8.4);
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.text('THE VELOS GROUP', 15.2, 7.1);
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(5.4); doc.setTextColor(232, 199, 102); doc.text('Anything. Anywhere. Precisely.', 15.2, 10.4);
+    doc.setFillColor(GD[0], GD[1], GD[2]); doc.roundedRect(60, 3.6, 22.4, 6, 3, 3, 'F'); doc.setTextColor(2, 12, 48); doc.setFont('helvetica', 'bold'); doc.setFontSize(6.2); doc.text(CARDROLE[kind], 71.2, 7.7, { align: 'center' });
+    /* photo (colour) with gold frame */
+    var px = 5, py = 16.5, pw = 25, ph = 31;
+    doc.setFillColor(GD[0], GD[1], GD[2]); doc.roundedRect(px - 1, py - 1, pw + 2, ph + 2, 2, 2, 'F'); doc.setFillColor(255, 255, 255); doc.rect(px - .35, py - .35, pw + .7, ph + .7, 'F');
+    if (!(p.photo && pic(doc, p.photo, px, py, pw, ph))) { doc.setFillColor(LT[0], LT[1], LT[2]); doc.rect(px, py, pw, ph, 'F'); var ini = name.split(/\s+/).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join(''); doc.setTextColor(GR[0], GR[1], GR[2]); doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.text(ini, px + pw / 2, py + ph / 2 + 3, { align: 'center' }); }
+    /* holder details */
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5); var nl = doc.splitTextToSize(name.toUpperCase(), 50).slice(0, 2); nl.forEach(function (l, i) { doc.text(l, 34.5, 21 + i * 5); }); var ry = 21 + (nl.length - 1) * 5 + 5.4;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(232, 199, 102); doc.text(doc.splitTextToSize(roleLine, 48)[0], 34.5, ry);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(4.6); doc.setTextColor(170, 185, 225); doc.text('ID NUMBER', 34.5, 32.6); doc.text('ISSUED', 34.5, 40.4); doc.text('VALID UNTIL', 52, 40.4);
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.text(no, 34.5, 36.6); doc.setFontSize(7); doc.text(mm(issued), 34.5, 44); doc.text(mm(until), 52, 44);
+    /* security seal */
+    doc.setDrawColor(232, 199, 102); doc.setLineWidth(.25); alpha(doc, .9); doc.circle(76, 36, 5.2, 'S'); doc.circle(76, 36, 4.2, 'S'); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(232, 199, 102); doc.text('V', 76, 37.6, { align: 'center' }); alpha(doc, 1);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(3.6); doc.setTextColor(232, 199, 102); doc.text('SCAN THE BACK TO VERIFY', 34.5, 49.6);
+    /* ===== BACK ===== */
     doc.addPage([85.6, 54], 'landscape');
-    doc.setFillColor(NV[0], NV[1], NV[2]); doc.rect(0, 0, 85.6, 54, 'F'); doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 0, 85.6, 1.4, 'F');
-    doc.setTextColor(232, 199, 102); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.text('VERIFIED VELOS TEAM MEMBER', 6, 9);
-    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'normal'); doc.setFontSize(5.8);
-    ['This card is the property of The Velos Group and must', 'be shown on request. It is not transferable.', 'If found, please call or WhatsApp ' + PHONE + '.', 'Report misuse to support@thevelosgroup.com.'].forEach(function (l, i) { doc.text(l, 6, 15 + i * 3.8); });
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(232, 199, 102); doc.text(SITE.replace('https://', ''), 6, 31.5);
+    doc.setFillColor(255, 255, 255); doc.rect(0, 0, 85.6, 54, 'F'); guilloche(doc, 0, 12, 85.6, 36, [3, 17, 62], .06);
+    doc.setFillColor(NV[0], NV[1], NV[2]); doc.rect(0, 0, 85.6, 9, 'F'); doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 9, 85.6, .8, 'F');
+    doc.setTextColor(232, 199, 102); doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.text('VERIFIED VELOS TEAM MEMBER', 5, 5.9);
+    doc.setTextColor(255, 255, 255); doc.setFontSize(4.6); doc.setFont('helvetica', 'normal'); doc.text('thevelosgroup.com/verify', 80.6, 5.7, { align: 'right' });
+    doc.setTextColor(TX[0], TX[1], TX[2]); doc.setFont('helvetica', 'normal'); doc.setFontSize(5.3);
+    ['This card is the property of The Velos Group. It must be shown', 'on request and is not transferable.', 'Scan the QR code or barcode to confirm this card is genuine', 'and current. If found, call or WhatsApp ' + PHONE + '.'].forEach(function (l, i) { doc.text(l, 5, 14.6 + i * 3.2); });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.3); doc.setTextColor(NV[0], NV[1], NV[2]); doc.text('support@thevelosgroup.com', 5, 28);
+    var q = hasQr ? qrData(verify) : null;
+    if (q) { doc.setFillColor(255, 255, 255); doc.setDrawColor(NV[0], NV[1], NV[2]); doc.setLineWidth(.3); doc.roundedRect(61.2, 12.2, 20.4, 20.4, 1.4, 1.4, 'FD'); pic(doc, q, 62, 13, 18.8, 18.8); doc.setFont('helvetica', 'bold'); doc.setFontSize(4.2); doc.setTextColor(GR[0], GR[1], GR[2]); doc.text('SCAN TO VERIFY', 71.4, 34.6, { align: 'center' }); }
+    /* barcode: card number + signature, for security scanners */
+    var codeText = no + (sig ? '.' + sig : '');
+    doc.setFillColor(0, 0, 0); bars(doc, codeText, 5, 31.2, 52, 8.2);
+    doc.setFont('courier', 'bold'); doc.setFontSize(5); doc.setTextColor(TX[0], TX[1], TX[2]); doc.text(codeText, 31, 42.4, { align: 'center' });
+    /* signature panels */
     var hs = p.signature || null, as = await img('signature.png', 'png');
-    var q = hasQr ? qrData(SITE + '/?ref=' + encodeURIComponent(no)) : null;
-    if (q) { doc.setFillColor(255, 255, 255); doc.roundedRect(60, 9, 21, 21, 1.5, 1.5, 'F'); pic(doc, q, 60.8, 9.8, 19.4, 19.4); doc.setFont('helvetica', 'normal'); doc.setFontSize(4.6); doc.setTextColor(190, 200, 225); doc.text('Scan to open Velos', 70.5, 32.6, { align: 'center' }); }
-    /* signature panels: holder (left) and Velos authorised signatory (right) */
-    doc.setFillColor(255, 255, 255); doc.roundedRect(5, 37, 36, 10, 1, 1, 'F'); doc.roundedRect(46, 37, 36, 10, 1, 1, 'F');
-    if (hs) fit(doc, hs, 6.5, 37.6, 33, 8.8);
-    if (as) fit(doc, as, 47.5, 37.6, 33, 8.8);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(4.6); doc.setTextColor(190, 200, 225); doc.text('Holder signature', 5, 49.6); doc.text('Authorised signature - The Velos Group', 46, 49.6);
+    doc.setFillColor(255, 255, 255); doc.setDrawColor(200, 206, 222); doc.setLineWidth(.2); doc.roundedRect(5, 44, 36, 7.2, 1, 1, 'FD'); doc.roundedRect(46, 44, 36, 7.2, 1, 1, 'FD');
+    if (hs) fit(doc, hs, 6.5, 44.3, 33, 6.6); if (as) fit(doc, as, 47.5, 44.3, 33, 6.6);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(3.8); doc.setTextColor(GR[0], GR[1], GR[2]); doc.text('Holder signature', 5, 52.6); doc.text('Authorised signature - The Velos Group', 46, 52.6);
+    doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 53.2, 85.6, .8, 'F');
     var fname = ('Velos-ID-Card-' + no + '-' + name).replace(/[^\w-]+/g, '-').replace(/-+/g, '-') + '.pdf';
     return { doc: doc, no: no, file: new File([doc.output('blob')], fname, { type: 'application/pdf' }), name: fname };
   }

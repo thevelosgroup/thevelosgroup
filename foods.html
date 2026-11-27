@@ -11,7 +11,7 @@
 <div id="list"><p class="m">Loading menu…</p></div></div></div>
 <button class="cartbtn" id="cb" onclick="openCart()" hidden></button><div id="toast" hidden></div>
 <script src="supabase-config.js"></script><script src="velos-maps-config.js"></script><script src="velos-places.js"></script><script src="velos-txid.js"></script><script src="velos-push.js"></script><script src="velos-money.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-<script src="velos-paybox.js?v=80"></script><script>
+<script src="velos-paybox.js?v=81"></script><script>
 var PH='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a3a7a"/><stop offset="1" stop-color="#0f1730"/></linearGradient></defs><rect width="400" height="300" fill="url(#g)"/><text x="200" y="190" font-size="110" text-anchor="middle">🍽️</text></svg>');function ie(i){i.onerror=null;i.src=PH}
 var RC=null,SA=null,PK={n:'Velos Pick-up Station',a:'',note:'Bring your National ID or another valid identification document. The name must match the person who placed the order.'};var S=window.VELOS_SUPABASE,$=function(i){return document.getElementById(i)},M=null,V=null,CAT='',cart={},IT={},mapObj=null,pin=null,km=0,quote=false;
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})},ugx0=function(n){return 'UGX '+Math.round(n).toLocaleString('en-US')},ugx=function(n){return window.velosMoney?velosMoney(n):ugx0(n)},bu=function(n){return window.velosBoth?velosBoth(n):ugx0(n)},FU='delivery';
