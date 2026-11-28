@@ -19,6 +19,21 @@
   function docNo(kind, o) { var K = KINDS[kind]; if (o.no) return K.pre + '-' + clean(o.no).replace(/[^A-Za-z0-9-]/g, ''); var d = new Date(); function z(n) { return ('0' + n).slice(-2); } return K.pre + '-' + String(d.getFullYear()).slice(2) + z(d.getMonth() + 1) + z(d.getDate()) + z(d.getHours()) + z(d.getMinutes()); }
   function payInfo() { var c = W.VELOS_SUPABASE; if (!c) return Promise.resolve({}); return fetch(c.url + '/rest/v1/settings?select=key,value&key=like.site_pay_*', { headers: { apikey: c.key } }).then(function (r) { return r.ok ? r.json() : []; }).then(function (a) { var P = {}; (a || []).forEach(function (x) { P[x.key] = x.value; }); return P; }).catch(function () { return {}; }); }
 
+  function velosWM(doc) {
+    try {
+      var n = doc.getNumberOfPages(), w = doc.internal.pageSize.getWidth(), h = doc.internal.pageSize.getHeight(), a = 38, r = a * Math.PI / 180;
+      for (var i = 1; i <= n; i++) {
+        doc.setPage(i); doc.saveGraphicsState(); doc.setGState(new doc.GState({ opacity: 0.065 }));
+        doc.setTextColor(3, 17, 62); doc.setFont('times', 'bold'); doc.setFontSize(Math.round(w * 0.34 / 2.6));
+        var t = 'THE VELOS GROUP', tw = doc.getTextWidth(t);
+        doc.text(t, w / 2 - Math.cos(r) * tw / 2, h / 2 + Math.sin(r) * tw / 2, { angle: a });
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(Math.round(w * 0.07 / 2.6)); var s = 'ANYTHING. ANYWHERE. PRECISELY.', sw = doc.getTextWidth(s), d = 22;
+        doc.text(s, w / 2 - Math.cos(r) * sw / 2 + Math.sin(r) * d, h / 2 + Math.sin(r) * sw / 2 + Math.cos(r) * d, { angle: a });
+        doc.restoreGraphicsState();
+      }
+    } catch (e) {}
+  }
+
   async function make(kind, o) {
     var K = KINDS[kind]; if (!K) throw Error('Unknown document');
     await lib(); var J = W.jspdf.jsPDF, doc = new J({ unit: 'mm', format: 'a4' }), Wd = 210, T = totals(o), c = o.customer || {}, date = o.date || new Date();
@@ -74,6 +89,7 @@
     doc.setFontSize(8); doc.text('This is a computer-generated ' + K.title.toLowerCase() + '. It is valid with the official Velos stamp and signature.', 15, 277);
     doc.setFillColor(NV[0], NV[1], NV[2]); doc.rect(0, 284, Wd, 13, 'F'); doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 284, Wd, .8, 'F');
     doc.setFontSize(8); doc.setTextColor(232, 199, 102); doc.text('Thank you for choosing The Velos Group  |  support@thevelosgroup.com', Wd / 2, 291, { align: 'center' });
+    velosWM(doc);
     return { doc: doc, file: 'Velos-' + K.title[0] + K.title.slice(1).toLowerCase() + '-' + no.replace(/[^A-Za-z0-9-]/g, '') + '.pdf' };
   }
   function save(r) { r.doc.save(r.file); }

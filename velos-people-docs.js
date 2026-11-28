@@ -64,6 +64,21 @@
     ].concat(COMMON_A).concat(COMMON_B)
   };
 
+  function velosWM(doc) {
+    try {
+      var n = doc.getNumberOfPages(), w = doc.internal.pageSize.getWidth(), h = doc.internal.pageSize.getHeight(), a = 38, r = a * Math.PI / 180;
+      for (var i = 1; i <= n; i++) {
+        doc.setPage(i); doc.saveGraphicsState(); doc.setGState(new doc.GState({ opacity: 0.065 }));
+        doc.setTextColor(3, 17, 62); doc.setFont('times', 'bold'); doc.setFontSize(Math.round(w * 0.34 / 2.6));
+        var t = 'THE VELOS GROUP', tw = doc.getTextWidth(t);
+        doc.text(t, w / 2 - Math.cos(r) * tw / 2, h / 2 + Math.sin(r) * tw / 2, { angle: a });
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(Math.round(w * 0.07 / 2.6)); var s = 'ANYTHING. ANYWHERE. PRECISELY.', sw = doc.getTextWidth(s), d = 22;
+        doc.text(s, w / 2 - Math.cos(r) * sw / 2 + Math.sin(r) * d, h / 2 + Math.sin(r) * sw / 2 + Math.cos(r) * d, { angle: a });
+        doc.restoreGraphicsState();
+      }
+    } catch (e) {}
+  }
+
   /* ---------------- Agreement ---------------- */
   async function agreement(kind, p) {
     await lib();
@@ -105,7 +120,7 @@
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(GR[0], GR[1], GR[2]); doc.text('Authorised signature', 15, sy + 8.8); doc.text('Date: ' + issued, 15, sy + 13.5); doc.text('Contractor signature', 135, sy + 8.8); doc.text(p.holderSig ? 'Date: ' + dmy(Date.now()) : 'Date: ........ / ........ / ............', 135, sy + 13.5);
     if (p.holderSig) { fit(doc, p.holderSig, 137, sy - 17, 56, 16); doc.setFontSize(6.5); doc.text('Signed online on ' + new Date().toLocaleString('en-GB') + ' from the Velos app', 135, sy + 17.5); }
     doc.text('Witness name and signature: ______________________________', 135, sy + 22);
-    foot(page);
+    foot(page); velosWM(doc);
     var fname = ('Velos-' + ROLE[kind].replace(/ /g, '') + '-Agreement-' + no + '-' + name).replace(/[^\w-]+/g, '-').replace(/-+/g, '-') + '.pdf';
     return { doc: doc, no: no, file: new File([doc.output('blob')], fname, { type: 'application/pdf' }), name: fname };
   }

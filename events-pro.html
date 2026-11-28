@@ -14,7 +14,7 @@
 @media(max-width:430px){.row2{grid-template-columns:1fr}}
 </style></head>
 <body><div class="w" style="max-width:900px"><div id="v"><p class="m">Loading…</p></div></div><div id="toast" hidden></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-guard-config.js"></script><script src="velos-guard.js?v=67"></script><script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script><script src="velos-letterhead.js?v=70"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="supabase-config.js"></script><script src="velos-guard-config.js"></script><script src="velos-guard.js?v=67"></script><script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script><script src="velos-letterhead.js?v=86"></script>
 <script>
 var S = window.VELOS_SUPABASE, db = supabase.createClient(S.url, S.key), $ = function(i){ return document.getElementById(i); }, V = function(h){ $('v').innerHTML = h; };
 var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }, ugx = function(n){ return 'UGX ' + Math.round(+n || 0).toLocaleString('en-US'); };

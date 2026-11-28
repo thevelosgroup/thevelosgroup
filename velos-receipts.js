@@ -5,6 +5,21 @@
 (function (W) {
   var NV = [3, 17, 62], GD = [212, 175, 55], TX = [30, 35, 50], GR = [110, 118, 140], LT = [244, 246, 251];
   var URLS = ['https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', 'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js'];
+  function velosWM(doc) {
+    try {
+      var n = doc.getNumberOfPages(), w = doc.internal.pageSize.getWidth(), h = doc.internal.pageSize.getHeight(), a = 38, r = a * Math.PI / 180;
+      for (var i = 1; i <= n; i++) {
+        doc.setPage(i); doc.saveGraphicsState(); doc.setGState(new doc.GState({ opacity: 0.065 }));
+        doc.setTextColor(3, 17, 62); doc.setFont('times', 'bold'); doc.setFontSize(Math.round(w * 0.34 / 2.6));
+        var t = 'THE VELOS GROUP', tw = doc.getTextWidth(t);
+        doc.text(t, w / 2 - Math.cos(r) * tw / 2, h / 2 + Math.sin(r) * tw / 2, { angle: a });
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(Math.round(w * 0.07 / 2.6)); var s = 'ANYTHING. ANYWHERE. PRECISELY.', sw = doc.getTextWidth(s), d = 22;
+        doc.text(s, w / 2 - Math.cos(r) * sw / 2 + Math.sin(r) * d, h / 2 + Math.sin(r) * sw / 2 + Math.cos(r) * d, { angle: a });
+        doc.restoreGraphicsState();
+      }
+    } catch (e) {}
+  }
+
   function lib() { return new Promise(function (ok, bad) { if (W.jspdf) return ok(); var i = 0; (function next() { if (i >= URLS.length) return bad(Error('The document tool could not load. Check your internet and try again.')); var s = document.createElement('script'); s.src = URLS[i++]; s.onload = function () { W.jspdf ? ok() : next(); }; s.onerror = next; document.head.appendChild(s); })(); }); }
   function img(src, type, size) { return new Promise(function (res) { var i = new Image(); i.onload = function () { try { var c = document.createElement('canvas'); c.width = size || i.naturalWidth; c.height = size || i.naturalHeight; var x = c.getContext('2d'); if (type === 'jpeg') { x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); } x.drawImage(i, 0, 0, c.width, c.height); res(c.toDataURL(type === 'jpeg' ? 'image/jpeg' : 'image/png', .9)); } catch (e) { res(null); } }; i.onerror = function () { res(null); }; i.src = src; }); }
   function clean(s) { return String(s == null ? '' : s).replace(/[^\x20-\x7E -ÿ]/g, '').trim(); }
@@ -42,6 +57,7 @@
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.text('This is a computer-generated receipt. It is valid with the official Velos stamp and signature.', 15, 276);
     doc.setFillColor(NV[0], NV[1], NV[2]); doc.rect(0, 284, Wd, 13, 'F'); doc.setFillColor(GD[0], GD[1], GD[2]); doc.rect(0, 284, Wd, .8, 'F');
     doc.setFontSize(8); doc.setTextColor(232, 199, 102); doc.text('Thank you for being part of The Velos Group', Wd / 2, 291, { align: 'center' });
+    velosWM(doc);
     return { doc: doc, file: 'Velos-Receipt-' + clean(o.no).replace(/[^A-Za-z0-9-]/g, '') + '.pdf' };
   }
   function fee(r) {

@@ -25,7 +25,23 @@
     doc.setDrawColor(NV[0], NV[1], NV[2]); doc.setLineWidth(.5); doc.line(15, 19, 195, 19); doc.setDrawColor(GD[0], GD[1], GD[2]); doc.setLineWidth(.25); doc.line(15, 20.4, 195, 20.4);
     return 30;
   }
+  /* Velos watermark: faint diagonal brand name, drawn on every page of every Velos document */
+  function watermark(doc, pages) {
+    try {
+      var n = doc.getNumberOfPages(), W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+      for (var i = 1; i <= n; i++) {
+        doc.setPage(i); doc.saveGraphicsState();
+        doc.setGState(new doc.GState({ opacity: 0.07 }));
+        doc.setTextColor(NV[0], NV[1], NV[2]); doc.setFont('times', 'bold'); doc.setFontSize(Math.round(W * 0.34 / 2.6));
+        var a = 38, rad = a * Math.PI / 180, txt = 'THE VELOS GROUP', tw = doc.getTextWidth(txt);
+        doc.text(txt, W / 2 - Math.cos(rad) * tw / 2, H / 2 + Math.sin(rad) * tw / 2, { angle: a });
+        if (logo) { try { doc.addImage(logo, 'PNG', W / 2 - 22, H / 2 + 28, 44, 26); } catch (e) {} }
+        doc.restoreGraphicsState();
+      }
+    } catch (e) {}
+  }
   function finish(doc, label) {
+    watermark(doc);
     var n = doc.getNumberOfPages();
     for (var i = 1; i <= n; i++) {
       doc.setPage(i); doc.setDrawColor(GD[0], GD[1], GD[2]); doc.setLineWidth(.35); doc.line(15, 284, 195, 284);
@@ -34,5 +50,5 @@
       doc.text((label ? label + '  |  ' : '') + 'Page ' + i + ' of ' + n, 195, 289, { align: 'right' });
     }
   }
-  window.VelosLH = { load: load, first: first, next: next, finish: finish };
+  window.VelosLH = { load: load, first: first, next: next, finish: finish, watermark: watermark };
 })();
