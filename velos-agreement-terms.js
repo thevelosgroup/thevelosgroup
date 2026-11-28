@@ -91,4 +91,60 @@
     return { label: label, clauses: clauses };
   }
   W.VelosTerms = { pick: pick };
+
+  /* ---- Terms written for the individual: riders, sales agents and technicians ---- */
+  var TRADES = [
+    { re: /electric|wiring|solar|cctv|alarm|generator/i, label: 'Electrical, solar and security installation', c: [
+      ['Safe electrical work', 'The Contractor will switch off and isolate power before working, will not work on live circuits, will use correctly rated cables, breakers and earthing, and will hold any licence or certificate the work requires under applicable Ugandan law.'],
+      ['Test and warranty', 'Every installation or repair will be tested before the customer is asked to sign off. The Contractor will correct faulty workmanship free of charge for 30 days and will give the customer a short written note of what was installed.']] },
+    { re: /plumb|pipe|water|drain|tank|sanit/i, label: 'Plumbing and water systems', c: [
+      ['Leak-free work', 'The Contractor will pressure-test or run-test every joint before leaving, protect floors and fittings, and clear away waste water and offcuts.'],
+      ['Warranty and materials', 'The Contractor will use quality fittings of the type agreed with the customer and will repair leaks caused by their workmanship free of charge for 30 days.']] },
+    { re: /mechanic|garage|auto|vehicle|car\b|motorcycle|boda|panel|tyre|tire|engine/i, label: 'Vehicle repair and servicing', c: [
+      ['Honest diagnosis', 'The Contractor will diagnose honestly, give the customer a price before work starts, and will not add or replace parts that are not needed.'],
+      ['Parts and returns', 'Parts will be genuine or described as aftermarket or used. Replaced parts will be shown or returned to the customer on request, and the vehicle will be road-tested before hand-over. Faults from the repair will be put right free of charge for 14 days.']] },
+    { re: /phone|laptop|computer|tv\b|television|gadget|electronics repair|screen|ipad|tablet/i, label: 'Phone, computer and electronics repair', c: [
+      ['Customer data', 'The Contractor will not open, copy, share or delete a customer\'s messages, photos, accounts or files, and will not keep a device longer than needed for the job.'],
+      ['Parts and warranty', 'Replacement parts will be described honestly (original, compatible or used). The Contractor will not swap good parts for worse ones, and will give a repair warranty of at least 14 days.']] },
+    { re: /carpent|furniture|joiner|wood|cabinet|roof|ceiling|mason|brick|build|construct|tile|weld|metal|fabricat|gate|window/i, label: 'Carpentry, building and metalwork', c: [
+      ['Agreed scope and materials', 'The Contractor will agree the scope, materials, measurements, price and finishing date with the customer through Velos before starting, and will not change them without the customer\'s consent.'],
+      ['Site safety', 'The Contractor will use sound tools and safe methods (including safe working at height and safe welding), protect other people on site, and leave the site clean and safe.']] },
+    { re: /paint|decorat|plaster|interior|floor/i, label: 'Painting and finishing', c: [
+      ['Preparation and finish', 'The Contractor will protect floors and furniture, prepare surfaces properly, use the paint agreed with the customer, and correct patchy or peeling work caused by poor workmanship free of charge for 30 days.']] },
+    { re: /clean|laundry|garden|landscap|pest|fumigat|housekeep|nanny|cook|chef|catering/i, label: 'Cleaning, home and garden services', c: [
+      ['Trust in the home', 'The Contractor will treat customers\' homes and belongings with respect, will not take, move or photograph anything without permission, and will not bring anyone else to the job unless Velos has approved them.'],
+      ['Products and safety', 'Cleaning products, chemicals and pesticides will be used safely and as directed, and the customer will be told of any precautions.']] },
+    { re: /photo|video|dj\b|mc\b|music|band|decor|event|plann|tailor|seamstress|hair|makeup|beaut|barber|massage/i, label: 'Events, beauty and creative services', c: [
+      ['Booking and time', 'The Contractor will confirm date, place, time and price through Velos, arrive on time and prepared, and will not double-book a date that has been confirmed through Velos.'],
+      ['Quality and hygiene', 'The Contractor will deliver to the standard shown in their portfolio, keep tools and products clean and safe for clients, and deliver agreed files or items by the promised date.']] }
+  ];
+  var VEH = [
+    { re: /boda|motor|scooter|moped|bajaj|\bbike\b/i, label: 'Motorcycle delivery', c: [['Motorcycle, permit and insurance', 'The Contractor will ride only a roadworthy motorcycle registered in their name or used with the owner\'s permission, hold a valid riding permit, wear a helmet and the Velos reflector jacket at all times, keep third-party insurance where the law requires it, and pay for their own fuel, servicing and fines.']] },
+    { re: /\bbicycles?\b|\bpedal/i, label: 'Bicycle delivery', c: [['Distance and safety', 'Because the Contractor delivers by bicycle, they will accept jobs only within a distance they can ride safely and in good time, will ride with lights and reflective gear after dark, and will tell Velos if weather or distance makes a delivery unsafe.']] },
+    { re: /tuk|tricycle|three.?wheel/i, label: 'Tricycle delivery', c: [['Vehicle and loading', 'The Contractor will use a roadworthy, properly registered tricycle, load goods safely and within its capacity, and never carry passengers with an order.']] },
+    { re: /car\b|van\b|truck|pick.?up|lorry|vehicle/i, label: 'Car, van and truck delivery', c: [['Vehicle, licence and loads', 'The Contractor will drive only a roadworthy, registered and insured vehicle with the correct driving licence class, secure every load, never exceed the vehicle\'s capacity, and keep to lawful speed and parking.']] }
+  ];
+  function first(list, text) { for (var i = 0; i < list.length; i++) if (list[i].re.test(text)) return list[i]; return null; }
+  function plain(s) { return String(s == null ? '' : s).replace(/[^\x20-\x7E]/g, '').trim(); }
+  /* VelosTerms.person(kind, p) -> {label, clauses} extra clauses written for this person */
+  function person(kind, p) {
+    p = p || {}; var out = [], label = '';
+    if (kind === 'rider') {
+      var v = plain(p.vehicle), pl = plain(p.plate), h = first(VEH, v + ' ' + pl);
+      out.push(['Declared vehicle', 'The Contractor declares that they will make deliveries using' + (v ? ' a ' + v : ' the vehicle registered with Velos') + (pl ? ' (registration ' + pl + ')' : '') + (p.city ? ', working in the ' + plain(p.city) + ' area' : '') + '. They will tell Velos before using any other vehicle, and Velos may stop jobs if the vehicle is not roadworthy or not the one declared.']);
+      if (h) { label = h.label; out = out.concat(h.c); }
+    } else if (kind === 'agent') {
+      var city = plain(p.city);
+      out.push(['Area and conduct', 'The Contractor will promote Velos mainly in ' + (city || 'the area registered with Velos') + ' and will respect the privacy of customers and shops, never pressure anyone to sign up, and never collect money on behalf of Velos except through the Velos app.']);
+      if (p.commission_pct != null && p.commission_pct !== '') out.push(['Commission rate', 'The commission agreed with this Contractor is ' + p.commission_pct + '% of completed and paid sales credited to their code. It is paid only on sales that are completed and paid, and Velos will tell the Contractor before any change takes effect.']);
+      label = 'Sales agent' + (city ? ' - ' + city : '');
+    } else if (kind === 'technician') {
+      var tr = plain(p.trade), t = first(TRADES, tr + ' ' + plain(p.name));
+      out.push(['Declared trade', 'The Contractor declares that their trade is "' + (tr || 'as registered with Velos') + '"' + (p.city ? ' and that they work in the ' + plain(p.city) + ' area' : '') + '. They will accept only jobs within that trade and their skill, and will tell Velos honestly when a job is beyond it.']);
+      if (t) { label = t.label; out = out.concat(t.c); }
+      else out.push(['Quality of work', 'The Contractor will do the work to the standard of a skilled person in their trade, with sound tools and safe methods, and will correct faulty workmanship free of charge for 14 days.']);
+    }
+    return { label: label, clauses: out };
+  }
+  W.VelosTerms.person = person;
 })(window);

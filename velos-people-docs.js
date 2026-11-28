@@ -79,6 +79,13 @@
     } catch (e) {}
   }
 
+  /* terms for this person: base role clauses + clauses written for their vehicle / trade / area, placed before the general clauses */
+  function termsFor(kind, p) {
+    var base = CLAUSES[kind].slice(), ex = null; try { ex = W.VelosTerms && W.VelosTerms.person(kind, p); } catch (e) {}
+    if (!ex || !ex.clauses.length) return base;
+    var gen = COMMON_A.length + COMMON_B.length, at = Math.max(0, base.length - gen);
+    return base.slice(0, at).concat(ex.clauses, base.slice(at));
+  }
   /* ---------------- Agreement ---------------- */
   async function agreement(kind, p) {
     await lib();
@@ -104,7 +111,7 @@
     rows.forEach(function (r, i) { var h = 7.5; if (i % 2 === 0) { doc.setFillColor(LT[0], LT[1], LT[2]); doc.rect(15, y, 180, h, 'F'); } doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(GR[0], GR[1], GR[2]); doc.text(r[0], 18, y + 5); doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(TX[0], TX[1], TX[2]); doc.text(doc.splitTextToSize(r[1], 118)[0], 72, y + 5); y += h; });
     y += 7; doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(GR[0], GR[1], GR[2]); doc.text('TERMS', 15, y); y += 5;
     doc.setFontSize(9);
-    CLAUSES[kind].forEach(function (c, i) {
+    termsFor(kind, p).forEach(function (c, i) {
       var ls = doc.splitTextToSize((i + 1) + '. ' + c[0] + '. ' + c[1], 180);
       if (y + ls.length * 4.4 > 268) { foot(page); doc.addPage(); page++; y = 22; }
       doc.setFont('helvetica', 'normal'); doc.setTextColor(TX[0], TX[1], TX[2]); ls.forEach(function (l) { doc.text(l, 15, y); y += 4.4; }); y += 1.8;
@@ -305,14 +312,14 @@
       } catch (e) { W.toast && W.toast(e.message || String(e), true); }
     });
   }
-  function needSign() { return new Promise(function (ok, bad) { if (W.VelosSign) return ok(); var s = document.createElement('script'); s.src = 'velos-signflow.js?v=71'; s.onload = function () { W.VelosSign ? ok() : bad(Error('Signing window could not load')); }; s.onerror = function () { bad(Error('Signing window could not load. Check your internet and try again.')); }; document.head.appendChild(s); }); }
+  function needSign() { return new Promise(function (ok, bad) { if (W.VelosSign) return ok(); var s = document.createElement('script'); s.src = 'velos-signflow.js?v=88'; s.onload = function () { W.VelosSign ? ok() : bad(Error('Signing window could not load')); }; s.onerror = function () { bad(Error('Signing window could not load. Check your internet and try again.')); }; document.head.appendChild(s); }); }
   function getFile(blob, name) { try { return new File([blob], name, { type: 'application/pdf' }); } catch (e) { blob.name = name; return blob; } }
   /* read, sign, then the document is created, saved with Velos and downloaded. No unsigned copy is ever created. */
   async function signFlow() {
     var kind = ME && ME.kind; if (!kind) return;
     try {
       await needSign(); await lib();
-      var s = await W.VelosSign.ask({ title: 'Sign your Velos ' + (ROLE[kind] || '') + ' agreement', subtitle: 'Read every clause, then sign with your finger. Your signed agreement downloads after you sign and Velos keeps a copy.', name: (ME.p && ME.p.name) || '', business: (ME.p && ME.p.name) || '', terms: CLAUSES[kind], note: 'Your agreement is created only after you sign.' });
+      var s = await W.VelosSign.ask({ title: 'Sign your Velos ' + (ROLE[kind] || '') + ' agreement', subtitle: 'Read every clause, then sign with your finger. Your signed agreement downloads after you sign and Velos keeps a copy.', name: (ME.p && ME.p.name) || '', business: (ME.p && ME.p.name) || '', terms: termsFor(kind, ME.p || {}), note: 'Your agreement is created only after you sign.' });
       W.toast && W.toast('Creating your signed agreement…');
       var r = await agreement(kind, Object.assign({}, ME.p, { holderSig: s.sig, name: s.name }));
       await sendFile(kind, 'signed', r.file);
