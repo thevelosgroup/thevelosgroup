@@ -533,7 +533,7 @@ function siteUI(){
     }
     if(added){ var tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null), n; while((n = tw.nextNode())){ if(/04\s*of\s*04/.test(n.nodeValue)){ n.nodeValue = n.nodeValue.replace(/04(\s*of\s*)04/, '05$105'); break; } } }
   }
-  try { var ft = document.querySelector('footer'); if(ft && window.velosCurrencyPicker && !document.getElementById('vcur')){ var w = document.createElement('div'); w.id = 'vcur'; w.style.cssText = 'text-align:center;padding:8px;font:600 12px system-ui;color:#a3adc6'; w.appendChild(document.createTextNode('Prices shown in: ')); w.appendChild(window.velosCurrencyPicker()); w.appendChild(document.createTextNode(' · payments are made in UGX')); ft.appendChild(w); } } catch(e){}
+  try { var ft = document.querySelector('footer'); if(ft && !document.getElementById('vfcur') && window.velosCurrencyPicker && !document.getElementById('vcur')){ var w = document.createElement('div'); w.id = 'vcur'; w.style.cssText = 'text-align:center;padding:8px;font:600 12px system-ui;color:#a3adc6'; w.appendChild(document.createTextNode('Prices shown in: ')); w.appendChild(window.velosCurrencyPicker()); w.appendChild(document.createTextNode(' · payments are made in UGX')); ft.appendChild(w); } } catch(e){}
   hookSearch();
 }
 function hookSearch(){
@@ -625,9 +625,10 @@ function dom(){
   if(ft){ var lk = document.createElement('div'); lk.style.cssText = 'text-align:center;padding:10px;font-size:13px'; lk.innerHTML = '<a href="terms.html" style="color:#e8c766">Terms &amp; Conditions</a> · <a href="privacy.html" style="color:#e8c766">Privacy Policy</a> · <a href="foods.html" style="color:#e8c766">Velos Foods</a> · <a href="fashion.html" style="color:#e8c766">Fashions &amp; Beauty</a> · <a href="careers.html" style="color:#e8c766">Careers</a>'; ft.appendChild(lk); }
   var last = null; try { last = localStorage.getItem('velosLast'); } catch(x){}
   if(last && !/track\.html|book-service/.test(location.pathname)){
-    var a = document.createElement('a'); a.href = 'track.html?o=' + last; a.textContent = 'Track ' + (last[0] === 'S' ? 'request ' : 'order #') + last.slice(1);
-    a.style.cssText = 'position:fixed;left:12px;bottom:96px;z-index:900;background:#0f1730;color:#e8c766;border:1px solid #2a3560;border-radius:99px;padding:9px 14px;font:600 13px system-ui;text-decoration:none';
+    var a = document.createElement('a'); a.href = (last[0] === 'F' ? 'food-track.html?o=' : 'track.html?o=') + last; a.textContent = '📍 Track ' + (last[0] === 'S' ? 'request ' : 'order ') + last;
+    a.style.cssText = 'position:fixed;left:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:900;background:#0f1730;color:#e8c766;border:1px solid #2a3560;border-radius:99px;padding:7px 12px;font:600 12px system-ui;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.4)';
     document.body.appendChild(a);
+    try{var io=new IntersectionObserver(function(e){a.style.display=e[0].isIntersecting?'none':''},{threshold:0.05});var iv=setInterval(function(){var t=document.getElementById('vft');if(t){io.observe(t);clearInterval(iv)}},800);setTimeout(function(){clearInterval(iv)},9000)}catch(x){}
   }
 }
 if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', dom); else dom();

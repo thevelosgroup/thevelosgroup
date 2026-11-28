@@ -10,7 +10,7 @@
     'velos-site-config.js?v=2',
     'app-core.js?v=20',
     'velos-share.js?v=5',
-    'velos-api.js?v=21',
+    'velos-api.js?v=87',
     'velos-assistant.js?v=2',
     'velos-push.js?v=1'
   ];
