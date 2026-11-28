@@ -119,14 +119,15 @@
     y += 4; if (y > 215) { foot(page); doc.addPage(); page++; y = 30; }
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(GR[0], GR[1], GR[2]);
     doc.splitTextToSize('By signing, the Contractor confirms that the details above are true, that they have read and understood this agreement, and that they agree to it. Signed copies are kept by both sides.', 180).forEach(function (l) { doc.text(l, 15, y); y += 4.2; });
-    var sy = y + 32; if (sy > 258) { foot(page); doc.addPage(); page++; sy = 60; }
+    var sy = y + 32; if (sy > 238) { foot(page); doc.addPage(); page++; sy = 60; }
     if (sig) fit(doc, sig, 17, sy - 25, 56, 24);
     try { if (W.VelosStamp) await W.VelosStamp.place(doc, 75, sy - 34, 32, { label: 'APPROVED', date: p.issued_at }); } catch (e) {}
     doc.setDrawColor(GR[0], GR[1], GR[2]); doc.setLineWidth(.3); doc.line(15, sy, 75, sy); doc.line(135, sy, 195, sy);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(TX[0], TX[1], TX[2]); doc.text('The Velos Group (signed)', 15, sy + 4.5); doc.text(name + ' (Contractor)', 135, sy + 4.5);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(GR[0], GR[1], GR[2]); doc.text('Authorised signature', 15, sy + 8.8); doc.text('Date: ' + issued, 15, sy + 13.5); doc.text('Contractor signature', 135, sy + 8.8); doc.text(p.holderSig ? 'Date: ' + dmy(Date.now()) : 'Date: ........ / ........ / ............', 135, sy + 13.5);
     if (p.holderSig) { fit(doc, p.holderSig, 137, sy - 17, 56, 16); doc.setFontSize(6.5); doc.text('Signed online on ' + new Date().toLocaleString('en-GB') + ' from the Velos app', 135, sy + 17.5); }
-    doc.text('Witness name and signature: ______________________________', 135, sy + 22);
+    if (p.witnessSig) { fit(doc, p.witnessSig, 137, sy + 20, 40, 11); doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(TX[0], TX[1], TX[2]); doc.text('Witness: ' + clean(p.witnessName), 135, sy + 34); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(GR[0], GR[1], GR[2]); doc.text('Witnessed and signed online ' + new Date().toLocaleString('en-GB'), 135, sy + 37.5); }
+    else doc.text('Witness name and signature: ______________________________', 135, sy + 22);
     foot(page); velosWM(doc);
     var fname = ('Velos-' + ROLE[kind].replace(/ /g, '') + '-Agreement-' + no + '-' + name).replace(/[^\w-]+/g, '-').replace(/-+/g, '-') + '.pdf';
     return { doc: doc, no: no, file: new File([doc.output('blob')], fname, { type: 'application/pdf' }), name: fname };
@@ -312,7 +313,7 @@
       } catch (e) { W.toast && W.toast(e.message || String(e), true); }
     });
   }
-  function needSign() { return new Promise(function (ok, bad) { if (W.VelosSign) return ok(); var s = document.createElement('script'); s.src = 'velos-signflow.js?v=88'; s.onload = function () { W.VelosSign ? ok() : bad(Error('Signing window could not load')); }; s.onerror = function () { bad(Error('Signing window could not load. Check your internet and try again.')); }; document.head.appendChild(s); }); }
+  function needSign() { return new Promise(function (ok, bad) { if (W.VelosSign) return ok(); var s = document.createElement('script'); s.src = 'velos-signflow.js?v=89'; s.onload = function () { W.VelosSign ? ok() : bad(Error('Signing window could not load')); }; s.onerror = function () { bad(Error('Signing window could not load. Check your internet and try again.')); }; document.head.appendChild(s); }); }
   function getFile(blob, name) { try { return new File([blob], name, { type: 'application/pdf' }); } catch (e) { blob.name = name; return blob; } }
   /* read, sign, then the document is created, saved with Velos and downloaded. No unsigned copy is ever created. */
   async function signFlow() {
@@ -321,7 +322,7 @@
       await needSign(); await lib();
       var s = await W.VelosSign.ask({ title: 'Sign your Velos ' + (ROLE[kind] || '') + ' agreement', subtitle: 'Read every clause, then sign with your finger. Your signed agreement downloads after you sign and Velos keeps a copy.', name: (ME.p && ME.p.name) || '', business: (ME.p && ME.p.name) || '', terms: termsFor(kind, ME.p || {}), note: 'Your agreement is created only after you sign.' });
       W.toast && W.toast('Creating your signed agreement…');
-      var r = await agreement(kind, Object.assign({}, ME.p, { holderSig: s.sig, name: s.name }));
+      var r = await agreement(kind, Object.assign({}, ME.p, { holderSig: s.sig, name: s.name, witnessSig: s.wsig, witnessName: s.wname }));
       await sendFile(kind, 'signed', r.file);
       try { var uid = (await DB().auth.getUser()).data.user.id, path = uid + '/' + kind + '-' + Date.now() + '.pdf', up = await DB().storage.from('signed-agreements').upload(path, r.file, { contentType: 'application/pdf' }); if (!up.error) await DB().rpc('sign_agreement_save', { p_kind: kind, p_path: path, p_name: s.name, p_ref: r.no || '', p_business: s.name }); } catch (e) {}
       try { await share(r); } catch (e) { save(r); }

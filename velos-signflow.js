@@ -17,6 +17,27 @@
       + '@media print{.vsg-w{display:none!important}}';
     D.head.appendChild(s);
   }
+
+  /* second step: the witness types their name and signs on the same phone, after the owner has signed */
+  function witness(w, o, owner, done) {
+    var b = w.querySelector('.vsg-b');
+    b.innerHTML = '<h2>Witness signature</h2><div class="vsg-m">' + esc(owner) + ' has signed. Now hand the phone to the person who is witnessing. The witness must be an adult who watched ' + esc(owner) + ' sign, and who is not the other party to this agreement.</div>'
+      + '<input type="text" id="vsg-wn" placeholder="Witness full name *" autocomplete="off"><input type="text" id="vsg-wp" placeholder="Witness phone or ID number (optional)" autocomplete="off"><div class="vsg-m">Witness: sign inside the box</div><canvas id="vsg-wc" width="640" height="240"></canvas>'
+      + '<div class="vsg-r"><button class="g" id="vsg-wx">Clear</button><span></span></div><label class="vsg-m" style="display:flex;gap:8px;margin-top:8px;align-items:flex-start"><input type="checkbox" id="vsg-wa" style="width:auto;margin-top:4px"><span>I saw ' + esc(owner) + ' sign this agreement and I sign as witness.</span></label>'
+      + '<div class="vsg-e" id="vsg-we"></div><div class="vsg-r"><button id="vsg-wok">✍️ Witness signs and finish</button><button class="g" id="vsg-wskip">Skip, witness later</button></div><div class="vsg-m" style="margin-top:8px">If you skip, the agreement is still created with a blank witness line that can be signed by hand.</div>';
+    var c = b.querySelector('#vsg-wc'), x = c.getContext('2d'), ink = false, down = false; x.lineWidth = 3.2; x.lineCap = 'round'; x.strokeStyle = '#0a1230';
+    var pos = function (ev) { var r = c.getBoundingClientRect(), t = ev.touches ? ev.touches[0] : ev; return [(t.clientX - r.left) * c.width / r.width, (t.clientY - r.top) * c.height / r.height]; };
+    var st = function (ev) { ev.preventDefault(); down = true; var p = pos(ev); x.beginPath(); x.moveTo(p[0], p[1]); }, mv = function (ev) { if (!down) return; ev.preventDefault(); var p = pos(ev); x.lineTo(p[0], p[1]); x.stroke(); ink = true; }, en = function () { down = false; };
+    c.addEventListener('touchstart', st, { passive: false }); c.addEventListener('touchmove', mv, { passive: false }); c.addEventListener('touchend', en); c.addEventListener('mousedown', st); c.addEventListener('mousemove', mv); W.addEventListener('mouseup', en);
+    b.querySelector('#vsg-wx').onclick = function () { x.clearRect(0, 0, c.width, c.height); ink = false; };
+    b.querySelector('#vsg-wskip').onclick = function () { done(null); };
+    b.querySelector('#vsg-wok').onclick = function () {
+      var n = b.querySelector('#vsg-wn').value.trim(), e = b.querySelector('#vsg-we');
+      if (n.length < 3) { e.textContent = 'Type the witness full name.'; return; } if (n.toLowerCase() === String(owner).trim().toLowerCase()) { e.textContent = 'The witness must be a different person.'; return; }
+      if (!ink) { e.textContent = 'The witness must sign inside the box.'; return; } if (!b.querySelector('#vsg-wa').checked) { e.textContent = 'Tick the box to confirm.'; return; }
+      done({ sig: c.toDataURL('image/png'), name: n, extra: b.querySelector('#vsg-wp').value.trim() });
+    };
+  }
   function ask(o) {
     css();
     return new Promise(function (ok, no) {
@@ -37,7 +58,9 @@
       w.querySelector('#vsg-ok').onclick = function () {
         var n = w.querySelector('#vsg-n').value.trim(), e = w.querySelector('#vsg-e');
         if (n.length < 3) { e.textContent = 'Type your full name.'; return; } if (!ink) { e.textContent = 'Please sign inside the box.'; return; } if (!w.querySelector('#vsg-a').checked) { e.textContent = 'Tick the box to confirm.'; return; }
-        var sig = c.toDataURL('image/png'); w.remove(); ok({ sig: sig, name: n });
+        var sig = c.toDataURL('image/png');
+        if (o.witness === false) { w.remove(); ok({ sig: sig, name: n }); return; }
+        witness(w, o, n, function (wi) { w.remove(); ok({ sig: sig, name: n, wsig: wi && wi.sig, wname: wi && wi.name }); });
       };
     });
   }
